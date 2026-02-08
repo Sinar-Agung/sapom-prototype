@@ -11,10 +11,22 @@ interface OrderItem {
   availablePcs?: string;
 }
 
+interface Photo {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
 interface Order {
   id: string;
   timestamp: number;
   createdBy?: string;
+  requestNo?: string;
+  updatedDate?: number;
+  updatedBy?: string;
+  photoId?: string;
+  stockistId?: string;
   pabrik: {
     id: string;
     name: string;
@@ -28,7 +40,7 @@ interface Order {
     name: string;
   };
   waktuKirim: string;
-  followUpAction: string;
+  customerExpectation: string;
   detailItems: OrderItem[];
   fotoBarangBase64?: string;
   status: string;
@@ -50,14 +62,79 @@ const getTimestampDaysAgo = (days: number): number => {
 // Helper to generate unique IDs
 let idCounter = 1;
 const generateId = () => `order-${Date.now()}-${idCounter++}`;
-const generateItemId = () => `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+const generateItemId = () =>
+  `item-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
+// Mock Photo Database
+const mockPhotos: Photo[] = [
+  {
+    id: "photo-001",
+    name: "Kalung Emas Putih Premium",
+    description: "Kalung desain Italia dengan batu permata",
+    category: "kalung",
+  },
+  {
+    id: "photo-002",
+    name: "Kalung Emas Kuning Klasik",
+    description: "Kalung tradisional dengan tali emas",
+    category: "kalung",
+  },
+  {
+    id: "photo-003",
+    name: "Gelang Rantai Emas Putih",
+    description: "Gelang dengan rantai presisi halus",
+    category: "gelang-rantai",
+  },
+  {
+    id: "photo-004",
+    name: "Gelang Keroncong Modern",
+    description: "Gelang dengan desain keroncong kontemporer",
+    category: "gelang-keroncong",
+  },
+  {
+    id: "photo-005",
+    name: "Cincin Emas Putih Elegan",
+    description: "Cincin dengan desain minimalis modern",
+    category: "cincin",
+  },
+  {
+    id: "photo-006",
+    name: "Cincin Emas Kuning Bertahtakan",
+    description: "Cincin dengan batu mulia pilihan",
+    category: "cincin",
+  },
+  {
+    id: "photo-007",
+    name: "Anting Emas Putih Berlian",
+    description: "Anting dengan desain geometris modern",
+    category: "anting",
+  },
+  {
+    id: "photo-008",
+    name: "Anting Emas Kuning Tradisional",
+    description: "Anting dengan motif batik Indonesia",
+    category: "anting",
+  },
+  {
+    id: "photo-009",
+    name: "Kalung Panjang Emas Campuran",
+    description: "Kalung dengan kombinasi warna emas",
+    category: "kalung",
+  },
+  {
+    id: "photo-010",
+    name: "Set Perhiasan Lengkap",
+    description: "Set kalung, cincin, dan anting koordinasi",
+    category: "set",
+  },
+];
 
 // Mock data generator
 export const generateMockOrders = (): Order[] => {
   const orders: Order[] = [];
-  const salesUsers = ["Budi Santoso", "Ani Wijaya", "Cahya Pratama", "Dewi Sari"];
-  
-  // Customer names from ATAS_NAMA_OPTIONS - using proper labels with both id and name
+  const salesUsers = ["sales1", "sales2", "sales3", "sales4"];
+  const stockistUsers = ["stockist1", "stockist2"];
+
   const customers = [
     { id: "toko-emas-sejahtera", name: "Toko Emas Sejahtera" },
     { id: "toko-perhiasan-mulia", name: "Toko Perhiasan Mulia" },
@@ -68,10 +145,9 @@ export const generateMockOrders = (): Order[] => {
     { id: "toko-emas-harmoni", name: "Toko Emas Harmoni" },
     { id: "galeri-emas-nusantara", name: "Galeri Emas Nusantara" },
     { id: "toko-mas-rejeki", name: "Toko Mas Rejeki" },
-    { id: "perhiasan-modern", name: "Perhiasan Modern" }
+    { id: "perhiasan-modern", name: "Perhiasan Modern" },
   ];
-  
-  // Realistic supplier names from PABRIK_OPTIONS
+
   const suppliers = [
     { id: "king-halim", name: "King Halim" },
     { id: "ubs-gold", name: "UBS Gold" },
@@ -79,772 +155,853 @@ export const generateMockOrders = (): Order[] => {
     { id: "yt-gold", name: "YT Gold" },
     { id: "mt-gold", name: "MT Gold" },
     { id: "hwt", name: "HWT" },
-    { id: "ayu", name: "Ayu" }
+    { id: "ayu", name: "Ayu" },
   ];
-  
-  // ==========================================
-  // 12 OPEN REQUESTS
-  // ==========================================
-  
-  // Open Request 1: Basic - Italy Santa
+
+  // Open Request 1
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(5),
+    requestNo: "RPO-20260201-0001",
+    updatedDate: 1770238055591,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[0],
-    pabrik: suppliers.find(s => s.id === "ubs-gold")!,
+    photoId: "photo-003",
+    photoId: "photo-001",
+    pabrik: suppliers.find((s) => s.id === "ubs-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",
     namaProduk: "",
     namaBasic: "italy-santa",
-    namaPelanggan: customers.find(c => c.id === "toko-emas-sejahtera")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-emas-sejahtera")!,
     waktuKirim: getDaysFromNow(7),
-    followUpAction: "Call customer for confirmation",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "p",
+        kadar: "17k",
+        warna: "rg",
         ukuran: "16",
         berat: "5.5",
-        pcs: "10"
+        pcs: "10",
       },
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "p",
+        kadar: "16k",
+        warna: "ap",
         ukuran: "18",
         berat: "6.0",
-        pcs: "15"
-      }
+        pcs: "15",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 2: Model - Custom Design
+  // Open Request 2
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(4),
+    requestNo: "RPO-20260202-0002",
+    updatedDate: 1770156075717,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[1],
-    pabrik: suppliers.find(s => s.id === "king-halim")!,
+    photoId: "photo-004",
+    pabrik: suppliers.find((s) => s.id === "king-halim")!,
     kategoriBarang: "model",
     jenisProduk: "gelang-rantai",
     namaProduk: "gelang-keroncong",
     namaBasic: "",
-    namaPelanggan: customers.find(c => c.id === "toko-perhiasan-mulia")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-perhiasan-mulia")!,
     waktuKirim: getDaysFromNow(10),
-    followUpAction: "Wait for sample approval",
+    customerExpectation: "ready-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "750",
-        warna: "k",
+        kadar: "16k",
+        warna: "kn",
         ukuran: "18",
         berat: "12.0",
-        pcs: "5"
-      }
+        pcs: "5",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 3: Basic - Kalung Flexi
+  // Open Request 3
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(3),
+    requestNo: "RPO-20260203-0003",
+    updatedDate: 1769759553456,
+    updatedBy: stockistUsers[2],
     createdBy: salesUsers[2],
-    pabrik: suppliers.find(s => s.id === "lestari-gold")!,
+    photoId: "photo-005",
+    pabrik: suppliers.find((s) => s.id === "lestari-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",
     namaProduk: "",
     namaBasic: "kalung-flexi",
-    namaPelanggan: customers.find(c => c.id === "emas-berlian-jaya")!,
+    namaPelanggan: customers.find((c) => c.id === "emas-berlian-jaya")!,
     waktuKirim: getDaysFromNow(5),
-    followUpAction: "Send catalog",
+    customerExpectation: "order-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "6k",
+        warna: "rg",
         ukuran: "40",
         berat: "3.2",
-        pcs: "20"
+        pcs: "20",
       },
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "8k",
+        warna: "rg",
         ukuran: "45",
         berat: "3.5",
-        pcs: "25"
+        pcs: "25",
       },
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "p",
+        kadar: "9k",
+        warna: "rg",
         ukuran: "40",
         berat: "3.3",
-        pcs: "10"
-      }
+        pcs: "10",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 4: Basic - Milano
+  // Open Request 4
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(2),
+    requestNo: "RPO-20260204-0004",
+    updatedDate: 1769812380438,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[3],
-    pabrik: suppliers.find(s => s.id === "yt-gold")!,
+    photoId: "photo-006",
+    pabrik: suppliers.find((s) => s.id === "yt-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "cincin",
     namaProduk: "",
     namaBasic: "milano",
-    namaPelanggan: customers.find(c => c.id === "toko-mas-indah")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-mas-indah")!,
     waktuKirim: getDaysFromNow(12),
-    followUpAction: "Follow up payment",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "m",
+        kadar: "17k",
+        warna: "ap",
         ukuran: "15",
         berat: "2.5",
-        pcs: "8"
+        pcs: "8",
       },
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "m",
+        kadar: "17k",
+        warna: "ap",
         ukuran: "16",
         berat: "2.6",
-        pcs: "12"
-      }
+        pcs: "12",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 5: Basic - Italy Bambu
+  // Open Request 5
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(1),
+    requestNo: "RPO-20260205-0005",
+    updatedDate: 1769799199817,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[0],
-    pabrik: suppliers.find(s => s.id === "ubs-gold")!,
+    photoId: "photo-007",
+    pabrik: suppliers.find((s) => s.id === "ubs-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "gelang-rantai",
     namaProduk: "",
     namaBasic: "italy-bambu",
-    namaPelanggan: customers.find(c => c.id === "perhiasan-permata")!,
+    namaPelanggan: customers.find((c) => c.id === "perhiasan-permata")!,
     waktuKirim: getDaysFromNow(8),
-    followUpAction: "Confirm size availability",
+    customerExpectation: "ready-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "750",
-        warna: "p",
+        kadar: "16k",
+        warna: "rg",
         ukuran: "18",
         berat: "10.0",
-        pcs: "6"
-      }
+        pcs: "6",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 6: Model - Custom Liontin
+  // Open Request 6
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(1),
+    requestNo: "RPO-20260205-0006",
+    updatedDate: 1769432858172,
+    updatedBy: stockistUsers[2],
     createdBy: salesUsers[1],
-    pabrik: suppliers.find(s => s.id === "king-halim")!,
+    photoId: "photo-008",
+    pabrik: suppliers.find((s) => s.id === "king-halim")!,
     kategoriBarang: "model",
     jenisProduk: "liontin",
     namaProduk: "liontin-heart-love",
     namaBasic: "",
-    namaPelanggan: customers.find(c => c.id === "toko-emas-berkah")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-emas-berkah")!,
     waktuKirim: getDaysFromNow(15),
-    followUpAction: "Send design mockup",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "k",
+        kadar: "17k",
+        warna: "kn",
         ukuran: "n",
         berat: "4.5",
-        pcs: "10"
+        pcs: "10",
       },
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "m",
+        kadar: "17k",
+        warna: "ap",
         ukuran: "n",
         berat: "4.5",
-        pcs: "10"
-      }
+        pcs: "10",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 7: Basic - Tambang
+  // Open Request 7
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(6),
+    requestNo: "RPO-20260131-0007",
+    updatedDate: 1769455151169,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[2],
-    pabrik: suppliers.find(s => s.id === "mt-gold")!,
+    photoId: "photo-009",
+    pabrik: suppliers.find((s) => s.id === "mt-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",
     namaProduk: "",
     namaBasic: "tambang",
-    namaPelanggan: customers.find(c => c.id === "toko-emas-harmoni")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-emas-harmoni")!,
     waktuKirim: getDaysFromNow(6),
-    followUpAction: "Price negotiation",
+    customerExpectation: "order-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "p",
+        kadar: "9k",
+        warna: "rg",
         ukuran: "42",
         berat: "8.0",
-        pcs: "15"
-      }
+        pcs: "15",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 8: Basic - Sunny Vanessa
+  // Open Request 8
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(7),
+    requestNo: "RPO-20260130-0008",
+    updatedDate: 1769545011219,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[3],
-    pabrik: suppliers.find(s => s.id === "hwt")!,
+    photoId: "photo-010",
+    pabrik: suppliers.find((s) => s.id === "hwt")!,
     kategoriBarang: "basic",
     jenisProduk: "gelang-rantai",
     namaProduk: "",
     namaBasic: "sunny-vanessa",
-    namaPelanggan: customers.find(c => c.id === "galeri-emas-nusantara")!,
+    namaPelanggan: customers.find((c) => c.id === "galeri-emas-nusantara")!,
     waktuKirim: getDaysFromNow(9),
-    followUpAction: "Wait for deposit",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "6k",
+        warna: "rg",
         ukuran: "17",
         berat: "5.5",
-        pcs: "12"
+        pcs: "12",
       },
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "8k",
+        warna: "rg",
         ukuran: "18",
         berat: "6.0",
-        pcs: "18"
-      }
+        pcs: "18",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 9: Model - Anting Custom
+  // Open Request 9
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(8),
+    requestNo: "RPO-20260129-0009",
+    updatedDate: 1769120685303,
+    updatedBy: stockistUsers[2],
     createdBy: salesUsers[0],
-    pabrik: suppliers.find(s => s.id === "ayu")!,
+    photoId: "photo-001",
+    pabrik: suppliers.find((s) => s.id === "ayu")!,
     kategoriBarang: "model",
     jenisProduk: "anting",
     namaProduk: "anting-berlian-bulat",
     namaBasic: "",
-    namaPelanggan: customers.find(c => c.id === "toko-mas-rejeki")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-mas-rejeki")!,
     waktuKirim: getDaysFromNow(11),
-    followUpAction: "Customer review",
+    customerExpectation: "ready-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "p",
+        kadar: "17k",
+        warna: "rg",
         ukuran: "n",
         berat: "2.0",
-        pcs: "25"
-      }
+        pcs: "25",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 10: Basic - Casteli
+  // Open Request 10
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(9),
+    requestNo: "RPO-20260128-0010",
+    updatedDate: 1769141583919,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[1],
-    pabrik: suppliers.find(s => s.id === "king-halim")!,
+    photoId: "photo-002",
+    pabrik: suppliers.find((s) => s.id === "king-halim")!,
     kategoriBarang: "basic",
     jenisProduk: "cincin",
     namaProduk: "",
     namaBasic: "casteli",
-    namaPelanggan: customers.find(c => c.id === "perhiasan-modern")!,
+    namaPelanggan: customers.find((c) => c.id === "perhiasan-modern")!,
     waktuKirim: getDaysFromNow(14),
-    followUpAction: "Size confirmation needed",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "750",
-        warna: "m",
+        kadar: "16k",
+        warna: "ap",
         ukuran: "14",
         berat: "3.0",
-        pcs: "8"
+        pcs: "8",
       },
       {
         id: generateItemId(),
-        kadar: "750",
-        warna: "m",
+        kadar: "24k",
+        warna: "ap",
         ukuran: "15",
         berat: "3.2",
-        pcs: "10"
+        pcs: "10",
       },
       {
         id: generateItemId(),
-        kadar: "750",
-        warna: "m",
+        kadar: "24k",
+        warna: "ap",
         ukuran: "16",
         berat: "3.4",
-        pcs: "12"
-      }
+        pcs: "12",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 11: Basic - Hollow Fancy Nori
+  // Open Request 11
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(10),
+    requestNo: "RPO-20260127-0011",
+    updatedDate: 1769087661483,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[2],
-    pabrik: suppliers.find(s => s.id === "lestari-gold")!,
+    photoId: "photo-003",
+    pabrik: suppliers.find((s) => s.id === "lestari-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",
     namaProduk: "",
     namaBasic: "hollow-fancy-nori",
-    namaPelanggan: customers.find(c => c.id === "toko-emas-sejahtera")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-emas-sejahtera")!,
     waktuKirim: getDaysFromNow(7),
-    followUpAction: "Urgent - follow up today",
+    customerExpectation: "order-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "p",
+        kadar: "17k",
+        warna: "rg",
         ukuran: "40",
         berat: "7.5",
-        pcs: "5"
-      }
+        pcs: "5",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
 
-  // Open Request 12: Model - Gelang Custom
+  // Open Request 12
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(11),
+    requestNo: "RPO-20260126-0012",
+    updatedDate: 1768793577938,
+    updatedBy: stockistUsers[2],
     createdBy: salesUsers[3],
-    pabrik: suppliers.find(s => s.id === "yt-gold")!,
+    photoId: "photo-004",
+    pabrik: suppliers.find((s) => s.id === "yt-gold")!,
     kategoriBarang: "model",
     jenisProduk: "gelang-kaku",
     namaProduk: "gelang-bangle-emas",
     namaBasic: "",
-    namaPelanggan: customers.find(c => c.id === "toko-perhiasan-mulia")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-perhiasan-mulia")!,
     waktuKirim: getDaysFromNow(20),
-    followUpAction: "Sample production",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "k",
+        kadar: "9k",
+        warna: "kn",
         ukuran: "17",
         berat: "15.0",
-        pcs: "3"
+        pcs: "3",
       },
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "m",
+        kadar: "9k",
+        warna: "ap",
         ukuran: "18",
         berat: "16.0",
-        pcs: "3"
-      }
+        pcs: "3",
+      },
     ],
-    status: "Open"
+    status: "Open",
   });
-
-  // ==========================================
-  // 4 STOCKIST PROCESSING
-  // ==========================================
 
   // Stockist Processing 1
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(12),
+    requestNo: "RPO-20260125-0013",
+    updatedDate: 1768850816562,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[0],
-    pabrik: suppliers.find(s => s.id === "ubs-gold")!,
+    photoId: "photo-005",
+    stockistId: stockistUsers[0],
+    pabrik: suppliers.find((s) => s.id === "ubs-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",
     namaProduk: "",
     namaBasic: "italy-kaca",
-    namaPelanggan: customers.find(c => c.id === "emas-berlian-jaya")!,
+    namaPelanggan: customers.find((c) => c.id === "emas-berlian-jaya")!,
     waktuKirim: getDaysFromNow(5),
-    followUpAction: "Stockist checking inventory",
+    customerExpectation: "ready-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "p",
+        kadar: "17k",
+        warna: "rg",
         ukuran: "16",
         berat: "4.5",
         pcs: "12",
-        availablePcs: ""
+        availablePcs: "",
       },
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "k",
+        kadar: "17k",
+        warna: "kn",
         ukuran: "16",
         berat: "4.5",
         pcs: "8",
-        availablePcs: ""
-      }
+        availablePcs: "",
+      },
     ],
-    status: "Stockist Processing"
+    status: "Stockist Processing",
   });
 
   // Stockist Processing 2
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(13),
+    requestNo: "RPO-20260124-0014",
+    updatedDate: 1768804928883,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[1],
-    pabrik: suppliers.find(s => s.id === "king-halim")!,
+    photoId: "photo-006",
+    stockistId: stockistUsers[1],
+    pabrik: suppliers.find((s) => s.id === "king-halim")!,
     kategoriBarang: "basic",
     jenisProduk: "gelang-rantai",
     namaProduk: "",
     namaBasic: "milano",
-    namaPelanggan: customers.find(c => c.id === "toko-mas-indah")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-mas-indah")!,
     waktuKirim: getDaysFromNow(8),
-    followUpAction: "Verify stock levels",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "6k",
+        warna: "rg",
         ukuran: "17",
         berat: "6.0",
         pcs: "20",
-        availablePcs: ""
-      }
+        availablePcs: "",
+      },
     ],
-    status: "Stockist Processing"
+    status: "Stockist Processing",
   });
 
   // Stockist Processing 3
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(14),
+    requestNo: "RPO-20260123-0015",
+    updatedDate: 1768489027261,
+    updatedBy: stockistUsers[2],
     createdBy: salesUsers[2],
-    pabrik: suppliers.find(s => s.id === "mt-gold")!,
+    photoId: "photo-007",
+    stockistId: stockistUsers[0],
+    pabrik: suppliers.find((s) => s.id === "mt-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "cincin",
     namaProduk: "",
     namaBasic: "tambang",
-    namaPelanggan: customers.find(c => c.id === "perhiasan-permata")!,
+    namaPelanggan: customers.find((c) => c.id === "perhiasan-permata")!,
     waktuKirim: getDaysFromNow(6),
-    followUpAction: "Stock verification in progress",
+    customerExpectation: "order-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "m",
+        kadar: "9k",
+        warna: "ap",
         ukuran: "15",
         berat: "2.8",
         pcs: "10",
-        availablePcs: ""
+        availablePcs: "",
       },
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "m",
+        kadar: "9k",
+        warna: "ap",
         ukuran: "16",
         berat: "3.0",
         pcs: "15",
-        availablePcs: ""
-      }
+        availablePcs: "",
+      },
     ],
-    status: "Stockist Processing"
+    status: "Stockist Processing",
   });
 
   // Stockist Processing 4
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(15),
+    requestNo: "RPO-20260122-0016",
+    updatedDate: 1768486279272,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[3],
-    pabrik: suppliers.find(s => s.id === "hwt")!,
+    photoId: "photo-008",
+    stockistId: stockistUsers[1],
+    pabrik: suppliers.find((s) => s.id === "hwt")!,
     kategoriBarang: "model",
     jenisProduk: "liontin",
     namaProduk: "liontin-salib-emas",
     namaBasic: "",
-    namaPelanggan: customers.find(c => c.id === "toko-emas-berkah")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-emas-berkah")!,
     waktuKirim: getDaysFromNow(10),
-    followUpAction: "Check warehouse",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "750",
-        warna: "p",
+        kadar: "24k",
+        warna: "rg",
         ukuran: "n",
         berat: "5.0",
         pcs: "6",
-        availablePcs: ""
-      }
+        availablePcs: "",
+      },
     ],
-    status: "Stockist Processing"
+    status: "Stockist Processing",
   });
-
-  // ==========================================
-  // 3 READY STOCK MARKETING (all available)
-  // ==========================================
 
   // Ready Stock 1
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(16),
+    requestNo: "RPO-20260121-0017",
+    updatedDate: 1768507011572,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[0],
-    pabrik: suppliers.find(s => s.id === "ubs-gold")!,
+    photoId: "photo-009",
+    pabrik: suppliers.find((s) => s.id === "ubs-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",
     namaProduk: "",
     namaBasic: "kalung-flexi",
-    namaPelanggan: customers.find(c => c.id === "toko-emas-harmoni")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-emas-harmoni")!,
     waktuKirim: getDaysFromNow(3),
-    followUpAction: "Ready for pickup",
+    customerExpectation: "ready-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "p",
+        kadar: "17k",
+        warna: "rg",
         ukuran: "40",
         berat: "5.0",
         pcs: "10",
-        availablePcs: "10"
+        availablePcs: "10",
       },
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "k",
+        kadar: "17k",
+        warna: "kn",
         ukuran: "40",
         berat: "5.0",
         pcs: "8",
-        availablePcs: "8"
-      }
+        availablePcs: "8",
+      },
     ],
-    status: "Ready Stock Marketing"
+    status: "Ready Stock Marketing",
   });
 
   // Ready Stock 2
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(17),
+    requestNo: "RPO-20260120-0018",
+    updatedDate: 1768054848696,
+    updatedBy: stockistUsers[2],
     createdBy: salesUsers[1],
-    pabrik: suppliers.find(s => s.id === "king-halim")!,
+    photoId: "photo-010",
+    pabrik: suppliers.find((s) => s.id === "king-halim")!,
     kategoriBarang: "basic",
     jenisProduk: "gelang-rantai",
     namaProduk: "",
     namaBasic: "italy-santa",
-    namaPelanggan: customers.find(c => c.id === "galeri-emas-nusantara")!,
+    namaPelanggan: customers.find((c) => c.id === "galeri-emas-nusantara")!,
     waktuKirim: getDaysFromNow(4),
-    followUpAction: "All items available",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "6k",
+        warna: "rg",
         ukuran: "18",
         berat: "7.5",
         pcs: "15",
-        availablePcs: "15"
-      }
+        availablePcs: "15",
+      },
     ],
-    status: "Ready Stock Marketing"
+    status: "Ready Stock Marketing",
   });
 
   // Ready Stock 3
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(18),
+    requestNo: "RPO-20260119-0019",
+    updatedDate: 1768061245139,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[2],
-    pabrik: suppliers.find(s => s.id === "lestari-gold")!,
+    photoId: "photo-001",
+    pabrik: suppliers.find((s) => s.id === "lestari-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "cincin",
     namaProduk: "",
     namaBasic: "casteli",
-    namaPelanggan: customers.find(c => c.id === "toko-mas-rejeki")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-mas-rejeki")!,
     waktuKirim: getDaysFromNow(2),
-    followUpAction: "Contact customer for delivery",
+    customerExpectation: "order-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "m",
+        kadar: "9k",
+        warna: "ap",
         ukuran: "15",
         berat: "3.5",
         pcs: "12",
-        availablePcs: "12"
+        availablePcs: "12",
       },
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "m",
+        kadar: "9k",
+        warna: "ap",
         ukuran: "16",
         berat: "3.7",
         pcs: "10",
-        availablePcs: "10"
-      }
+        availablePcs: "10",
+      },
     ],
-    status: "Ready Stock Marketing"
+    status: "Ready Stock Marketing",
   });
 
-  // ==========================================
-  // 4 REQUESTED TO JB (partial/none available)
-  // ==========================================
-
-  // Requested to JB 1 - Partially available
+  // Requested to JB 1
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(19),
+    requestNo: "RPO-20260118-0020",
+    updatedDate: 1768143958427,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[3],
-    pabrik: suppliers.find(s => s.id === "yt-gold")!,
+    photoId: "photo-002",
+    pabrik: suppliers.find((s) => s.id === "yt-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",
     namaProduk: "",
     namaBasic: "italy-bambu",
-    namaPelanggan: customers.find(c => c.id === "perhiasan-modern")!,
+    namaPelanggan: customers.find((c) => c.id === "perhiasan-modern")!,
     waktuKirim: getDaysFromNow(12),
-    followUpAction: "Waiting for JB response",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "p",
+        kadar: "17k",
+        warna: "rg",
         ukuran: "42",
         berat: "6.5",
         pcs: "20",
-        availablePcs: "8"
+        availablePcs: "8",
       },
       {
         id: generateItemId(),
-        kadar: "700",
-        warna: "k",
+        kadar: "17k",
+        warna: "kn",
         ukuran: "42",
         berat: "6.5",
         pcs: "15",
-        availablePcs: "5"
-      }
+        availablePcs: "5",
+      },
     ],
-    status: "Requested to JB"
+    status: "Requested to JB",
   });
 
-  // Requested to JB 2 - Completely unavailable
+  // Requested to JB 2
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(20),
+    requestNo: "RPO-20260117-0021",
+    updatedDate: 1767753615148,
+    updatedBy: stockistUsers[2],
     createdBy: salesUsers[0],
-    pabrik: suppliers.find(s => s.id === "ubs-gold")!,
+    photoId: "photo-003",
+    pabrik: suppliers.find((s) => s.id === "ubs-gold")!,
     kategoriBarang: "model",
     jenisProduk: "gelang-kaku",
     namaProduk: "gelang-cuff-tebal",
     namaBasic: "",
-    namaPelanggan: customers.find(c => c.id === "toko-emas-sejahtera")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-emas-sejahtera")!,
     waktuKirim: getDaysFromNow(15),
-    followUpAction: "JB to check supplier",
+    customerExpectation: "ready-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "750",
-        warna: "m",
+        kadar: "24k",
+        warna: "ap",
         ukuran: "18",
         berat: "12.0",
         pcs: "10",
-        availablePcs: "0"
-      }
+        availablePcs: "0",
+      },
     ],
-    status: "Requested to JB"
+    status: "Requested to JB",
   });
 
-  // Requested to JB 3 - Partially available
+  // Requested to JB 3
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(21),
+    requestNo: "RPO-20260116-0022",
+    updatedDate: 1767782907414,
+    updatedBy: stockistUsers[0],
     createdBy: salesUsers[1],
-    pabrik: suppliers.find(s => s.id === "king-halim")!,
+    photoId: "photo-004",
+    pabrik: suppliers.find((s) => s.id === "king-halim")!,
     kategoriBarang: "basic",
     jenisProduk: "cincin",
     namaProduk: "",
     namaBasic: "milano",
-    namaPelanggan: customers.find(c => c.id === "toko-perhiasan-mulia")!,
+    namaPelanggan: customers.find((c) => c.id === "toko-perhiasan-mulia")!,
     waktuKirim: getDaysFromNow(18),
-    followUpAction: "Partial stock - rest with JB",
+    customerExpectation: "ready-marketing",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "8k",
+        warna: "rg",
         ukuran: "14",
         berat: "2.5",
         pcs: "25",
-        availablePcs: "10"
+        availablePcs: "10",
       },
       {
         id: generateItemId(),
-        kadar: "375",
-        warna: "p",
+        kadar: "8k",
+        warna: "rg",
         ukuran: "15",
         berat: "2.6",
         pcs: "20",
-        availablePcs: "15"
-      }
+        availablePcs: "15",
+      },
     ],
-    status: "Requested to JB"
+    status: "Requested to JB",
   });
 
-  // Requested to JB 4 - Completely unavailable
+  // Requested to JB 4
   orders.push({
     id: generateId(),
     timestamp: getTimestampDaysAgo(22),
+    requestNo: "RPO-20260115-0023",
+    updatedDate: 1767722916901,
+    updatedBy: stockistUsers[1],
     createdBy: salesUsers[2],
-    pabrik: suppliers.find(s => s.id === "ayu")!,
+    photoId: "photo-005",
+    pabrik: suppliers.find((s) => s.id === "ayu")!,
     kategoriBarang: "basic",
     jenisProduk: "anting",
     namaProduk: "",
     namaBasic: "sunny-vanessa",
-    namaPelanggan: customers.find(c => c.id === "emas-berlian-jaya")!,
+    namaPelanggan: customers.find((c) => c.id === "emas-berlian-jaya")!,
     waktuKirim: getDaysFromNow(14),
-    followUpAction: "Out of stock - JB sourcing",
+    customerExpectation: "order-pabrik",
     detailItems: [
       {
         id: generateItemId(),
-        kadar: "420",
-        warna: "k",
+        kadar: "9k",
+        warna: "kn",
         ukuran: "n",
         berat: "3.0",
         pcs: "30",
-        availablePcs: "0"
-      }
+        availablePcs: "0",
+      },
     ],
-    status: "Requested to JB"
+    status: "Requested to JB",
   });
 
   return orders;
 };
 
-// Function to initialize mock data in session storage
 export const initializeMockData = () => {
   const existingOrders = sessionStorage.getItem("orders");
-  
-  // Only initialize if there's no existing data or if user explicitly wants to reset
+
   if (!existingOrders) {
     const mockOrders = generateMockOrders();
     sessionStorage.setItem("orders", JSON.stringify(mockOrders));
-    console.log(`✅ Initialized ${mockOrders.length} mock orders in session storage`);
+    console.log(
+      `✅ Initialized ${mockOrders.length} mock orders in session storage`,
+    );
     return mockOrders;
   } else {
     console.log("📦 Existing orders found, skipping mock data initialization");
@@ -852,10 +1009,16 @@ export const initializeMockData = () => {
   }
 };
 
-// Function to force reset mock data (useful for testing)
 export const resetMockData = () => {
   const mockOrders = generateMockOrders();
   sessionStorage.setItem("orders", JSON.stringify(mockOrders));
   console.log(`🔄 Reset and initialized ${mockOrders.length} mock orders`);
   return mockOrders;
+};
+
+// Export photo database
+export const getPhotoDatabase = (): Photo[] => mockPhotos;
+
+export const getPhotoById = (photoId: string): Photo | undefined => {
+  return mockPhotos.find((photo) => photo.id === photoId);
 };

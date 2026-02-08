@@ -1,24 +1,25 @@
-import { Card } from "./ui/card";
-import { Button } from "./ui/button";
-import { useEffect, useState } from "react";
-import { Package, ArrowRight } from "lucide-react";
-import italySanta from "@/assets/images/italy-santa.png";
-import italyKaca from "@/assets/images/italy-kaca.png";
-import italyBambu from "@/assets/images/italy-bambu.png";
-import kalungFlexi from "@/assets/images/kalung-flexi.png";
-import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
-import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
-import milano from "@/assets/images/milano.png";
-import tambang from "@/assets/images/tambang.png";
-import casteli from "@/assets/images/casteli.png";
 import {
+  ATAS_NAMA_OPTIONS,
+  getLabelFromValue,
   JENIS_PRODUK_OPTIONS,
   NAMA_BASIC_OPTIONS,
   NAMA_PRODUK_OPTIONS,
   PABRIK_OPTIONS,
-  ATAS_NAMA_OPTIONS,
-  getLabelFromValue,
 } from "@/app/data/order-data";
+import { getFullNameFromUsername } from "@/app/utils/user-data";
+import casteli from "@/assets/images/casteli.png";
+import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
+import italyBambu from "@/assets/images/italy-bambu.png";
+import italyKaca from "@/assets/images/italy-kaca.png";
+import italySanta from "@/assets/images/italy-santa.png";
+import kalungFlexi from "@/assets/images/kalung-flexi.png";
+import milano from "@/assets/images/milano.png";
+import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
+import tambang from "@/assets/images/tambang.png";
+import { ArrowRight, Package } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -52,7 +53,7 @@ interface Order {
   namaBasic: string;
   namaPelanggan: string;
   waktuKirim: string;
-  followUpAction: string;
+  customerExpectation: string;
   detailItems: OrderItem[];
   fotoBarangBase64?: string;
   status: string;
@@ -63,35 +64,44 @@ interface StockistHomeProps {
   onNavigateToTab?: (tab: string) => void;
 }
 
-export function StockistHome({ onNavigateToRequests, onNavigateToTab }: StockistHomeProps) {
+export function StockistHome({
+  onNavigateToRequests,
+  onNavigateToTab,
+}: StockistHomeProps) {
   const [openRequests, setOpenRequests] = useState<Order[]>([]);
   const [openCount, setOpenCount] = useState(0);
   const [inProgressCount, setInProgressCount] = useState(0);
   const [doneCount, setDoneCount] = useState(0);
+  const [assignedCount, setAssignedCount] = useState(0);
+  const currentUser =
+    sessionStorage.getItem("username") ||
+    localStorage.getItem("username") ||
+    "";
+  const fullName = getFullNameFromUsername(currentUser);
 
   useEffect(() => {
     loadOpenRequests();
-    
+
     // Add event listener for storage changes to update counts when orders change
     const handleStorageChange = () => {
       loadOpenRequests();
     };
-    window.addEventListener('storage', handleStorageChange);
-    
+    window.addEventListener("storage", handleStorageChange);
+
     // Also reload when component becomes visible (for sessionStorage changes)
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         loadOpenRequests();
       }
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     // Set up interval to periodically check for updates
     const interval = setInterval(loadOpenRequests, 2000);
-    
+
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("storage", handleStorageChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearInterval(interval);
     };
   }, []);
@@ -100,12 +110,34 @@ export function StockistHome({ onNavigateToRequests, onNavigateToTab }: Stockist
     const savedOrders = sessionStorage.getItem("orders");
     if (savedOrders) {
       const allOrders = JSON.parse(savedOrders) as Order[];
-      
-      // Calculate totals for each status
+
+      // Calculate totals for each status - matching my-orders.tsx logic
       setOpenCount(allOrders.filter((order) => order.status === "Open").length);
-      setInProgressCount(allOrders.filter((order) => order.status === "In Progress").length);
+
+      // In Progress includes multiple statuses to match request page
+      setInProgressCount(
+        allOrders.filter(
+          (order) =>
+            order.status === "In Progress" ||
+            order.status === "Stockist Processing" ||
+            order.status === "Requested to JB",
+        ).length,
+      );
+
       setDoneCount(allOrders.filter((order) => order.status === "Done").length);
-      
+
+      // Assigned count - requests that have been assigned/completed by stockist
+      const assignedStatuses = [
+        "Ready Stock Marketing",
+        "Requested to JB",
+        "Stock Unavailable",
+        "Done",
+      ];
+      setAssignedCount(
+        allOrders.filter((order) => assignedStatuses.includes(order.status))
+          .length,
+      );
+
       // Filter for Open status and take latest 3
       const openOrders = allOrders
         .filter((order) => order.status === "Open")
@@ -137,14 +169,14 @@ export function StockistHome({ onNavigateToRequests, onNavigateToTab }: Stockist
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold mb-2">Welcome, Stockist</h1>
+        <h1 className="text-2xl font-bold mb-2">Welcome, {fullName}</h1>
         <p className="text-gray-600">Here are the latest open requests</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card 
-          className="p-4 cursor-pointer hover:shadow-md transition-shadow" 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card
+          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onNavigateToTab?.("open")}
         >
           <div className="flex items-center gap-3">
@@ -157,8 +189,8 @@ export function StockistHome({ onNavigateToRequests, onNavigateToTab }: Stockist
             </div>
           </div>
         </Card>
-        <Card 
-          className="p-4 cursor-pointer hover:shadow-md transition-shadow" 
+        <Card
+          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onNavigateToTab?.("in-progress")}
         >
           <div className="flex items-center gap-3">
@@ -171,8 +203,22 @@ export function StockistHome({ onNavigateToRequests, onNavigateToTab }: Stockist
             </div>
           </div>
         </Card>
-        <Card 
-          className="p-4 cursor-pointer hover:shadow-md transition-shadow" 
+        <Card
+          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => onNavigateToTab?.("assigned")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <Package className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Assigned</p>
+              <p className="text-2xl font-bold">{assignedCount}</p>
+            </div>
+          </div>
+        </Card>
+        <Card
+          className="p-4 cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onNavigateToTab?.("done")}
         >
           <div className="flex items-center gap-3">
@@ -213,16 +259,27 @@ export function StockistHome({ onNavigateToRequests, onNavigateToTab }: Stockist
         ) : (
           <div className="space-y-3">
             {openRequests.map((order) => {
-              const jenisProdukLabel = getLabelFromValue(JENIS_PRODUK_OPTIONS, order.jenisProduk);
-              const productNameLabel = order.kategoriBarang === "basic"
-                ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
-                : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
-              const pabrikLabel = typeof order.pabrik === 'string' 
-                ? getLabelFromValue(PABRIK_OPTIONS, order.pabrik)
-                : order.pabrik?.name || getLabelFromValue(PABRIK_OPTIONS, order.pabrik?.id || "");
-              const atasNamaLabel = typeof order.namaPelanggan === 'string'
-                ? getLabelFromValue(ATAS_NAMA_OPTIONS, order.namaPelanggan)
-                : order.namaPelanggan?.name || getLabelFromValue(ATAS_NAMA_OPTIONS, order.namaPelanggan?.id || "");
+              const jenisProdukLabel = getLabelFromValue(
+                JENIS_PRODUK_OPTIONS,
+                order.jenisProduk,
+              );
+              const productNameLabel =
+                order.kategoriBarang === "basic"
+                  ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+                  : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+              const pabrikLabel =
+                typeof order.pabrik === "string"
+                  ? getLabelFromValue(PABRIK_OPTIONS, order.pabrik)
+                  : order.pabrik?.name ||
+                    getLabelFromValue(PABRIK_OPTIONS, order.pabrik?.id || "");
+              const atasNamaLabel =
+                typeof order.namaPelanggan === "string"
+                  ? getLabelFromValue(ATAS_NAMA_OPTIONS, order.namaPelanggan)
+                  : order.namaPelanggan?.name ||
+                    getLabelFromValue(
+                      ATAS_NAMA_OPTIONS,
+                      order.namaPelanggan?.id || "",
+                    );
 
               return (
                 <Card key={order.id} className="p-4">

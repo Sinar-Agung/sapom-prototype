@@ -305,8 +305,8 @@ export const UKURAN_KALUNG_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
-// Follow Up Action options
-export const FOLLOW_UP_ACTION_OPTIONS = [
+// Customer Expectation options
+export const CUSTOMER_EXPECTATION_OPTIONS = [
   { value: "ready-marketing", label: "Ready Marketing" },
   { value: "ready-pabrik", label: "Ready Pabrik (1-2 minggu)" },
   { value: "order-pabrik", label: "Order Pabrik (2-4 minggu)" },
@@ -315,7 +315,7 @@ export const FOLLOW_UP_ACTION_OPTIONS = [
 // Helper function to get label from value
 export const getLabelFromValue = (
   options: Array<{ value: string; label: string }>,
-  value: string
+  value: string,
 ): string => {
   const option = options.find((opt) => opt.value === value);
   return option ? option.label : value; // Return value if no match found (for custom values)

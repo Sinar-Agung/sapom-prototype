@@ -1,16 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { Card } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
-import { InputWithCheck } from "@/app/components/ui/input-with-check";
-import { Label } from "@/app/components/ui/label";
-import { Textarea } from "@/app/components/ui/textarea";
-import { Button } from "@/app/components/ui/button";
-import { Combobox } from "@/app/components/ui/combobox";
-import { DatePicker } from "@/app/components/ui/date-picker";
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@/app/components/ui/radio-group";
+import { NewBadge } from "@/app/components/new-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,39 +9,45 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/app/components/ui/alert-dialog";
+import { Button } from "@/app/components/ui/button";
+import { Card } from "@/app/components/ui/card";
+import { Combobox } from "@/app/components/ui/combobox";
+import { DatePicker } from "@/app/components/ui/date-picker";
+import { Input } from "@/app/components/ui/input";
+import { InputWithCheck } from "@/app/components/ui/input-with-check";
+import { Label } from "@/app/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import {
-  RotateCcw,
-  Trash2,
-  X,
-  Percent,
-  Palette,
-  Ruler,
-  Weight,
-  Hash,
-  StickyNote,
-} from "lucide-react";
-import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
-import { NewBadge } from "@/app/components/new-badge";
-import italySanta from "@/assets/images/italy-santa.png";
-import italyKaca from "@/assets/images/italy-kaca.png";
-import italyBambu from "@/assets/images/italy-bambu.png";
-import kalungFlexi from "@/assets/images/kalung-flexi.png";
-import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
-import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
-import milano from "@/assets/images/milano.png";
-import tambang from "@/assets/images/tambang.png";
-import casteli from "@/assets/images/casteli.png";
-import {
+  ATAS_NAMA_OPTIONS,
+  CUSTOMER_EXPECTATION_OPTIONS,
   JENIS_PRODUK_OPTIONS,
+  KADAR_OPTIONS,
   NAMA_BASIC_OPTIONS,
   NAMA_PRODUK_OPTIONS,
   PABRIK_OPTIONS,
-  ATAS_NAMA_OPTIONS,
-  FOLLOW_UP_ACTION_OPTIONS,
-  KADAR_OPTIONS,
-  WARNA_OPTIONS,
   UKURAN_KALUNG_OPTIONS,
+  WARNA_OPTIONS,
 } from "@/app/data/order-data";
+import casteli from "@/assets/images/casteli.png";
+import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
+import italyBambu from "@/assets/images/italy-bambu.png";
+import italyKaca from "@/assets/images/italy-kaca.png";
+import italySanta from "@/assets/images/italy-santa.png";
+import kalungFlexi from "@/assets/images/kalung-flexi.png";
+import milano from "@/assets/images/milano.png";
+import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
+import tambang from "@/assets/images/tambang.png";
+import {
+  Hash,
+  Palette,
+  Percent,
+  RotateCcw,
+  Ruler,
+  StickyNote,
+  Trash2,
+  Weight,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -104,7 +98,7 @@ export function OrderForm(props: OrderFormProps) {
     fotoBarang: null as File | null,
     namaPelanggan: { id: "", name: "" },
     waktuKirim: undefined as Date | undefined,
-    followUpAction: "",
+    customerExpectation: "",
   });
 
   const [detailInput, setDetailInput] = useState({
@@ -117,50 +111,31 @@ export function OrderForm(props: OrderFormProps) {
     notes: "",
   });
 
-  const [detailItems, setDetailItems] = useState<
-    DetailBarangItem[]
-  >([]);
-  const [editingDetailId, setEditingDetailId] = useState<
-    string | null
-  >(null);
+  const [detailItems, setDetailItems] = useState<DetailBarangItem[]>([]);
+  const [editingDetailId, setEditingDetailId] = useState<string | null>(null);
   const [showingNotesTooltip, setShowingNotesTooltip] = useState<{
     itemId: string;
     x: number;
     y: number;
   } | null>(null); // Track which item's notes tooltip is showing and position
-  const [newlyAddedIds, setNewlyAddedIds] = useState<
-    Set<string>
-  >(new Set());
-  const [animatingIds, setAnimatingIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [relocatingIds, setRelocatingIds] = useState<
-    Set<string>
-  >(new Set());
+  const [newlyAddedIds, setNewlyAddedIds] = useState<Set<string>>(new Set());
+  const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
+  const [relocatingIds, setRelocatingIds] = useState<Set<string>>(new Set());
   const [sortedDetailItems, setSortedDetailItems] = useState<
     DetailBarangItem[]
   >([]);
 
   // Refs to track row elements for FLIP animation
-  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(
-    new Map(),
-  );
-  const cardRefs = useRef<Map<string, HTMLDivElement>>(
-    new Map(),
-  );
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
   const previousNewlyAddedIds = useRef<Set<string>>(new Set());
-  const previousPositions = useRef<Map<string, DOMRect>>(
-    new Map(),
-  );
+  const previousPositions = useRef<Map<string, DOMRect>>(new Map());
 
   // State for confirmation dialog
   const [showResetDialog, setShowResetDialog] = useState(false);
-  const [showNewOrderDialog, setShowNewOrderDialog] =
-    useState(false);
-  const [lastSavedOrderId, setLastSavedOrderId] = useState<
-    string | null
-  >(null);
+  const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
+  const [lastSavedOrderId, setLastSavedOrderId] = useState<string | null>(null);
   const [pendingChange, setPendingChange] = useState<{
     field: "kategoriBarang" | "jenisProduk";
     value: string;
@@ -182,9 +157,7 @@ export function OrderForm(props: OrderFormProps) {
 
     parts.forEach((part) => {
       if (part.includes("-")) {
-        const [start, end] = part
-          .split("-")
-          .map((n) => parseInt(n.trim()));
+        const [start, end] = part.split("-").map((n) => parseInt(n.trim()));
         if (!isNaN(start) && !isNaN(end)) {
           for (let i = start; i <= end; i++) {
             result.push(i.toString());
@@ -200,10 +173,7 @@ export function OrderForm(props: OrderFormProps) {
 
   const handleAddDetail = () => {
     // Validation
-    if (
-      formData.kategoriBarang === "basic" &&
-      !detailInput.berat.trim()
-    ) {
+    if (formData.kategoriBarang === "basic" && !detailInput.berat.trim()) {
       alert("Berat is mandatory for Barang Basic");
       return;
     }
@@ -235,23 +205,16 @@ export function OrderForm(props: OrderFormProps) {
       // Sort the items after editing
       updatedItems.sort((a, b) => {
         // First sort by Kadar - extract numeric value
-        const kadarA =
-          parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
-        const kadarB =
-          parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
+        const kadarA = parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
+        const kadarB = parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
         if (kadarA !== kadarB) return kadarA - kadarB;
 
         // Then by Warna
-        if (a.warna !== b.warna)
-          return a.warna.localeCompare(b.warna);
+        if (a.warna !== b.warna) return a.warna.localeCompare(b.warna);
         // Then by Ukuran
-        if (a.ukuran !== b.ukuran)
-          return a.ukuran.localeCompare(b.ukuran);
+        if (a.ukuran !== b.ukuran) return a.ukuran.localeCompare(b.ukuran);
         // Finally by Berat
-        return (
-          parseFloat(a.berat || "0") -
-          parseFloat(b.berat || "0")
-        );
+        return parseFloat(a.berat || "0") - parseFloat(b.berat || "0");
       });
 
       setDetailItems(updatedItems);
@@ -280,18 +243,14 @@ export function OrderForm(props: OrderFormProps) {
         if (existingItemIndex !== -1) {
           // Merge by adding pcs to existing item
           const existingItem = updatedItems[existingItemIndex];
-          const combinedNotes = [
-            existingItem.notes,
-            detailInput.notes,
-          ]
+          const combinedNotes = [existingItem.notes, detailInput.notes]
             .filter(Boolean)
             .join(", "); // Separate notes with commas
 
           updatedItems[existingItemIndex] = {
             ...existingItem,
             pcs: (
-              parseInt(existingItem.pcs) +
-              parseInt(detailInput.pcs)
+              parseInt(existingItem.pcs) + parseInt(detailInput.pcs)
             ).toString(),
             notes: combinedNotes,
           };
@@ -314,8 +273,8 @@ export function OrderForm(props: OrderFormProps) {
       });
 
       // Check if we only updated existing items (no genuinely new items added)
-      const onlyUpdatedExisting = Array.from(newIds).every(id => 
-        detailItems.some(item => item.id === id)
+      const onlyUpdatedExisting = Array.from(newIds).every((id) =>
+        detailItems.some((item) => item.id === id),
       );
 
       // Replace old highlights with only the new ones
@@ -328,23 +287,16 @@ export function OrderForm(props: OrderFormProps) {
       // Sort the items
       updatedItems.sort((a, b) => {
         // First sort by Kadar - extract numeric value
-        const kadarA =
-          parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
-        const kadarB =
-          parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
+        const kadarA = parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
+        const kadarB = parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
         if (kadarA !== kadarB) return kadarA - kadarB;
 
         // Then by Warna
-        if (a.warna !== b.warna)
-          return a.warna.localeCompare(b.warna);
+        if (a.warna !== b.warna) return a.warna.localeCompare(b.warna);
         // Then by Ukuran
-        if (a.ukuran !== b.ukuran)
-          return a.ukuran.localeCompare(b.ukuran);
+        if (a.ukuran !== b.ukuran) return a.ukuran.localeCompare(b.ukuran);
         // Finally by Berat
-        return (
-          parseFloat(a.berat || "0") -
-          parseFloat(b.berat || "0")
-        );
+        return parseFloat(a.berat || "0") - parseFloat(b.berat || "0");
       });
 
       setDetailItems(updatedItems);
@@ -364,18 +316,20 @@ export function OrderForm(props: OrderFormProps) {
       notes: item.notes,
     });
     setEditingDetailId(item.id);
-    
+
     // Remove "New" status from the item being edited
     setNewlyAddedIds((prev) => {
       const updated = new Set(prev);
       updated.delete(item.id);
       return updated;
     });
-    
+
     // Focus on Kadar dropdown after a brief delay to ensure UI updates
     setTimeout(() => {
-      const kadarContainer = document.getElementById('kadar-field-container');
-      const kadarButton = kadarContainer?.querySelector('button[role="combobox"]') as HTMLButtonElement;
+      const kadarContainer = document.getElementById("kadar-field-container");
+      const kadarButton = kadarContainer?.querySelector(
+        'button[role="combobox"]',
+      ) as HTMLButtonElement;
       if (kadarButton) {
         kadarButton.focus();
       }
@@ -384,11 +338,11 @@ export function OrderForm(props: OrderFormProps) {
 
   const handleCancelEdit = () => {
     if (!editingDetailId) return;
-    
+
     // Trigger FLIP animation for the editing row/card sliding back to sorted position
     const rowElement = rowRefs.current.get(editingDetailId);
     const cardElement = cardRefs.current.get(editingDetailId);
-    
+
     // Prefer the visible element (card on mobile, row on desktop)
     let element = null;
     if (cardElement) {
@@ -403,58 +357,61 @@ export function OrderForm(props: OrderFormProps) {
         element = rowElement; // Row is visible (desktop)
       }
     }
-    
+
     if (element) {
       // Measure FIRST position (current position at top)
       const firstPosition = element.getBoundingClientRect();
-      console.log(`[CANCEL-EDIT] FIRST position: top=${firstPosition.top}, element=${element.tagName}`);
-      
+      console.log(
+        `[CANCEL-EDIT] FIRST position: top=${firstPosition.top}, element=${element.tagName}`,
+      );
+
       // Clear editing state, which will cause re-sort
       setEditingDetailId(null);
-      
+
       // Use multiple requestAnimationFrame to ensure DOM is fully updated
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const lastPosition = element.getBoundingClientRect();
             console.log(`[CANCEL-EDIT] LAST position: top=${lastPosition.top}`);
-            
+
             // Calculate delta
             const deltaY = firstPosition.top - lastPosition.top;
             console.log(`[CANCEL-EDIT] deltaY = ${deltaY}px`);
-            
+
             // Apply FLIP animation if there's movement
             if (Math.abs(deltaY) > 1) {
               // Set initial transform (where it was)
               element.style.transform = `translateY(${deltaY}px)`;
-              element.style.transition = 'none';
-              
+              element.style.transition = "none";
+
               // Force reflow
               element.offsetHeight;
-              
+
               // Animate to final position
-              element.style.transition = 'transform 0.9s cubic-bezier(0.4, 0, 0.2, 1)';
-              element.style.transform = 'translateY(0)';
-              
+              element.style.transition =
+                "transform 0.9s cubic-bezier(0.4, 0, 0.2, 1)";
+              element.style.transform = "translateY(0)";
+
               // Clean up after animation
               const cleanup = () => {
                 if (element.style) {
-                  element.style.transition = '';
-                  element.style.transform = '';
+                  element.style.transition = "";
+                  element.style.transform = "";
                 }
-                element.removeEventListener('transitionend', cleanup);
+                element.removeEventListener("transitionend", cleanup);
               };
-              element.addEventListener('transitionend', cleanup);
+              element.addEventListener("transitionend", cleanup);
             }
           });
         });
       });
     } else {
       // No element found, just clear state
-      console.warn('[CANCEL-EDIT] No visible element found');
+      console.warn("[CANCEL-EDIT] No visible element found");
       setEditingDetailId(null);
     }
-    
+
     // Clear form
     setDetailInput({
       kadar: "",
@@ -468,12 +425,9 @@ export function OrderForm(props: OrderFormProps) {
   };
 
   const handleDeleteDetail = (id: string) => {
-    setDetailItems(
-      detailItems.filter((item) => item.id !== id),
-    );
+    setDetailItems(detailItems.filter((item) => item.id !== id));
     setNewlyAddedIds(
-      (prev) =>
-        new Set([...prev].filter((itemId) => itemId !== id)),
+      (prev) => new Set([...prev].filter((itemId) => itemId !== id)),
     );
   };
 
@@ -483,7 +437,7 @@ export function OrderForm(props: OrderFormProps) {
     if (animatingIds.has(id) || relocatingIds.has(id)) {
       return; // Ignore clicks while animating
     }
-    
+
     // Only remove from newlyAddedIds to stop the golden shimmer
     // This would only apply after animation completes
     setNewlyAddedIds((prev) => {
@@ -507,17 +461,14 @@ export function OrderForm(props: OrderFormProps) {
     !detailInput.warna ||
     !detailInput.pcs ||
     // Berat is mandatory only for Barang Basic
-    (formData.kategoriBarang === "basic" &&
-      !detailInput.berat) ||
+    (formData.kategoriBarang === "basic" && !detailInput.berat) ||
     // Foto Barang is mandatory for Barang Model
-    (formData.kategoriBarang === "model" &&
-      !formData.fotoBarang) ||
+    (formData.kategoriBarang === "model" && !formData.fotoBarang) ||
     // Ukuran is required only for Barang Basic when jenis produk requires it
     (formData.kategoriBarang === "basic" &&
       ukuranRequired &&
       !detailInput.ukuran) ||
-    (detailInput.ukuran === "other" &&
-      !detailInput.ukuranCustom);
+    (detailInput.ukuran === "other" && !detailInput.ukuranCustom);
 
   // Get Kadar background color
   const getKadarColor = (kadar: string) => {
@@ -529,9 +480,7 @@ export function OrderForm(props: OrderFormProps) {
       "17k": "bg-pink-500 text-white",
       "24k": "bg-red-500 text-white",
     };
-    return (
-      colors[kadar.toLowerCase()] || "bg-gray-500 text-white"
-    );
+    return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
   };
 
   // Get Warna background color
@@ -541,14 +490,10 @@ export function OrderForm(props: OrderFormProps) {
       ap: "bg-gray-200 text-gray-800",
       kn: "bg-yellow-400 text-gray-800",
       ks: "bg-yellow-300 text-gray-800",
-      "2w-ap-rg":
-        "bg-gradient-to-r from-gray-200 to-rose-300 text-gray-800",
-      "2w-ap-kn":
-        "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
+      "2w-ap-rg": "bg-gradient-to-r from-gray-200 to-rose-300 text-gray-800",
+      "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
     };
-    return (
-      colors[warna.toLowerCase()] || "bg-gray-300 text-gray-800"
-    );
+    return colors[warna.toLowerCase()] || "bg-gray-300 text-gray-800";
   };
 
   // Get Warna display label
@@ -585,10 +530,7 @@ export function OrderForm(props: OrderFormProps) {
 
   // Handle Kategori Barang change with confirmation
   const handleKategoriBarangChange = (value: string) => {
-    if (
-      detailItems.length > 0 &&
-      value !== formData.kategoriBarang
-    ) {
+    if (detailItems.length > 0 && value !== formData.kategoriBarang) {
       setPendingChange({ field: "kategoriBarang", value });
       setShowResetDialog(true);
     } else if (value !== formData.kategoriBarang) {
@@ -616,10 +558,7 @@ export function OrderForm(props: OrderFormProps) {
 
   // Handle Jenis Produk change with confirmation
   const handleJenisProdukChange = (value: string) => {
-    if (
-      detailItems.length > 0 &&
-      value !== formData.jenisProduk
-    ) {
+    if (detailItems.length > 0 && value !== formData.jenisProduk) {
       setPendingChange({ field: "jenisProduk", value });
       setShowResetDialog(true);
     } else {
@@ -686,7 +625,8 @@ export function OrderForm(props: OrderFormProps) {
       : formData.fotoBarang); // For Model, only fotoBarang is required (namaProduk is optional)
 
   // Disable all detail input controls when dialogs are open or when form is not ready
-  const isDetailInputDisabled = !canShowDetailInput || showResetDialog || showNewOrderDialog;
+  const isDetailInputDisabled =
+    !canShowDetailInput || showResetDialog || showNewOrderDialog;
 
   // Check if Simpan Pesanan button should be disabled
   const isSimpanDisabled =
@@ -710,7 +650,7 @@ export function OrderForm(props: OrderFormProps) {
       fotoBarang: null,
       namaPelanggan: { id: "", name: "" },
       waktuKirim: undefined,
-      followUpAction: "",
+      customerExpectation: "",
     });
     setDetailInput({
       kadar: "",
@@ -735,7 +675,7 @@ export function OrderForm(props: OrderFormProps) {
         formData.pabrik.id ||
         formData.namaPelanggan.id ||
         formData.waktuKirim ||
-        formData.followUpAction ||
+        formData.customerExpectation ||
         formData.jenisProduk ||
         formData.namaProduk ||
         formData.namaBasic ||
@@ -746,7 +686,7 @@ export function OrderForm(props: OrderFormProps) {
     }
   }, [formData, detailItems, onFormChange]);
 
-  // Helper function to calculate ETA based on Follow Up Action
+  // Helper function to calculate ETA based on Customer Expectation
   const calculateETA = (action: string): Date | undefined => {
     if (!action) return undefined;
 
@@ -783,7 +723,7 @@ export function OrderForm(props: OrderFormProps) {
   useEffect(() => {
     // Check if items were actually ADDED (not just removed)
     const hasNewItems = Array.from(newlyAddedIds).some(
-      (id) => !previousNewlyAddedIds.current.has(id)
+      (id) => !previousNewlyAddedIds.current.has(id),
     );
 
     // Update the ref for next comparison
@@ -793,13 +733,13 @@ export function OrderForm(props: OrderFormProps) {
     if (newlyAddedIds.size > 0 && hasNewItems) {
       // Capture the IDs that will be animated
       const idsToAnimate = new Set(newlyAddedIds);
-      
+
       // First, set animating state to show items at top
       setAnimatingIds(idsToAnimate);
 
       // After 2 seconds, trigger FLIP animation to relocate to sorted position
       const timer = setTimeout(() => {
-        console.log('[FLIP] Starting FLIP animation after 2s delay');
+        console.log("[FLIP] Starting FLIP animation after 2s delay");
         // Use captured IDs, not current newlyAddedIds state
         setRelocatingIds(idsToAnimate);
 
@@ -813,7 +753,7 @@ export function OrderForm(props: OrderFormProps) {
         idsToAnimate.forEach((id) => {
           const rowElement = rowRefs.current.get(id);
           const cardElement = cardRefs.current.get(id);
-          
+
           // Prefer the visible element (card on mobile, row on desktop)
           let element = null;
           if (cardElement) {
@@ -828,14 +768,20 @@ export function OrderForm(props: OrderFormProps) {
               element = rowElement; // Row is visible (desktop)
             }
           }
-          
-          console.log(`[FLIP-START] Measuring item ${id}: rowElement=${!!rowElement}, cardElement=${!!cardElement}, using=${element?.tagName}`);
+
+          console.log(
+            `[FLIP-START] Measuring item ${id}: rowElement=${!!rowElement}, cardElement=${!!cardElement}, using=${element?.tagName}`,
+          );
           if (element) {
             const rect = element.getBoundingClientRect();
             firstPositions.set(id, rect);
-            console.log(`[FLIP-START] Item ${id} FIRST position: top=${rect.top}, height=${rect.height}`);
+            console.log(
+              `[FLIP-START] Item ${id} FIRST position: top=${rect.top}, height=${rect.height}`,
+            );
           } else {
-            console.warn(`[FLIP-START] No visible element found for item ${id}`);
+            console.warn(
+              `[FLIP-START] No visible element found for item ${id}`,
+            );
           }
         });
 
@@ -853,14 +799,14 @@ export function OrderForm(props: OrderFormProps) {
                 scrollContainer.scrollTop = scrollTop;
                 console.log(`[FLIP] Restored scroll to: ${scrollTop}`);
               }
-              
-              console.log('[FLIP] Measuring LAST positions after DOM update');
+
+              console.log("[FLIP] Measuring LAST positions after DOM update");
               // Measure LAST positions in sorted layout
               const lastPositions = new Map<string, DOMRect>();
               idsToAnimate.forEach((id) => {
                 const rowElement = rowRefs.current.get(id);
                 const cardElement = cardRefs.current.get(id);
-                
+
                 // Prefer the visible element (card on mobile, row on desktop)
                 let element = null;
                 if (cardElement) {
@@ -875,24 +821,32 @@ export function OrderForm(props: OrderFormProps) {
                     element = rowElement; // Row is visible (desktop)
                   }
                 }
-                
-                console.log(`[FLIP-LAST] Item ${id}: rowElement=${!!rowElement}, cardElement=${!!cardElement}, using=${element?.tagName}`);
+
+                console.log(
+                  `[FLIP-LAST] Item ${id}: rowElement=${!!rowElement}, cardElement=${!!cardElement}, using=${element?.tagName}`,
+                );
                 if (element) {
                   const rect = element.getBoundingClientRect();
                   lastPositions.set(id, rect);
-                  console.log(`[FLIP-LAST] Item ${id} LAST position: top=${rect.top}, height=${rect.height}`);
+                  console.log(
+                    `[FLIP-LAST] Item ${id} LAST position: top=${rect.top}, height=${rect.height}`,
+                  );
                 } else {
-                  console.warn(`[FLIP-LAST] No element found for item ${id} - refs may not be updated yet`);
+                  console.warn(
+                    `[FLIP-LAST] No element found for item ${id} - refs may not be updated yet`,
+                  );
                 }
               });
 
               // Only proceed if we have valid positions for all items
-              const hasAllPositions = Array.from(idsToAnimate).every(id => 
-                firstPositions.has(id) && lastPositions.has(id)
+              const hasAllPositions = Array.from(idsToAnimate).every(
+                (id) => firstPositions.has(id) && lastPositions.has(id),
               );
-              
+
               if (!hasAllPositions) {
-                console.error('[FLIP] Missing positions for some items, aborting animation');
+                console.error(
+                  "[FLIP] Missing positions for some items, aborting animation",
+                );
                 setRelocatingIds(new Set());
                 return;
               }
@@ -901,7 +855,7 @@ export function OrderForm(props: OrderFormProps) {
               idsToAnimate.forEach((id) => {
                 const rowElement = rowRefs.current.get(id);
                 const cardElement = cardRefs.current.get(id);
-                
+
                 // Prefer the visible element (card on mobile, row on desktop)
                 let element = null;
                 if (cardElement) {
@@ -916,20 +870,22 @@ export function OrderForm(props: OrderFormProps) {
                     element = rowElement; // Row is visible (desktop)
                   }
                 }
-                
+
                 const firstRect = firstPositions.get(id);
                 const lastRect = lastPositions.get(id);
 
                 if (element && firstRect && lastRect) {
                   // I - INVERT: Calculate difference
                   const deltaY = firstRect.top - lastRect.top;
-                  
-                  console.log(`[FLIP] Item ${id}: deltaY = ${deltaY}px, element type: ${element.tagName}`);
-                  
+
+                  console.log(
+                    `[FLIP] Item ${id}: deltaY = ${deltaY}px, element type: ${element.tagName}`,
+                  );
+
                   // Apply reverse transform immediately (keeps visual position)
                   element.style.transform = `translateY(${deltaY}px)`;
                   element.style.transition = "none";
-                  
+
                   // Force reflow
                   element.offsetHeight;
                 }
@@ -940,7 +896,7 @@ export function OrderForm(props: OrderFormProps) {
                 idsToAnimate.forEach((id) => {
                   const rowElement = rowRefs.current.get(id);
                   const cardElement = cardRefs.current.get(id);
-                  
+
                   // Prefer the visible element (card on mobile, row on desktop)
                   let element = null;
                   if (cardElement) {
@@ -957,9 +913,12 @@ export function OrderForm(props: OrderFormProps) {
                   }
 
                   if (element) {
-                    console.log(`[FLIP-PLAY] Animating item ${id} to natural position`);
+                    console.log(
+                      `[FLIP-PLAY] Animating item ${id} to natural position`,
+                    );
                     // P - PLAY: Animate to natural position (0)
-                    element.style.transition = "transform 0.9s cubic-bezier(0.4, 0, 0.2, 1)";
+                    element.style.transition =
+                      "transform 0.9s cubic-bezier(0.4, 0, 0.2, 1)";
                     element.style.transform = "translateY(0)";
 
                     // Clean up after animation
@@ -991,36 +950,33 @@ export function OrderForm(props: OrderFormProps) {
     const sortItems = (items: DetailBarangItem[]) => {
       return [...items].sort((a, b) => {
         // First sort by Kadar - extract numeric value
-        const kadarA =
-          parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
-        const kadarB =
-          parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
+        const kadarA = parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
+        const kadarB = parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
         if (kadarA !== kadarB) return kadarA - kadarB;
 
         // Then by Warna
-        if (a.warna !== b.warna)
-          return a.warna.localeCompare(b.warna);
+        if (a.warna !== b.warna) return a.warna.localeCompare(b.warna);
 
         // Then by Ukuran
-        if (a.ukuran !== b.ukuran)
-          return a.ukuran.localeCompare(b.ukuran);
+        if (a.ukuran !== b.ukuran) return a.ukuran.localeCompare(b.ukuran);
 
         // Finally by Berat
-        return (
-          parseFloat(a.berat || "0") -
-          parseFloat(b.berat || "0")
-        );
+        return parseFloat(a.berat || "0") - parseFloat(b.berat || "0");
       });
     };
 
     if (editingDetailId) {
       // Show editing item at top with pulsing outline
-      const editingItem = detailItems.find((item) => item.id === editingDetailId);
+      const editingItem = detailItems.find(
+        (item) => item.id === editingDetailId,
+      );
       const nonEditingItems = sortItems(
         detailItems.filter((item) => item.id !== editingDetailId),
       );
       setSortedDetailItems(
-        editingItem ? [editingItem, ...nonEditingItems] : sortItems(detailItems)
+        editingItem
+          ? [editingItem, ...nonEditingItems]
+          : sortItems(detailItems),
       );
     } else if (animatingIds.size > 0) {
       // Step 1: Show new items at top with glint animation
@@ -1028,14 +984,9 @@ export function OrderForm(props: OrderFormProps) {
         animatingIds.has(item.id),
       );
       const nonAnimatingItems = sortItems(
-        detailItems.filter(
-          (item) => !animatingIds.has(item.id),
-        ),
+        detailItems.filter((item) => !animatingIds.has(item.id)),
       );
-      setSortedDetailItems([
-        ...animatingItems,
-        ...nonAnimatingItems,
-      ]);
+      setSortedDetailItems([...animatingItems, ...nonAnimatingItems]);
     } else {
       // Step 2 or normal state: show all items sorted (FLIP animation handles repositioning)
       setSortedDetailItems(sortItems(detailItems));
@@ -1068,38 +1019,26 @@ export function OrderForm(props: OrderFormProps) {
   const handleSaveOrder = async () => {
     // Convert image to base64 if it's a Model with uploaded photo
     let fotoBarangBase64 = "";
-    if (
-      formData.kategoriBarang === "model" &&
-      formData.fotoBarang
-    ) {
+    if (formData.kategoriBarang === "model" && formData.fotoBarang) {
       const reader = new FileReader();
-      fotoBarangBase64 = await new Promise<string>(
-        (resolve) => {
-          reader.onloadend = () => {
-            resolve(reader.result as string);
-          };
-          reader.readAsDataURL(formData.fotoBarang!);
-        },
-      );
-    } else if (
-      mode === "edit" &&
-      initialData?.fotoBarangBase64
-    ) {
+      fotoBarangBase64 = await new Promise<string>((resolve) => {
+        reader.onloadend = () => {
+          resolve(reader.result as string);
+        };
+        reader.readAsDataURL(formData.fotoBarang!);
+      });
+    } else if (mode === "edit" && initialData?.fotoBarangBase64) {
       // Keep existing base64 image when editing
       fotoBarangBase64 = initialData.fotoBarangBase64;
     }
 
     // Get existing orders from session storage
     const existingOrders = sessionStorage.getItem("orders");
-    const orders = existingOrders
-      ? JSON.parse(existingOrders)
-      : [];
+    const orders = existingOrders ? JSON.parse(existingOrders) : [];
 
     if (mode === "edit" && initialData?.id) {
       // Update existing order
-      const orderIndex = orders.findIndex(
-        (o: any) => o.id === initialData.id,
-      );
+      const orderIndex = orders.findIndex((o: any) => o.id === initialData.id);
       if (orderIndex !== -1) {
         orders[orderIndex] = {
           ...orders[orderIndex],
@@ -1110,7 +1049,7 @@ export function OrderForm(props: OrderFormProps) {
           namaBasic: formData.namaBasic,
           namaPelanggan: formData.namaPelanggan,
           waktuKirim: formData.waktuKirim?.toISOString() || "",
-          followUpAction: formData.followUpAction,
+          customerExpectation: formData.customerExpectation,
           detailItems: detailItems,
           fotoBarangBase64: fotoBarangBase64,
           // Keep existing id, timestamp, and status
@@ -1133,7 +1072,7 @@ export function OrderForm(props: OrderFormProps) {
         namaBasic: formData.namaBasic,
         namaPelanggan: formData.namaPelanggan,
         waktuKirim: formData.waktuKirim?.toISOString() || "",
-        followUpAction: formData.followUpAction,
+        customerExpectation: formData.customerExpectation,
         detailItems: detailItems,
         fotoBarangBase64: fotoBarangBase64,
         status: "Open", // Default status for new orders
@@ -1170,10 +1109,7 @@ export function OrderForm(props: OrderFormProps) {
   const handleViewMyRequests = () => {
     // Store the last saved order ID in sessionStorage for highlighting
     if (lastSavedOrderId) {
-      sessionStorage.setItem(
-        "highlightOrderId",
-        lastSavedOrderId,
-      );
+      sessionStorage.setItem("highlightOrderId", lastSavedOrderId);
     }
     setShowNewOrderDialog(false);
     // Navigate to My Requests page
@@ -1194,7 +1130,7 @@ export function OrderForm(props: OrderFormProps) {
         waktuKirim: initialData.waktuKirim
           ? new Date(initialData.waktuKirim)
           : undefined,
-        followUpAction: initialData.followUpAction,
+        customerExpectation: initialData.customerExpectation,
       });
       setDetailItems(initialData.detailItems);
     }
@@ -1249,17 +1185,11 @@ export function OrderForm(props: OrderFormProps) {
             />
 
             {/* Atas Nama */}
-            <Label
-              htmlFor="namaPelanggan"
-              className="text-xs md:pt-2"
-            >
+            <Label htmlFor="namaPelanggan" className="text-xs md:pt-2">
               Atas Nama
             </Label>
             <Combobox
-              value={
-                formData.namaPelanggan.id ||
-                formData.namaPelanggan.name
-              }
+              value={formData.namaPelanggan.id || formData.namaPelanggan.name}
               onValueChange={(value) => {
                 const selectedNama = ATAS_NAMA_OPTIONS.find(
                   (n) => n.value === value,
@@ -1282,24 +1212,21 @@ export function OrderForm(props: OrderFormProps) {
               allowCustomValue={true}
             />
 
-            {/* Follow Up Action */}
-            <Label
-              htmlFor="followUpAction"
-              className="text-xs md:pt-2"
-            >
-              Follow Up Action
+            {/* Customer Expectation */}
+            <Label htmlFor="customerExpectation" className="text-xs md:pt-2">
+              Customer Expectation
             </Label>
             <Combobox
-              value={formData.followUpAction}
+              value={formData.customerExpectation}
               onValueChange={(value) => {
                 const newETA = calculateETA(value);
                 setFormData({
                   ...formData,
-                  followUpAction: value,
+                  customerExpectation: value,
                   waktuKirim: newETA || formData.waktuKirim,
                 });
               }}
-              options={FOLLOW_UP_ACTION_OPTIONS}
+              options={CUSTOMER_EXPECTATION_OPTIONS}
               placeholder="Pilih tindakan..."
               searchPlaceholder="Cari tindakan..."
               emptyText="Tindakan tidak ditemukan."
@@ -1307,10 +1234,7 @@ export function OrderForm(props: OrderFormProps) {
             />
 
             {/* Waktu Kirim (ETA) */}
-            <Label
-              htmlFor="waktuKirim"
-              className="text-xs md:pt-2"
-            >
+            <Label htmlFor="waktuKirim" className="text-xs md:pt-2">
               Waktu Kirim (ETA)
             </Label>
             <DatePicker
@@ -1325,15 +1249,11 @@ export function OrderForm(props: OrderFormProps) {
                 today.setHours(0, 0, 0, 0);
                 return today;
               })()}
-              disabled={
-                formData.followUpAction === "ready-marketing"
-              }
+              disabled={formData.customerExpectation === "ready-marketing"}
             />
 
             {/* Kategori Barang */}
-            <Label className="text-xs md:pt-2">
-              Kategori Barang
-            </Label>
+            <Label className="text-xs md:pt-2">Kategori Barang</Label>
             <RadioGroup
               value={formData.kategoriBarang}
               onValueChange={handleKategoriBarangChange}
@@ -1345,10 +1265,7 @@ export function OrderForm(props: OrderFormProps) {
                   id="basic-header"
                   className="h-3 w-3"
                 />
-                <Label
-                  htmlFor="basic-header"
-                  className="font-normal text-xs"
-                >
+                <Label htmlFor="basic-header" className="font-normal text-xs">
                   Barang Basic
                 </Label>
               </div>
@@ -1358,20 +1275,14 @@ export function OrderForm(props: OrderFormProps) {
                   id="model-header"
                   className="h-3 w-3"
                 />
-                <Label
-                  htmlFor="model-header"
-                  className="font-normal text-xs"
-                >
+                <Label htmlFor="model-header" className="font-normal text-xs">
                   Barang Model
                 </Label>
               </div>
             </RadioGroup>
 
             {/* Jenis Produk */}
-            <Label
-              htmlFor="jenisProduk"
-              className="text-xs md:pt-2"
-            >
+            <Label htmlFor="jenisProduk" className="text-xs md:pt-2">
               Jenis Produk
             </Label>
             <Combobox
@@ -1387,10 +1298,7 @@ export function OrderForm(props: OrderFormProps) {
             {/* Conditional: Nama Basic (only for Barang Basic) OR Nama Model (for Barang Model) */}
             {formData.kategoriBarang === "basic" ? (
               <>
-                <Label
-                  htmlFor="namaBasic"
-                  className="text-xs md:pt-2"
-                >
+                <Label htmlFor="namaBasic" className="text-xs md:pt-2">
                   Nama Basic
                 </Label>
                 <Combobox
@@ -1409,10 +1317,7 @@ export function OrderForm(props: OrderFormProps) {
               </>
             ) : (
               <>
-                <Label
-                  htmlFor="namaProdukHeader"
-                  className="text-xs md:pt-2"
-                >
+                <Label htmlFor="namaProdukHeader" className="text-xs md:pt-2">
                   Nama Model
                 </Label>
                 <Combobox
@@ -1432,12 +1337,9 @@ export function OrderForm(props: OrderFormProps) {
             )}
 
             {/* Conditional: Foto Barang - Show preview for Basic, show uploader+preview for Model */}
-            {formData.kategoriBarang === "basic" &&
-            formData.namaBasic ? (
+            {formData.kategoriBarang === "basic" && formData.namaBasic ? (
               <>
-                <Label className="text-xs md:pt-2">
-                  Foto Barang
-                </Label>
+                <Label className="text-xs md:pt-2">Foto Barang</Label>
                 <div className="border rounded-md p-2 bg-gray-50">
                   <img
                     src={NAMA_BASIC_IMAGES[formData.namaBasic]}
@@ -1448,12 +1350,8 @@ export function OrderForm(props: OrderFormProps) {
               </>
             ) : formData.kategoriBarang === "model" ? (
               <>
-                <Label
-                  htmlFor="fotoBarang"
-                  className="text-xs md:pt-2"
-                >
-                  Foto Barang{" "}
-                  <span className="text-red-500">*</span>
+                <Label htmlFor="fotoBarang" className="text-xs md:pt-2">
+                  Foto Barang <span className="text-red-500">*</span>
                 </Label>
                 <div className="space-y-2">
                   <Input
@@ -1464,10 +1362,7 @@ export function OrderForm(props: OrderFormProps) {
                     className="h-9 sm:h-8 text-sm"
                     onChange={(e) => {
                       // Only update if user actually selected a file
-                      if (
-                        e.target.files &&
-                        e.target.files.length > 0
-                      ) {
+                      if (e.target.files && e.target.files.length > 0) {
                         setFormData({
                           ...formData,
                           fotoBarang: e.target.files[0],
@@ -1490,17 +1385,13 @@ export function OrderForm(props: OrderFormProps) {
                             ...formData,
                             fotoBarang: null,
                           });
-                          setFileInputKey(
-                            (prevKey) => prevKey + 1,
-                          );
+                          setFileInputKey((prevKey) => prevKey + 1);
                         }}
                       >
                         Remove
                       </Button>
                       <img
-                        src={URL.createObjectURL(
-                          formData.fotoBarang,
-                        )}
+                        src={URL.createObjectURL(formData.fotoBarang)}
                         alt="Preview"
                         className="w-full sm:w-48 h-48 object-cover rounded"
                       />
@@ -1522,8 +1413,7 @@ export function OrderForm(props: OrderFormProps) {
                   Lengkapi data header terlebih dahulu
                 </p>
                 <p className="text-xs text-gray-600">
-                  Isi: Pabrik, Waktu Kirim, Kategori Barang,
-                  Jenis Produk,
+                  Isi: Pabrik, Waktu Kirim, Kategori Barang, Jenis Produk,
                   {formData.kategoriBarang === "basic"
                     ? " Nama Basic"
                     : " Foto Barang"}
@@ -1534,9 +1424,7 @@ export function OrderForm(props: OrderFormProps) {
 
           {/* Sticky Input Form */}
           <div className="bg-white sticky top-0 z-10 pb-3 border-b mb-3">
-            <h3 className="text-sm font-medium mb-2">
-              Input Detail Barang
-            </h3>
+            <h3 className="text-sm font-medium mb-2">Input Detail Barang</h3>
 
             {/* Compact Input Row - Allow wrapping */}
             <div className="flex flex-wrap gap-2">
@@ -1774,10 +1662,7 @@ export function OrderForm(props: OrderFormProps) {
                   onChange={(e) => {
                     const value = e.target.value;
                     // Only allow non-negative integers
-                    if (
-                      value === "" ||
-                      /^[0-9]+$/.test(value)
-                    ) {
+                    if (value === "" || /^[0-9]+$/.test(value)) {
                       setDetailInput({
                         ...detailInput,
                         pcs: value,
@@ -1840,29 +1725,19 @@ export function OrderForm(props: OrderFormProps) {
           </div>
 
           {/* Scrollable Detail Items Container - Shows ~5 rows before scrolling */}
-          <div
-            className="max-h-[250px] overflow-auto"
-            ref={tableScrollRef}
-          >
+          <div className="max-h-[250px] overflow-auto" ref={tableScrollRef}>
             {/* Mobile Card View */}
             <div className="block sm:hidden space-y-3 pr-1">
               {sortedDetailItems.length === 0 ? (
                 <div className="border rounded-lg p-4 text-center text-gray-500 text-sm">
-                  Belum ada data. Silakan tambahkan detail
-                  barang.
+                  Belum ada data. Silakan tambahkan detail barang.
                 </div>
               ) : (
                 sortedDetailItems.map((item, index) => {
-                  const ukuranDisplay = getUkuranDisplay(
-                    item.ukuran,
-                  );
-                  const isNewlyAdded = newlyAddedIds.has(
-                    item.id,
-                  );
+                  const ukuranDisplay = getUkuranDisplay(item.ukuran);
+                  const isNewlyAdded = newlyAddedIds.has(item.id);
                   const isAnimating = animatingIds.has(item.id);
-                  const isRelocating = relocatingIds.has(
-                    item.id,
-                  );
+                  const isRelocating = relocatingIds.has(item.id);
                   const isEditing = editingDetailId === item.id;
 
                   return (
@@ -1876,7 +1751,7 @@ export function OrderForm(props: OrderFormProps) {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Card element */}
                       <div
                         ref={(el) => {
@@ -1887,7 +1762,9 @@ export function OrderForm(props: OrderFormProps) {
                           }
                         }}
                         onClick={() => handleRowClick(item.id)}
-                        style={{ willChange: isRelocating ? 'transform' : 'auto' }}
+                        style={{
+                          willChange: isRelocating ? "transform" : "auto",
+                        }}
                         className={`border rounded-lg bg-white shadow-sm overflow-hidden flex cursor-pointer relative ${
                           isEditing
                             ? "editing-pulse"
@@ -1899,129 +1776,126 @@ export function OrderForm(props: OrderFormProps) {
                         }`}
                       >
                         {/* Left column: Kadar (top) and Warna (bottom) */}
-                      <div className="flex flex-col w-16">
-                        {/* Kadar - Top left corner */}
-                        <div
-                          className={`flex-1 ${getKadarColor(item.kadar)} flex items-center justify-center px-1`}
-                        >
-                          <span className="font-bold text-xs text-center">
-                            {item.kadar.toUpperCase()}
-                          </span>
-                        </div>
-
-                        {/* Warna - Bottom left corner */}
-                        <div
-                          className={`flex-1 ${getWarnaColor(item.warna)} flex items-center justify-center px-1`}
-                        >
-                          <span className="font-semibold text-[10px] text-center leading-tight">
-                            {getWarnaLabel(item.warna)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Middle content - Ukuran, Berat, Pcs, Notes */}
-                      <div className="flex-1 px-3 py-3 flex flex-col gap-3">
-                        <div className="flex items-start gap-8">
-                          <div className="flex flex-col">
-                            <div className="text-[10px] text-gray-500 mb-1 h-4">
-                              Ukuran
-                            </div>
-                            {item.ukuran ? (
-                              <div className="flex items-baseline gap-1">
-                                <span className="font-bold text-xl">
-                                  {ukuranDisplay.value}
-                                </span>
-                                {ukuranDisplay.showUnit && (
-                                  <span className="text-xs text-gray-600">
-                                    cm
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="text-gray-400 text-sm">
-                                -
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col">
-                            <div className="text-[10px] text-gray-500 mb-1 h-4">
-                              Berat
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                              <span className="font-bold text-xl">
-                                {item.berat}
-                              </span>
-                              <span className="text-xs text-gray-600">
-                                gr
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col">
-                            <div className="text-[10px] text-gray-500 mb-1 h-4">
-                              Pcs
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                              <span className="font-bold text-xl">
-                                {item.pcs}
-                              </span>
-                              <span className="text-xs text-gray-600">
-                                pcs
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        {item.notes && (
-                          <div className="text-xs text-gray-600 border-t pt-2">
-                            <span className="font-medium">
-                              Notes:
-                            </span>{" "}
-                            <span 
-                              className="inline-block max-w-[200px] truncate align-bottom cursor-pointer hover:text-gray-800"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setShowingNotesTooltip({
-                                  itemId: item.id,
-                                  x: rect.left,
-                                  y: rect.bottom + 5
-                                });
-                              }}
-                              title="Click to view full notes"
-                            >
-                              {item.notes}
+                        <div className="flex flex-col w-16">
+                          {/* Kadar - Top left corner */}
+                          <div
+                            className={`flex-1 ${getKadarColor(item.kadar)} flex items-center justify-center px-1`}
+                          >
+                            <span className="font-bold text-xs text-center">
+                              {item.kadar.toUpperCase()}
                             </span>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Right side action buttons */}
-                      <div className="flex flex-col border-l">
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditDetail(item);
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          className="h-1/2 px-3 text-xs whitespace-nowrap rounded-none border-b hover:bg-gray-100"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteDetail(item.id);
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          className="h-1/2 px-3 text-xs rounded-none hover:bg-red-50 text-red-600"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                          {/* Warna - Bottom left corner */}
+                          <div
+                            className={`flex-1 ${getWarnaColor(item.warna)} flex items-center justify-center px-1`}
+                          >
+                            <span className="font-semibold text-[10px] text-center leading-tight">
+                              {getWarnaLabel(item.warna)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Middle content - Ukuran, Berat, Pcs, Notes */}
+                        <div className="flex-1 px-3 py-3 flex flex-col gap-3">
+                          <div className="flex items-start gap-8">
+                            <div className="flex flex-col">
+                              <div className="text-[10px] text-gray-500 mb-1 h-4">
+                                Ukuran
+                              </div>
+                              {item.ukuran ? (
+                                <div className="flex items-baseline gap-1">
+                                  <span className="font-bold text-xl">
+                                    {ukuranDisplay.value}
+                                  </span>
+                                  {ukuranDisplay.showUnit && (
+                                    <span className="text-xs text-gray-600">
+                                      cm
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-gray-400 text-sm">-</div>
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="text-[10px] text-gray-500 mb-1 h-4">
+                                Berat
+                              </div>
+                              <div className="flex items-baseline gap-1">
+                                <span className="font-bold text-xl">
+                                  {item.berat}
+                                </span>
+                                <span className="text-xs text-gray-600">
+                                  gr
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="text-[10px] text-gray-500 mb-1 h-4">
+                                Pcs
+                              </div>
+                              <div className="flex items-baseline gap-1">
+                                <span className="font-bold text-xl">
+                                  {item.pcs}
+                                </span>
+                                <span className="text-xs text-gray-600">
+                                  pcs
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {item.notes && (
+                            <div className="text-xs text-gray-600 border-t pt-2">
+                              <span className="font-medium">Notes:</span>{" "}
+                              <span
+                                className="inline-block max-w-[200px] truncate align-bottom cursor-pointer hover:text-gray-800"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect =
+                                    e.currentTarget.getBoundingClientRect();
+                                  setShowingNotesTooltip({
+                                    itemId: item.id,
+                                    x: rect.left,
+                                    y: rect.bottom + 5,
+                                  });
+                                }}
+                                title="Click to view full notes"
+                              >
+                                {item.notes}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right side action buttons */}
+                        <div className="flex flex-col border-l">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditDetail(item);
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="h-1/2 px-3 text-xs whitespace-nowrap rounded-none border-b hover:bg-gray-100"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDetail(item.id);
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="h-1/2 px-3 text-xs rounded-none hover:bg-red-50 text-red-600"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        {/* End card element */}
                       </div>
-                      {/* End card element */}
-                    </div>
-                    {/* End wrapper div */}
+                      {/* End wrapper div */}
                     </div>
                   );
                 })
@@ -2033,30 +1907,16 @@ export function OrderForm(props: OrderFormProps) {
               <table className="w-full border-collapse border text-xs">
                 <thead className="bg-gray-100 sticky top-0 z-10">
                   <tr>
-                    <th className="border p-2 text-left bg-gray-100">
-                      #
-                    </th>
-                    <th className="border p-2 text-left bg-gray-100">
-                      Kadar
-                    </th>
-                    <th className="border p-2 text-left bg-gray-100">
-                      Warna
-                    </th>
-                    <th className="border p-2 text-left bg-gray-100">
-                      Ukuran
-                    </th>
-                    <th className="border p-2 text-left bg-gray-100">
-                      Berat
-                    </th>
-                    <th className="border p-2 text-left bg-gray-100">
-                      Pcs
-                    </th>
+                    <th className="border p-2 text-left bg-gray-100">#</th>
+                    <th className="border p-2 text-left bg-gray-100">Kadar</th>
+                    <th className="border p-2 text-left bg-gray-100">Warna</th>
+                    <th className="border p-2 text-left bg-gray-100">Ukuran</th>
+                    <th className="border p-2 text-left bg-gray-100">Berat</th>
+                    <th className="border p-2 text-left bg-gray-100">Pcs</th>
                     <th className="border p-2 text-left w-[200px] min-w-[200px] max-w-[200px] bg-gray-100">
                       Notes
                     </th>
-                    <th className="border p-2 text-center bg-gray-100">
-                      Aksi
-                    </th>
+                    <th className="border p-2 text-center bg-gray-100">Aksi</th>
                   </tr>
                 </thead>
                 <tbody ref={tbodyRef}>
@@ -2066,24 +1926,15 @@ export function OrderForm(props: OrderFormProps) {
                         colSpan={8}
                         className="border p-4 text-center text-gray-500"
                       >
-                        Belum ada data. Silakan tambahkan detail
-                        barang.
+                        Belum ada data. Silakan tambahkan detail barang.
                       </td>
                     </tr>
                   ) : (
                     sortedDetailItems.map((item, index) => {
-                      const ukuranDisplay = getUkuranDisplay(
-                        item.ukuran,
-                      );
-                      const isNewlyAdded = newlyAddedIds.has(
-                        item.id,
-                      );
-                      const isAnimating = animatingIds.has(
-                        item.id,
-                      );
-                      const isRelocating = relocatingIds.has(
-                        item.id,
-                      );
+                      const ukuranDisplay = getUkuranDisplay(item.ukuran);
+                      const isNewlyAdded = newlyAddedIds.has(item.id);
+                      const isAnimating = animatingIds.has(item.id);
+                      const isRelocating = relocatingIds.has(item.id);
                       const isEditing = editingDetailId === item.id;
 
                       return (
@@ -2130,27 +1981,26 @@ export function OrderForm(props: OrderFormProps) {
                               ? `${ukuranDisplay.value} cm`
                               : ukuranDisplay.value}
                           </td>
-                          <td className="border p-2">
-                            {item.berat}
-                          </td>
-                          <td className="border p-2">
-                            {item.pcs}
-                          </td>
+                          <td className="border p-2">{item.berat}</td>
+                          <td className="border p-2">{item.pcs}</td>
                           <td className="border p-2 w-[200px] min-w-[200px] max-w-[200px]">
-                            <div 
-                              className={`truncate ${item.notes ? 'cursor-pointer hover:text-gray-700' : ''}`}
+                            <div
+                              className={`truncate ${item.notes ? "cursor-pointer hover:text-gray-700" : ""}`}
                               onClick={(e) => {
                                 if (item.notes) {
                                   e.stopPropagation();
-                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const rect =
+                                    e.currentTarget.getBoundingClientRect();
                                   setShowingNotesTooltip({
                                     itemId: item.id,
                                     x: rect.left,
-                                    y: rect.bottom + 5
+                                    y: rect.bottom + 5,
                                   });
                                 }
                               }}
-                              title={item.notes ? "Click to view full notes" : ""}
+                              title={
+                                item.notes ? "Click to view full notes" : ""
+                              }
                             >
                               {item.notes || "-"}
                             </div>
@@ -2205,17 +2055,14 @@ export function OrderForm(props: OrderFormProps) {
       </Card>
 
       {/* Confirmation Dialog */}
-      <AlertDialog
-        open={showResetDialog}
-        onOpenChange={setShowResetDialog}
-      >
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Peringatan</AlertDialogTitle>
             <AlertDialogDescription>
-              Mengubah kategori barang atau jenis produk akan
-              menghapus semua detail barang yang telah
-              ditambahkan. Apakah Anda yakin ingin melanjutkan?
+              Mengubah kategori barang atau jenis produk akan menghapus semua
+              detail barang yang telah ditambahkan. Apakah Anda yakin ingin
+              melanjutkan?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2236,12 +2083,10 @@ export function OrderForm(props: OrderFormProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Pesanan Tersimpan
-            </AlertDialogTitle>
+            <AlertDialogTitle>Pesanan Tersimpan</AlertDialogTitle>
             <AlertDialogDescription>
-              Pesanan Anda telah berhasil disimpan. Apa yang
-              ingin Anda lakukan selanjutnya?
+              Pesanan Anda telah berhasil disimpan. Apa yang ingin Anda lakukan
+              selanjutnya?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2269,15 +2114,14 @@ export function OrderForm(props: OrderFormProps) {
             style={{
               left: `${showingNotesTooltip.x}px`,
               top: `${showingNotesTooltip.y}px`,
-              transform: 'translateY(0)',
+              transform: "translateY(0)",
             }}
           >
-            <div className="text-xs font-medium text-gray-500 mb-1">
-              Notes
-            </div>
+            <div className="text-xs font-medium text-gray-500 mb-1">Notes</div>
             <div className="text-sm text-gray-900 whitespace-pre-wrap break-words">
-              {detailItems.find((item) => item.id === showingNotesTooltip.itemId)
-                ?.notes || ""}
+              {detailItems.find(
+                (item) => item.id === showingNotesTooltip.itemId,
+              )?.notes || ""}
             </div>
           </div>
         </>

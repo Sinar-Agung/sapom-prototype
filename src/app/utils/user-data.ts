@@ -172,12 +172,9 @@ export const ALL_USERS: User[] = [
 // ==========================================
 
 // Find user by username
-export const findUserByUsername = (
-  username: string,
-): User | undefined => {
+export const findUserByUsername = (username: string): User | undefined => {
   return ALL_USERS.find(
-    (user) =>
-      user.username.toLowerCase() === username.toLowerCase(),
+    (user) => user.username.toLowerCase() === username.toLowerCase(),
   );
 };
 
@@ -201,9 +198,7 @@ export const authenticateUser = (
 };
 
 // Get user role
-export const getUserRole = (
-  user: User,
-): "sales" | "stockist" | "jb" => {
+export const getUserRole = (user: User): "sales" | "stockist" | "jb" => {
   return user.accountType;
 };
 
@@ -218,9 +213,7 @@ export const formatCreditLimit = (amount: number): string => {
 };
 
 // Get stockist by kadar
-export const getStockistByKadar = (
-  kadar: string,
-): StockistUser | undefined => {
+export const getStockistByKadar = (kadar: string): StockistUser | undefined => {
   return STOCKIST_USERS.find((stockist) =>
     stockist.allocatedKadar.includes(kadar),
   );
@@ -231,9 +224,7 @@ export const canStockistHandleKadar = (
   username: string,
   kadar: string,
 ): boolean => {
-  const stockist = STOCKIST_USERS.find(
-    (s) => s.username === username,
-  );
+  const stockist = STOCKIST_USERS.find((s) => s.username === username);
   if (!stockist) return false;
   return stockist.allocatedKadar.includes(kadar);
 };
@@ -250,13 +241,8 @@ export const getKadarGroups = () => {
 export const initializeUserData = () => {
   // Store user database in sessionStorage for easy access
   if (!sessionStorage.getItem("userDatabase")) {
-    sessionStorage.setItem(
-      "userDatabase",
-      JSON.stringify(ALL_USERS),
-    );
-    console.log(
-      `✅ Initialized ${ALL_USERS.length} users in database`,
-    );
+    sessionStorage.setItem("userDatabase", JSON.stringify(ALL_USERS));
+    console.log(`✅ Initialized ${ALL_USERS.length} users in database`);
     console.log(`   - ${SALES_USERS.length} Sales users`);
     console.log(`   - ${STOCKIST_USERS.length} Stockist users`);
     console.log(`   - ${JB_USERS.length} JB users`);
@@ -266,9 +252,14 @@ export const initializeUserData = () => {
 // Get current logged-in user details
 export const getCurrentUserDetails = (): User | null => {
   const username =
-    localStorage.getItem("username") ||
-    sessionStorage.getItem("username");
+    localStorage.getItem("username") || sessionStorage.getItem("username");
   if (!username) return null;
 
   return findUserByUsername(username) || null;
+};
+
+// Get full name from username
+export const getFullNameFromUsername = (username: string): string => {
+  const user = findUserByUsername(username);
+  return user?.fullName || username; // Return username as fallback
 };
