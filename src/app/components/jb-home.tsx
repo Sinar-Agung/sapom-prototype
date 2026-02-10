@@ -72,7 +72,7 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
   }, []);
 
   const loadData = () => {
-    const savedOrders = sessionStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders: Order[] = JSON.parse(savedOrders);
 

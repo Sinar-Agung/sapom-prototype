@@ -290,7 +290,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
       localStorage.getItem("username") ||
       "";
 
-    const savedOrders = sessionStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
@@ -301,7 +301,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         orders[orderIndex].waktuKirim = eta;
         // Save the current order pcs values
         orders[orderIndex].detailItems = orderItems;
-        sessionStorage.setItem("orders", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
         toast.success("Order marked as sent to supplier");
         setTimeout(() => {
           onBack();

@@ -1,4 +1,3 @@
-import { NewBadge } from "@/app/components/new-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,66 +10,21 @@ import {
 } from "@/app/components/ui/alert-dialog";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
-import { Combobox } from "@/app/components/ui/combobox";
-import { DatePicker } from "@/app/components/ui/date-picker";
-import { Input } from "@/app/components/ui/input";
-import { InputWithCheck } from "@/app/components/ui/input-with-check";
-import { Label } from "@/app/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
-import {
-  ATAS_NAMA_OPTIONS,
-  CUSTOMER_EXPECTATION_OPTIONS,
-  JENIS_PRODUK_OPTIONS,
-  KADAR_OPTIONS,
-  NAMA_BASIC_OPTIONS,
-  NAMA_PRODUK_OPTIONS,
-  PABRIK_OPTIONS,
-  UKURAN_KALUNG_OPTIONS,
-  WARNA_OPTIONS,
-} from "@/app/data/order-data";
-import casteli from "@/assets/images/casteli.png";
-import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
-import italyBambu from "@/assets/images/italy-bambu.png";
-import italyKaca from "@/assets/images/italy-kaca.png";
-import italySanta from "@/assets/images/italy-santa.png";
-import kalungFlexi from "@/assets/images/kalung-flexi.png";
-import milano from "@/assets/images/milano.png";
-import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
-import tambang from "@/assets/images/tambang.png";
-import {
-  Hash,
-  Palette,
-  Percent,
-  RotateCcw,
-  Ruler,
-  StickyNote,
-  Trash2,
-  Weight,
-} from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-// Image mapping for Nama Basic
-const NAMA_BASIC_IMAGES: Record<string, string> = {
-  "italy-santa": italySanta,
-  "italy-kaca": italyKaca,
-  "italy-bambu": italyBambu,
-  "kalung-flexi": kalungFlexi,
-  "sunny-vanessa": sunnyVanessa,
-  "hollow-fancy-nori": hollowFancyNori,
-  milano: milano,
-  tambang: tambang,
-  casteli: casteli,
-};
-
-interface DetailBarangItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-  notes?: string;
-}
+import { DetailItemInput } from "./order-form/detail-item-input";
+import {
+  DetailItemsDisplay,
+  type DetailBarangItem,
+} from "./order-form/detail-items-display";
+import {
+  getKadarColor,
+  getUkuranDisplay,
+  getWarnaColor,
+  getWarnaLabel,
+  parseBerat,
+} from "./order-form/form-helpers";
+import { OrderFormHeader } from "./order-form/order-form-header";
 
 interface OrderFormProps {
   onFormChange?: (hasChanges: boolean) => void;
@@ -149,27 +103,6 @@ export function OrderForm(props: OrderFormProps) {
 
   // Ref for scrollable table container
   const tableScrollRef = useRef<HTMLDivElement>(null);
-
-  // Parse berat values (e.g., "2, 4, 7-9" => [2, 4, 7, 8, 9])
-  const parseBerat = (beratInput: string): string[] => {
-    const result: string[] = [];
-    const parts = beratInput.split(",").map((p) => p.trim());
-
-    parts.forEach((part) => {
-      if (part.includes("-")) {
-        const [start, end] = part.split("-").map((n) => parseInt(n.trim()));
-        if (!isNaN(start) && !isNaN(end)) {
-          for (let i = start; i <= end; i++) {
-            result.push(i.toString());
-          }
-        }
-      } else if (part) {
-        result.push(part);
-      }
-    });
-
-    return result;
-  };
 
   const handleAddDetail = () => {
     // Validation
@@ -470,64 +403,6 @@ export function OrderForm(props: OrderFormProps) {
       !detailInput.ukuran) ||
     (detailInput.ukuran === "other" && !detailInput.ukuranCustom);
 
-  // Get Kadar background color
-  const getKadarColor = (kadar: string) => {
-    const colors: Record<string, string> = {
-      "6k": "bg-green-500 text-white",
-      "8k": "bg-blue-500 text-white",
-      "9k": "bg-blue-700 text-white",
-      "16k": "bg-orange-500 text-white",
-      "17k": "bg-pink-500 text-white",
-      "24k": "bg-red-500 text-white",
-    };
-    return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
-  };
-
-  // Get Warna background color
-  const getWarnaColor = (warna: string) => {
-    const colors: Record<string, string> = {
-      rg: "bg-rose-300 text-gray-800",
-      ap: "bg-gray-200 text-gray-800",
-      kn: "bg-yellow-400 text-gray-800",
-      ks: "bg-yellow-300 text-gray-800",
-      "2w-ap-rg": "bg-gradient-to-r from-gray-200 to-rose-300 text-gray-800",
-      "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
-    };
-    return colors[warna.toLowerCase()] || "bg-gray-300 text-gray-800";
-  };
-
-  // Get Warna display label
-  const getWarnaLabel = (warna: string) => {
-    const labels: Record<string, string> = {
-      rg: "RG",
-      ap: "AP",
-      kn: "KN",
-      ks: "KS",
-      "2w-ap-rg": "2W (AP & RG)",
-      "2w-ap-kn": "2W (AP & KN)",
-    };
-    return labels[warna.toLowerCase()] || warna.toUpperCase();
-  };
-
-  // Get Ukuran display label - show description for predefined values, number+cm for custom values
-  const getUkuranDisplay = (ukuran: string) => {
-    const labels: Record<string, string> = {
-      a: "Anak",
-      n: "Normal",
-      p: "Panjang",
-      t: "Tanggung",
-    };
-
-    // Check if it's a predefined value
-    const label = labels[ukuran.toLowerCase()];
-    if (label) {
-      return { value: label, showUnit: false };
-    }
-
-    // Otherwise it's a custom numeric value
-    return { value: ukuran, showUnit: true };
-  };
-
   // Handle Kategori Barang change with confirmation
   const handleKategoriBarangChange = (value: string) => {
     if (detailItems.length > 0 && value !== formData.kategoriBarang) {
@@ -709,15 +584,6 @@ export function OrderForm(props: OrderFormProps) {
     }
     return undefined;
   };
-
-  // Filter Nama Produk options based on selected Jenis Produk
-  const filteredNamaProdukOptions = formData.jenisProduk
-    ? NAMA_PRODUK_OPTIONS.filter((option) =>
-        option.value
-          .toLowerCase()
-          .startsWith(formData.jenisProduk.toLowerCase()),
-      )
-    : NAMA_PRODUK_OPTIONS;
 
   // Handle animation and sorting of detail items with FLIP
   useEffect(() => {
@@ -1032,8 +898,8 @@ export function OrderForm(props: OrderFormProps) {
       fotoBarangBase64 = initialData.fotoBarangBase64;
     }
 
-    // Get existing orders from session storage
-    const existingOrders = sessionStorage.getItem("orders");
+    // Get existing orders from local storage
+    const existingOrders = localStorage.getItem("orders");
     const orders = existingOrders ? JSON.parse(existingOrders) : [];
 
     if (mode === "edit" && initialData?.id) {
@@ -1085,8 +951,8 @@ export function OrderForm(props: OrderFormProps) {
       setLastSavedOrderId(orderId);
     }
 
-    // Save back to session storage
-    sessionStorage.setItem("orders", JSON.stringify(orders));
+    // Save back to local storage
+    localStorage.setItem("orders", JSON.stringify(orders));
 
     // Show dialog asking if user wants to create new order with same values
     setShowNewOrderDialog(true);
@@ -1155,253 +1021,15 @@ export function OrderForm(props: OrderFormProps) {
         </div>
 
         {/* Header Section */}
-        <div className="space-y-3 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-x-4 gap-y-3">
-            {/* Pabrik/Supplier */}
-            <Label htmlFor="pabrik" className="text-xs md:pt-2">
-              Pabrik/Supplier
-            </Label>
-            <Combobox
-              value={formData.pabrik.id}
-              onValueChange={(value) => {
-                const selectedPabrik = PABRIK_OPTIONS.find(
-                  (p) => p.value === value,
-                );
-                setFormData({
-                  ...formData,
-                  pabrik: selectedPabrik
-                    ? {
-                        id: selectedPabrik.value,
-                        name: selectedPabrik.label,
-                      }
-                    : { id: "", name: "" },
-                });
-              }}
-              options={PABRIK_OPTIONS}
-              placeholder="Pilih pabrik..."
-              searchPlaceholder="Cari pabrik..."
-              emptyText="Pabrik tidak ditemukan."
-              allowCustomValue={false}
-            />
-
-            {/* Atas Nama */}
-            <Label htmlFor="namaPelanggan" className="text-xs md:pt-2">
-              Atas Nama
-            </Label>
-            <Combobox
-              value={formData.namaPelanggan.id || formData.namaPelanggan.name}
-              onValueChange={(value) => {
-                const selectedNama = ATAS_NAMA_OPTIONS.find(
-                  (n) => n.value === value,
-                );
-                setFormData({
-                  ...formData,
-                  namaPelanggan: selectedNama
-                    ? {
-                        id: selectedNama.value,
-                        name: selectedNama.label,
-                      }
-                    : { id: "", name: value },
-                });
-              }}
-              options={ATAS_NAMA_OPTIONS}
-              placeholder="Pilih atau ketik nama..."
-              searchPlaceholder="Cari nama..."
-              emptyText="Nama tidak ditemukan."
-              autoOpenOnFocus={false}
-              allowCustomValue={true}
-            />
-
-            {/* Customer Expectation */}
-            <Label htmlFor="customerExpectation" className="text-xs md:pt-2">
-              Customer Expectation
-            </Label>
-            <Combobox
-              value={formData.customerExpectation}
-              onValueChange={(value) => {
-                const newETA = calculateETA(value);
-                setFormData({
-                  ...formData,
-                  customerExpectation: value,
-                  waktuKirim: newETA || formData.waktuKirim,
-                });
-              }}
-              options={CUSTOMER_EXPECTATION_OPTIONS}
-              placeholder="Pilih tindakan..."
-              searchPlaceholder="Cari tindakan..."
-              emptyText="Tindakan tidak ditemukan."
-              allowCustomValue={false}
-            />
-
-            {/* Waktu Kirim (ETA) */}
-            <Label htmlFor="waktuKirim" className="text-xs md:pt-2">
-              Waktu Kirim (ETA)
-            </Label>
-            <DatePicker
-              value={formData.waktuKirim}
-              onValueChange={(date) =>
-                setFormData({ ...formData, waktuKirim: date })
-              }
-              placeholder="Pilih tanggal ETA..."
-              className="w-full"
-              minDate={(() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                return today;
-              })()}
-              disabled={formData.customerExpectation === "ready-marketing"}
-            />
-
-            {/* Kategori Barang */}
-            <Label className="text-xs md:pt-2">Kategori Barang</Label>
-            <RadioGroup
-              value={formData.kategoriBarang}
-              onValueChange={handleKategoriBarangChange}
-              className="flex items-center space-x-3"
-            >
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem
-                  value="basic"
-                  id="basic-header"
-                  className="h-3 w-3"
-                />
-                <Label htmlFor="basic-header" className="font-normal text-xs">
-                  Barang Basic
-                </Label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem
-                  value="model"
-                  id="model-header"
-                  className="h-3 w-3"
-                />
-                <Label htmlFor="model-header" className="font-normal text-xs">
-                  Barang Model
-                </Label>
-              </div>
-            </RadioGroup>
-
-            {/* Jenis Produk */}
-            <Label htmlFor="jenisProduk" className="text-xs md:pt-2">
-              Jenis Produk
-            </Label>
-            <Combobox
-              value={formData.jenisProduk}
-              onValueChange={handleJenisProdukChange}
-              options={JENIS_PRODUK_OPTIONS}
-              placeholder="Pilih jenis..."
-              searchPlaceholder="Cari jenis produk..."
-              emptyText="Jenis tidak ditemukan."
-              allowCustomValue={false}
-            />
-
-            {/* Conditional: Nama Basic (only for Barang Basic) OR Nama Model (for Barang Model) */}
-            {formData.kategoriBarang === "basic" ? (
-              <>
-                <Label htmlFor="namaBasic" className="text-xs md:pt-2">
-                  Nama Basic
-                </Label>
-                <Combobox
-                  value={formData.namaBasic}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      namaBasic: value,
-                    })
-                  }
-                  options={NAMA_BASIC_OPTIONS}
-                  placeholder="Pilih atau ketik nama basic..."
-                  searchPlaceholder="Cari nama basic..."
-                  emptyText="Nama basic tidak ditemukan."
-                />
-              </>
-            ) : (
-              <>
-                <Label htmlFor="namaProdukHeader" className="text-xs md:pt-2">
-                  Nama Model
-                </Label>
-                <Combobox
-                  value={formData.namaProduk}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      namaProduk: value,
-                    })
-                  }
-                  options={filteredNamaProdukOptions}
-                  placeholder="Pilih atau ketik nama model..."
-                  searchPlaceholder="Cari model..."
-                  emptyText="Model tidak ditemukan."
-                />
-              </>
-            )}
-
-            {/* Conditional: Foto Barang - Show preview for Basic, show uploader+preview for Model */}
-            {formData.kategoriBarang === "basic" && formData.namaBasic ? (
-              <>
-                <Label className="text-xs md:pt-2">Foto Barang</Label>
-                <div className="border rounded-md p-2 bg-gray-50">
-                  <img
-                    src={NAMA_BASIC_IMAGES[formData.namaBasic]}
-                    alt={formData.namaBasic}
-                    className="w-full sm:w-48 h-48 object-cover rounded"
-                  />
-                </div>
-              </>
-            ) : formData.kategoriBarang === "model" ? (
-              <>
-                <Label htmlFor="fotoBarang" className="text-xs md:pt-2">
-                  Foto Barang <span className="text-red-500">*</span>
-                </Label>
-                <div className="space-y-2">
-                  <Input
-                    id="fotoBarang"
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="h-9 sm:h-8 text-sm"
-                    onChange={(e) => {
-                      // Only update if user actually selected a file
-                      if (e.target.files && e.target.files.length > 0) {
-                        setFormData({
-                          ...formData,
-                          fotoBarang: e.target.files[0],
-                        });
-                      }
-                      // If user cancels (files is null or empty), keep the previous image
-                    }}
-                    ref={fileInputRef}
-                    key={fileInputKey}
-                  />
-                  {formData.fotoBarang && (
-                    <div className="border rounded-md p-2 bg-gray-50 relative">
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-1 right-1 h-7 px-2 rounded z-10 text-xs"
-                        onClick={() => {
-                          setFormData({
-                            ...formData,
-                            fotoBarang: null,
-                          });
-                          setFileInputKey((prevKey) => prevKey + 1);
-                        }}
-                      >
-                        Remove
-                      </Button>
-                      <img
-                        src={URL.createObjectURL(formData.fotoBarang)}
-                        alt="Preview"
-                        className="w-full sm:w-48 h-48 object-cover rounded"
-                      />
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : null}
-          </div>
-        </div>
+        <OrderFormHeader
+          formData={formData}
+          onFormDataChange={setFormData}
+          onKategoriBarangChange={handleKategoriBarangChange}
+          onJenisProdukChange={handleJenisProdukChange}
+          fileInputRef={fileInputRef}
+          fileInputKey={fileInputKey}
+          onFileInputKeyChange={setFileInputKey}
+        />
 
         {/* Input Detail Barang Section */}
         <div className="border-t pt-4 mb-4 relative">
@@ -1423,622 +1051,39 @@ export function OrderForm(props: OrderFormProps) {
           )}
 
           {/* Sticky Input Form */}
-          <div className="bg-white sticky top-0 z-10 pb-3 border-b mb-3">
-            <h3 className="text-sm font-medium mb-2">Input Detail Barang</h3>
-
-            {/* Compact Input Row - Allow wrapping */}
-            <div className="flex flex-wrap gap-2">
-              {/* Kadar */}
-              <div className="w-[110px]" id="kadar-field-container">
-                <Label
-                  htmlFor="kadar"
-                  className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                >
-                  <div className="flex items-center">
-                    <Percent className="h-3 w-3 text-amber-600" />
-                  </div>
-                  Kadar{" "}
-                  {formData.kategoriBarang === "model" && (
-                    <span className="text-red-500">*</span>
-                  )}
-                </Label>
-                <Combobox
-                  value={detailInput.kadar}
-                  onValueChange={(value) =>
-                    setDetailInput({
-                      ...detailInput,
-                      kadar: value,
-                    })
-                  }
-                  options={KADAR_OPTIONS}
-                  placeholder="Kadar"
-                  searchPlaceholder="Cari kadar..."
-                  emptyText="Kadar tidak ditemukan."
-                  allowCustomValue={false}
-                  className="w-full"
-                  disabled={isDetailInputDisabled}
-                />
-              </div>
-
-              {/* Warna */}
-              <div className="w-[168px]">
-                <Label
-                  htmlFor="warna"
-                  className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                >
-                  <Palette className="h-3 w-3 text-purple-600" />
-                  Warna{" "}
-                  {formData.kategoriBarang === "model" && (
-                    <span className="text-red-500">*</span>
-                  )}
-                </Label>
-                <Combobox
-                  value={detailInput.warna}
-                  onValueChange={(value) =>
-                    setDetailInput({
-                      ...detailInput,
-                      warna: value,
-                    })
-                  }
-                  options={WARNA_OPTIONS}
-                  placeholder="Warna"
-                  searchPlaceholder="Cari warna..."
-                  emptyText="Warna tidak ditemukan."
-                  allowCustomValue={false}
-                  className="w-full"
-                  disabled={isDetailInputDisabled}
-                />
-              </div>
-
-              {/* Conditional Ukuran based on Jenis Produk */}
-              {formData.jenisProduk === "gelang-rantai" ? (
-                <div className="w-[100px]">
-                  <Label
-                    htmlFor="ukuran"
-                    className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                  >
-                    <Ruler className="h-3 w-3 text-blue-600" />
-                    Ukuran (cm)
-                  </Label>
-                  <InputWithCheck
-                    id="ukuran"
-                    type="number"
-                    step="0.01"
-                    className="h-9 sm:h-8 text-sm w-full"
-                    value={detailInput.ukuran}
-                    onChange={(e) =>
-                      setDetailInput({
-                        ...detailInput,
-                        ukuran: e.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    disabled={isDetailInputDisabled}
-                  />
-                </div>
-              ) : formData.jenisProduk === "kalung" ? (
-                <div className="w-[140px]">
-                  <Label
-                    htmlFor="ukuran"
-                    className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                  >
-                    <Ruler className="h-3 w-3 text-blue-600" />
-                    Ukuran
-                  </Label>
-                  <div className="flex items-center gap-1">
-                    <Combobox
-                      value={detailInput.ukuran}
-                      onValueChange={(value) =>
-                        setDetailInput({
-                          ...detailInput,
-                          ukuran: value,
-                        })
-                      }
-                      options={UKURAN_KALUNG_OPTIONS}
-                      placeholder="Ukuran"
-                      searchPlaceholder="Cari ukuran..."
-                      emptyText="Ukuran tidak ditemukan."
-                      allowCustomValue={false}
-                      className="w-full"
-                      disabled={isDetailInputDisabled}
-                    />
-                    {detailInput.ukuran === "other" && (
-                      <InputWithCheck
-                        type="number"
-                        step="0.01"
-                        className="h-9 sm:h-8 text-sm w-16"
-                        value={detailInput.ukuranCustom}
-                        onChange={(e) =>
-                          setDetailInput({
-                            ...detailInput,
-                            ukuranCustom: e.target.value,
-                          })
-                        }
-                        placeholder="cm"
-                        disabled={isDetailInputDisabled}
-                      />
-                    )}
-                  </div>
-                </div>
-              ) : formData.jenisProduk === "gelang-kaku" ? (
-                <div className="w-[100px]">
-                  <Label
-                    htmlFor="ukuran"
-                    className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                  >
-                    <Ruler className="h-3 w-3 text-blue-600" />
-                    Ukuran (cm)
-                  </Label>
-                  <InputWithCheck
-                    id="ukuran"
-                    type="number"
-                    step="0.01"
-                    className="h-9 sm:h-8 text-sm w-full"
-                    value={detailInput.ukuran}
-                    onChange={(e) =>
-                      setDetailInput({
-                        ...detailInput,
-                        ukuran: e.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    disabled={isDetailInputDisabled}
-                  />
-                </div>
-              ) : formData.jenisProduk === "cincin" ? (
-                <div className="w-[100px]">
-                  <Label
-                    htmlFor="ukuran"
-                    className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                  >
-                    <Ruler className="h-3 w-3 text-blue-600" />
-                    Ukuran (cm)
-                  </Label>
-                  <InputWithCheck
-                    id="ukuran"
-                    type="number"
-                    step="0.01"
-                    className="h-9 sm:h-8 text-sm w-full"
-                    value={detailInput.ukuran}
-                    onChange={(e) =>
-                      setDetailInput({
-                        ...detailInput,
-                        ukuran: e.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    disabled={isDetailInputDisabled}
-                  />
-                </div>
-              ) : null}
-
-              {/* Berat */}
-              <div className="w-[120px]">
-                <Label
-                  htmlFor="berat"
-                  className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                >
-                  <Weight className="h-3 w-3 text-slate-600" />
-                  Berat (gr){" "}
-                  {formData.kategoriBarang === "basic" && (
-                    <span className="text-red-500">*</span>
-                  )}
-                </Label>
-                <InputWithCheck
-                  id="berat"
-                  type="text"
-                  className="h-9 sm:h-8 text-sm w-full"
-                  value={detailInput.berat}
-                  onChange={(e) =>
-                    setDetailInput({
-                      ...detailInput,
-                      berat: e.target.value,
-                    })
-                  }
-                  placeholder="2, 4, 7-9"
-                  disabled={isDetailInputDisabled}
-                />
-              </div>
-
-              {/* Pcs */}
-              <div className="w-[100px]">
-                <Label
-                  htmlFor="pcs"
-                  className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                >
-                  <Hash className="h-3 w-3 text-green-600" />
-                  Pcs{" "}
-                  {formData.kategoriBarang === "model" && (
-                    <span className="text-red-500">*</span>
-                  )}
-                </Label>
-                <InputWithCheck
-                  id="pcs"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  className="h-9 sm:h-8 text-sm w-full"
-                  value={detailInput.pcs}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Only allow non-negative integers
-                    if (value === "" || /^[0-9]+$/.test(value)) {
-                      setDetailInput({
-                        ...detailInput,
-                        pcs: value,
-                      });
-                    }
-                  }}
-                  placeholder="0"
-                  disabled={isDetailInputDisabled}
-                />
-              </div>
-
-              {/* Notes */}
-              <div className="w-[150px]">
-                <Label
-                  htmlFor="notes"
-                  className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-                >
-                  <StickyNote className="h-3 w-3 text-yellow-600" />
-                  Notes
-                </Label>
-                <InputWithCheck
-                  id="notes"
-                  type="text"
-                  className="h-9 sm:h-8 text-sm w-full"
-                  value={detailInput.notes}
-                  onChange={(e) =>
-                    setDetailInput({
-                      ...detailInput,
-                      notes: e.target.value,
-                    })
-                  }
-                  placeholder="Optional notes..."
-                  disabled={isDetailInputDisabled}
-                />
-              </div>
-
-              {/* Add/Update and Cancel Buttons */}
-              <div className="w-full sm:w-auto sm:flex sm:items-end gap-2">
-                {editingDetailId && (
-                  <Button
-                    onClick={handleCancelEdit}
-                    size="sm"
-                    variant="outline"
-                    className="h-9 sm:h-8 w-full sm:w-auto px-4"
-                    disabled={isDetailInputDisabled}
-                  >
-                    Cancel
-                  </Button>
-                )}
-                <Button
-                  onClick={handleAddDetail}
-                  size="sm"
-                  className="h-9 sm:h-8 w-full sm:w-auto px-4"
-                  disabled={isAddButtonDisabled || isDetailInputDisabled}
-                >
-                  {editingDetailId ? "Update" : "Add"}
-                </Button>
-              </div>
-            </div>
-          </div>
+          <DetailItemInput
+            detailInput={detailInput}
+            onDetailInputChange={setDetailInput}
+            kategoriBarang={formData.kategoriBarang}
+            jenisProduk={formData.jenisProduk}
+            editingDetailId={editingDetailId}
+            isDisabled={isDetailInputDisabled}
+            isAddButtonDisabled={isAddButtonDisabled}
+            onAdd={handleAddDetail}
+            onCancel={handleCancelEdit}
+          />
 
           {/* Scrollable Detail Items Container - Shows ~5 rows before scrolling */}
-          <div className="max-h-[250px] overflow-auto" ref={tableScrollRef}>
-            {/* Mobile Card View */}
-            <div className="block sm:hidden space-y-3 pr-1">
-              {sortedDetailItems.length === 0 ? (
-                <div className="border rounded-lg p-4 text-center text-gray-500 text-sm">
-                  Belum ada data. Silakan tambahkan detail barang.
-                </div>
-              ) : (
-                sortedDetailItems.map((item, index) => {
-                  const ukuranDisplay = getUkuranDisplay(item.ukuran);
-                  const isNewlyAdded = newlyAddedIds.has(item.id);
-                  const isAnimating = animatingIds.has(item.id);
-                  const isRelocating = relocatingIds.has(item.id);
-                  const isEditing = editingDetailId === item.id;
-
-                  return (
-                    // Wrapper div to contain both badge and card as siblings
-                    <div key={item.id} className="relative">
-                      {/* New Badge - Positioned above the card, half outside */}
-                      {isNewlyAdded && (
-                        <div className="absolute -top-2 left-0 z-10">
-                          <div className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-400 text-amber-900 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-md border border-amber-500/30">
-                            New
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Card element */}
-                      <div
-                        ref={(el) => {
-                          if (el) {
-                            cardRefs.current.set(item.id, el);
-                          } else {
-                            cardRefs.current.delete(item.id);
-                          }
-                        }}
-                        onClick={() => handleRowClick(item.id)}
-                        style={{
-                          willChange: isRelocating ? "transform" : "auto",
-                        }}
-                        className={`border rounded-lg bg-white shadow-sm overflow-hidden flex cursor-pointer relative ${
-                          isEditing
-                            ? "editing-pulse"
-                            : isAnimating
-                              ? "glint-animation"
-                              : isNewlyAdded
-                                ? "golden-shimmer"
-                                : ""
-                        }`}
-                      >
-                        {/* Left column: Kadar (top) and Warna (bottom) */}
-                        <div className="flex flex-col w-16">
-                          {/* Kadar - Top left corner */}
-                          <div
-                            className={`flex-1 ${getKadarColor(item.kadar)} flex items-center justify-center px-1`}
-                          >
-                            <span className="font-bold text-xs text-center">
-                              {item.kadar.toUpperCase()}
-                            </span>
-                          </div>
-
-                          {/* Warna - Bottom left corner */}
-                          <div
-                            className={`flex-1 ${getWarnaColor(item.warna)} flex items-center justify-center px-1`}
-                          >
-                            <span className="font-semibold text-[10px] text-center leading-tight">
-                              {getWarnaLabel(item.warna)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Middle content - Ukuran, Berat, Pcs, Notes */}
-                        <div className="flex-1 px-3 py-3 flex flex-col gap-3">
-                          <div className="flex items-start gap-8">
-                            <div className="flex flex-col">
-                              <div className="text-[10px] text-gray-500 mb-1 h-4">
-                                Ukuran
-                              </div>
-                              {item.ukuran ? (
-                                <div className="flex items-baseline gap-1">
-                                  <span className="font-bold text-xl">
-                                    {ukuranDisplay.value}
-                                  </span>
-                                  {ukuranDisplay.showUnit && (
-                                    <span className="text-xs text-gray-600">
-                                      cm
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="text-gray-400 text-sm">-</div>
-                              )}
-                            </div>
-                            <div className="flex flex-col">
-                              <div className="text-[10px] text-gray-500 mb-1 h-4">
-                                Berat
-                              </div>
-                              <div className="flex items-baseline gap-1">
-                                <span className="font-bold text-xl">
-                                  {item.berat}
-                                </span>
-                                <span className="text-xs text-gray-600">
-                                  gr
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col">
-                              <div className="text-[10px] text-gray-500 mb-1 h-4">
-                                Pcs
-                              </div>
-                              <div className="flex items-baseline gap-1">
-                                <span className="font-bold text-xl">
-                                  {item.pcs}
-                                </span>
-                                <span className="text-xs text-gray-600">
-                                  pcs
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          {item.notes && (
-                            <div className="text-xs text-gray-600 border-t pt-2">
-                              <span className="font-medium">Notes:</span>{" "}
-                              <span
-                                className="inline-block max-w-[200px] truncate align-bottom cursor-pointer hover:text-gray-800"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const rect =
-                                    e.currentTarget.getBoundingClientRect();
-                                  setShowingNotesTooltip({
-                                    itemId: item.id,
-                                    x: rect.left,
-                                    y: rect.bottom + 5,
-                                  });
-                                }}
-                                title="Click to view full notes"
-                              >
-                                {item.notes}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Right side action buttons */}
-                        <div className="flex flex-col border-l">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditDetail(item);
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            className="h-1/2 px-3 text-xs whitespace-nowrap rounded-none border-b hover:bg-gray-100"
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteDetail(item.id);
-                            }}
-                            variant="ghost"
-                            size="sm"
-                            className="h-1/2 px-3 text-xs rounded-none hover:bg-red-50 text-red-600"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                        {/* End card element */}
-                      </div>
-                      {/* End wrapper div */}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden sm:block">
-              <table className="w-full border-collapse border text-xs">
-                <thead className="bg-gray-100 sticky top-0 z-10">
-                  <tr>
-                    <th className="border p-2 text-left bg-gray-100">#</th>
-                    <th className="border p-2 text-left bg-gray-100">Kadar</th>
-                    <th className="border p-2 text-left bg-gray-100">Warna</th>
-                    <th className="border p-2 text-left bg-gray-100">Ukuran</th>
-                    <th className="border p-2 text-left bg-gray-100">Berat</th>
-                    <th className="border p-2 text-left bg-gray-100">Pcs</th>
-                    <th className="border p-2 text-left w-[200px] min-w-[200px] max-w-[200px] bg-gray-100">
-                      Notes
-                    </th>
-                    <th className="border p-2 text-center bg-gray-100">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody ref={tbodyRef}>
-                  {sortedDetailItems.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="border p-4 text-center text-gray-500"
-                      >
-                        Belum ada data. Silakan tambahkan detail barang.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedDetailItems.map((item, index) => {
-                      const ukuranDisplay = getUkuranDisplay(item.ukuran);
-                      const isNewlyAdded = newlyAddedIds.has(item.id);
-                      const isAnimating = animatingIds.has(item.id);
-                      const isRelocating = relocatingIds.has(item.id);
-                      const isEditing = editingDetailId === item.id;
-
-                      return (
-                        <tr
-                          key={item.id}
-                          ref={(el) => {
-                            if (el) {
-                              rowRefs.current.set(item.id, el);
-                            } else {
-                              rowRefs.current.delete(item.id);
-                            }
-                          }}
-                          onClick={() => handleRowClick(item.id)}
-                          className={`${
-                            isEditing
-                              ? "editing-pulse"
-                              : isAnimating
-                                ? "glint-animation"
-                                : isNewlyAdded
-                                  ? "golden-shimmer"
-                                  : "hover:bg-gray-50"
-                          } cursor-pointer`}
-                        >
-                          <td className="border p-2 text-center relative">
-                            {isNewlyAdded && (
-                              <div className="absolute -top-1 -left-1">
-                                <NewBadge className="w-8 h-8" />
-                              </div>
-                            )}
-                            {index + 1}
-                          </td>
-                          <td
-                            className={`border p-2 ${getKadarColor(item.kadar)}`}
-                          >
-                            {item.kadar.toUpperCase()}
-                          </td>
-                          <td
-                            className={`border p-2 ${getWarnaColor(item.warna)}`}
-                          >
-                            {getWarnaLabel(item.warna)}
-                          </td>
-                          <td className="border p-2">
-                            {ukuranDisplay.showUnit
-                              ? `${ukuranDisplay.value} cm`
-                              : ukuranDisplay.value}
-                          </td>
-                          <td className="border p-2">{item.berat}</td>
-                          <td className="border p-2">{item.pcs}</td>
-                          <td className="border p-2 w-[200px] min-w-[200px] max-w-[200px]">
-                            <div
-                              className={`truncate ${item.notes ? "cursor-pointer hover:text-gray-700" : ""}`}
-                              onClick={(e) => {
-                                if (item.notes) {
-                                  e.stopPropagation();
-                                  const rect =
-                                    e.currentTarget.getBoundingClientRect();
-                                  setShowingNotesTooltip({
-                                    itemId: item.id,
-                                    x: rect.left,
-                                    y: rect.bottom + 5,
-                                  });
-                                }
-                              }}
-                              title={
-                                item.notes ? "Click to view full notes" : ""
-                              }
-                            >
-                              {item.notes || "-"}
-                            </div>
-                          </td>
-                          <td className="border p-2 text-center">
-                            <div className="flex justify-center gap-1">
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditDetail(item);
-                                }}
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteDetail(item.id);
-                                }}
-                                variant="destructive"
-                                size="sm"
-                                className="h-6 px-2 text-xs"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <DetailItemsDisplay
+            items={sortedDetailItems}
+            newlyAddedIds={newlyAddedIds}
+            animatingIds={animatingIds}
+            relocatingIds={relocatingIds}
+            editingDetailId={editingDetailId}
+            onRowClick={handleRowClick}
+            onEdit={handleEditDetail}
+            onDelete={handleDeleteDetail}
+            onNotesClick={(itemId, x, y) =>
+              setShowingNotesTooltip({ itemId, x, y })
+            }
+            rowRefs={rowRefs}
+            cardRefs={cardRefs}
+            tbodyRef={tbodyRef}
+            getKadarColor={getKadarColor}
+            getWarnaColor={getWarnaColor}
+            getWarnaLabel={getWarnaLabel}
+            getUkuranDisplay={getUkuranDisplay}
+          />
         </div>
 
         {/* Submit Button */}

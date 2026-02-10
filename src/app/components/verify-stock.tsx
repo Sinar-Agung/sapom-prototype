@@ -146,7 +146,7 @@ export function VerifyStock({
       localStorage.getItem("username") ||
       "";
 
-    const savedOrders = sessionStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
@@ -155,7 +155,7 @@ export function VerifyStock({
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
         orders[orderIndex].stockistId = currentUser; // Assign stockist ownership
-        sessionStorage.setItem("orders", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
 
         // Update local state to reflect changes immediately
         setCurrentOrder({
@@ -222,7 +222,7 @@ export function VerifyStock({
     setWasUpdated(true);
 
     // Auto-save when user edits available pcs
-    const savedOrders = sessionStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
@@ -231,7 +231,7 @@ export function VerifyStock({
           (item: OrderItem) =>
             item.id === itemId ? { ...item, availablePcs: value } : item,
         );
-        sessionStorage.setItem("orders", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
       }
     }
   };
@@ -242,7 +242,7 @@ export function VerifyStock({
       localStorage.getItem("username") ||
       "";
 
-    const savedOrders = sessionStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
@@ -251,7 +251,7 @@ export function VerifyStock({
         orders[orderIndex].detailItems = detailItems;
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
-        sessionStorage.setItem("orders", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
       }
     }
     setWasUpdated(true);
@@ -276,8 +276,8 @@ export function VerifyStock({
 
     setDetailItems(updatedItems);
 
-    // Save to session storage and update status
-    const savedOrders = sessionStorage.getItem("orders");
+    // Save to local storage and update status
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
@@ -286,7 +286,7 @@ export function VerifyStock({
         orders[orderIndex].status = "Ready Stock Marketing";
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
-        sessionStorage.setItem("orders", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
       }
     }
     setWasUpdated(true);

@@ -994,11 +994,11 @@ export const generateMockOrders = (): Order[] => {
 };
 
 export const initializeMockData = () => {
-  const existingOrders = sessionStorage.getItem("orders");
+  const existingOrders = localStorage.getItem("orders");
 
   if (!existingOrders) {
     const mockOrders = generateMockOrders();
-    sessionStorage.setItem("orders", JSON.stringify(mockOrders));
+    localStorage.setItem("orders", JSON.stringify(mockOrders));
     console.log(
       `✅ Initialized ${mockOrders.length} mock orders in session storage`,
     );
@@ -1011,7 +1011,7 @@ export const initializeMockData = () => {
 
 export const resetMockData = () => {
   const mockOrders = generateMockOrders();
-  sessionStorage.setItem("orders", JSON.stringify(mockOrders));
+  localStorage.setItem("orders", JSON.stringify(mockOrders));
   console.log(`🔄 Reset and initialized ${mockOrders.length} mock orders`);
   return mockOrders;
 };

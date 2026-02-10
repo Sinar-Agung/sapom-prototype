@@ -1,3 +1,4 @@
+import { Briefcase, Package, UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AvailablePcsDemo } from "./components/available-pcs-demo";
 import { JBHome } from "./components/jb-home";
@@ -76,6 +77,21 @@ export default function App() {
     initializeMockData();
     initializeUserData();
   }, []);
+
+  // Update browser tab title based on user role
+  useEffect(() => {
+    if (isAuthenticated && userRole) {
+      const roleLabel =
+        userRole === "jb"
+          ? "JB"
+          : userRole === "stockist"
+            ? "Stockist"
+            : "Sales";
+      document.title = `SAPOM (${roleLabel})`;
+    } else {
+      document.title = "SAPOM";
+    }
+  }, [isAuthenticated, userRole]);
 
   const handleNavigate = (targetPage: string) => {
     // If currently on order form and there are unsaved changes
@@ -369,6 +385,37 @@ export default function App() {
     }
   };
 
+  // Get role icon and label
+  const getRoleConfig = () => {
+    switch (userRole) {
+      case "jb":
+        return {
+          icon: Briefcase,
+          label: "Jewelry Buyer",
+          color: "text-purple-600",
+          bg: "bg-purple-50",
+        };
+      case "stockist":
+        return {
+          icon: Package,
+          label: "Stockist",
+          color: "text-green-600",
+          bg: "bg-green-50",
+        };
+      case "sales":
+      default:
+        return {
+          icon: UserCircle,
+          label: "Sales",
+          color: "text-blue-600",
+          bg: "bg-blue-50",
+        };
+    }
+  };
+
+  const roleConfig = getRoleConfig();
+  const RoleIcon = roleConfig.icon;
+
   return (
     <div className="h-screen flex flex-col-reverse md:flex-row bg-gray-50 overflow-hidden">
       {/* Navigation - Fixed at bottom on mobile, sidebar on desktop */}
@@ -380,6 +427,21 @@ export default function App() {
 
       {/* Main Content - Fills remaining space with scrollable content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide p-4">
+        {/* Role Indicator - Fixed at top right */}
+        <div className="fixed top-4 right-4 z-40">
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-full shadow-md ${roleConfig.bg} border border-gray-200`}
+            title={roleConfig.label}
+          >
+            <RoleIcon className={`w-5 h-5 ${roleConfig.color}`} />
+            <span
+              className={`text-sm font-medium ${roleConfig.color} hidden sm:inline`}
+            >
+              {roleConfig.label}
+            </span>
+          </div>
+        </div>
+
         <div className="w-full max-w-7xl mx-auto">{renderContent()}</div>
       </div>
 
