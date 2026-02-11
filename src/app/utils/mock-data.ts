@@ -1,50 +1,7 @@
 // Mock data generator for the jewelry ordering system
 // This creates realistic sample data for testing and demonstration
 
-interface OrderItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-  availablePcs?: string;
-}
-
-interface Photo {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-}
-
-interface Order {
-  id: string;
-  timestamp: number;
-  createdBy?: string;
-  requestNo?: string;
-  updatedDate?: number;
-  updatedBy?: string;
-  photoId?: string;
-  stockistId?: string;
-  pabrik: {
-    id: string;
-    name: string;
-  };
-  kategoriBarang: string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  namaPelanggan: {
-    id: string;
-    name: string;
-  };
-  waktuKirim: string;
-  customerExpectation: string;
-  detailItems: OrderItem[];
-  fotoBarangBase64?: string;
-  status: string;
-}
+import { Photo, Request } from "../types/request";
 
 // Helper to generate dates
 const getDaysFromNow = (days: number): string => {
@@ -130,8 +87,8 @@ const mockPhotos: Photo[] = [
 ];
 
 // Mock data generator
-export const generateMockOrders = (): Order[] => {
-  const orders: Order[] = [];
+export const generateMockOrders = (): Request[] => {
+  const orders: Request[] = [];
   const salesUsers = ["sales1", "sales2", "sales3", "sales4"];
   const stockistUsers = ["stockist1", "stockist2"];
 
@@ -167,7 +124,6 @@ export const generateMockOrders = (): Order[] => {
     updatedBy: stockistUsers[0],
     createdBy: salesUsers[0],
     photoId: "photo-003",
-    photoId: "photo-001",
     pabrik: suppliers.find((s) => s.id === "ubs-gold")!,
     kategoriBarang: "basic",
     jenisProduk: "kalung",

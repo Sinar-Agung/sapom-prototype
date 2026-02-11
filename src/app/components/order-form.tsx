@@ -939,7 +939,7 @@ export function OrderForm(props: OrderFormProps) {
         namaPelanggan: formData.namaPelanggan,
         waktuKirim: formData.waktuKirim?.toISOString() || "",
         customerExpectation: formData.customerExpectation,
-        detailItems: detailItems,
+        detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
         fotoBarangBase64: fotoBarangBase64,
         status: "Open", // Default status for new orders
       };

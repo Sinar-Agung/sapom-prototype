@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronsUp } from "lucide-react";
-import { Input } from "./input";
+import { useState } from "react";
 import { Button } from "./button";
+import { Input } from "./input";
 
 interface AvailablePcsInputProps {
   value: string;
@@ -19,10 +20,12 @@ export function AvailablePcsInput({
   className = "",
   disabled = false,
 }: AvailablePcsInputProps) {
+  const [localValue, setLocalValue] = useState(value);
+
   const handleChange = (inputValue: string) => {
     // Allow empty string
     if (inputValue === "") {
-      onChange("");
+      setLocalValue("");
       return;
     }
 
@@ -36,16 +39,30 @@ export function AvailablePcsInput({
     if (!isNaN(parsedValue) && parsedValue >= 0) {
       const maxValue = parseInt(requestedPcs, 10);
       if (!isNaN(maxValue) && parsedValue > maxValue) {
-        // Don't allow values higher than requested pcs
+        // Cap the value at the maximum (requested pcs)
+        setLocalValue(maxValue.toString());
         return;
       }
-      onChange(numericValue);
+      setLocalValue(numericValue);
+    }
+  };
+
+  const handleBlur = () => {
+    // Only call onChange when input loses focus
+    if (localValue !== value) {
+      onChange(localValue);
     }
   };
 
   const handleMatchRequested = () => {
+    setLocalValue(requestedPcs);
     onChange(requestedPcs);
   };
+
+  // Sync local value with prop value when it changes externally
+  if (value !== localValue && localValue === value) {
+    setLocalValue(value);
+  }
 
   return (
     <div className={`flex items-center gap-1 ${className}`}>
@@ -53,8 +70,9 @@ export function AvailablePcsInput({
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"
-        value={value}
+        value={localValue}
         onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
         disabled={disabled}
         placeholder="0"
         className="w-[80px] h-8 text-sm px-2 text-center"

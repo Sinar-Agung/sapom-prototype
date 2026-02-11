@@ -5,6 +5,7 @@ import {
   NAMA_PRODUK_OPTIONS,
   getLabelFromValue,
 } from "@/app/data/order-data";
+import { DetailBarangItem, Request } from "@/app/types/request";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -16,9 +17,27 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowLeft, Check, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  Calculator,
+  Check,
+  Copy,
+  CopyPlus,
+  MessageCircle,
+  Share2,
+  Wand2,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -56,57 +75,32 @@ const WARNA_COLORS: Record<string, string> = {
   "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
 };
 
-interface OrderItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-  availablePcs?: string;
-  orderPcs?: string;
-}
-
-interface Order {
-  id: string;
-  timestamp: number;
-  createdBy?: string;
-  requestNo?: string;
-  updatedDate?: number;
-  updatedBy?: string;
-  stockistId?: string;
-  pabrik: {
-    id: string;
-    name: string;
-  };
-  kategoriBarang: string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  namaPelanggan: {
-    id: string;
-    name: string;
-  };
-  waktuKirim: string;
-  customerExpectation: string;
-  detailItems: OrderItem[];
-  fotoBarangBase64?: string;
-  status: string;
-}
-
 interface WriteOrderProps {
-  order: Order;
+  order: Request;
   onBack: () => void;
 }
 
 export function WriteOrder({ order, onBack }: WriteOrderProps) {
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<DetailBarangItem[]>([]);
   const [hasCreatedOrder, setHasCreatedOrder] = useState(false);
   const [eta, setEta] = useState(order.waktuKirim);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const savingAnimationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const orderItemsRef = useRef<OrderItem[]>([]);
 
   useEffect(() => {
-    // Initialize order items with default order pcs (requested - available)
+    // Initialize order items - use existing orderPcs or calculate default (requested - available)
     const initializeditems = order.detailItems.map((item) => {
+      // If orderPcs already exists and is not "0", use it
+      if (item.orderPcs && item.orderPcs !== "0") {
+        return item;
+      }
+
+      // Otherwise calculate default: requested - available
       const requestedPcs = parseInt(item.pcs) || 0;
       const availablePcs = parseInt(item.availablePcs || "0") || 0;
       const defaultOrderPcs = Math.max(0, requestedPcs - availablePcs);
@@ -117,17 +111,162 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
       };
     });
     setOrderItems(initializeditems);
+    orderItemsRef.current = initializeditems;
   }, [order]);
 
-  const handleOrderPcsChange = (itemId: string, value: string) => {
-    setOrderItems((prevItems: OrderItem[]) =>
-      prevItems.map((item: OrderItem) =>
-        item.id === itemId ? { ...item, orderPcs: value } : item,
-      ),
-    );
+  // Keep ref in sync with state
+  useEffect(() => {
+    orderItemsRef.current = orderItems;
+  }, [orderItems]);
+
+  // Cleanup and save on unmount
+  useEffect(() => {
+    return () => {
+      // Clear any pending timeouts
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      if (savingAnimationTimeoutRef.current) {
+        clearTimeout(savingAnimationTimeoutRef.current);
+      }
+
+      // Save immediately if there are unsaved changes
+      if (hasUnsavedChanges) {
+        const savedOrders = localStorage.getItem("orders");
+        if (savedOrders) {
+          const orders = JSON.parse(savedOrders);
+          const orderIndex = orders.findIndex(
+            (o: Request) => o.id === order.id,
+          );
+          if (orderIndex !== -1) {
+            orders[orderIndex].detailItems = orderItemsRef.current;
+            orders[orderIndex].waktuKirim = eta;
+            localStorage.setItem("orders", JSON.stringify(orders));
+          }
+        }
+      }
+    };
+  }, [hasUnsavedChanges, eta, order.id]);
+
+  const saveChanges = () => {
+    try {
+      const savedOrders = localStorage.getItem("orders");
+      if (savedOrders) {
+        const orders = JSON.parse(savedOrders);
+        const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
+        if (orderIndex !== -1) {
+          // Read from ref to get the latest orderItems
+          orders[orderIndex].detailItems = orderItemsRef.current;
+          orders[orderIndex].waktuKirim = eta;
+          localStorage.setItem("orders", JSON.stringify(orders));
+          setHasUnsavedChanges(false);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      return false;
+    }
   };
 
-  const getOrderImage = (order: Order) => {
+  const debouncedSave = (immediate = false) => {
+    // Clear any existing save timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    // Clear any existing animation timeout
+    if (savingAnimationTimeoutRef.current) {
+      clearTimeout(savingAnimationTimeoutRef.current);
+      savingAnimationTimeoutRef.current = null;
+    }
+
+    if (immediate) {
+      // Save immediately without animation or toast
+      const saved = saveChanges();
+      if (saved) {
+        setIsSaving(false);
+      }
+      return saved;
+    }
+
+    // Debounced save with animation
+    saveTimeoutRef.current = setTimeout(() => {
+      if (hasUnsavedChanges) {
+        setIsSaving(true);
+
+        savingAnimationTimeoutRef.current = setTimeout(() => {
+          const saved = saveChanges();
+          if (saved) {
+            setIsSaving(false);
+            toast.success("Request updated");
+          }
+        }, 500);
+      }
+    }, 1200);
+  };
+
+  const handleOrderPcsChange = (itemId: string, value: string) => {
+    setOrderItems((prevItems: OrderItem[]) => {
+      const updatedItems = prevItems.map((item: OrderItem) =>
+        item.id === itemId ? { ...item, orderPcs: value } : item,
+      );
+      return updatedItems;
+    });
+    setHasUnsavedChanges(true);
+  };
+
+  const handleOrderPcsBlur = () => {
+    if (hasUnsavedChanges) {
+      debouncedSave();
+    }
+  };
+
+  const handleMatchOrderPcs = (itemId: string) => {
+    const item = orderItems.find((item) => item.id === itemId);
+    if (item) {
+      const requestedPcs = parseInt(item.pcs) || 0;
+      handleOrderPcsChange(itemId, requestedPcs.toString());
+    }
+  };
+
+  const handleAutoFillOrderPcs = (itemId: string) => {
+    const item = orderItems.find((item) => item.id === itemId);
+    if (item) {
+      const requestedPcs = parseInt(item.pcs) || 0;
+      const availablePcs = parseInt(item.availablePcs || "0") || 0;
+      const autoFillPcs = Math.max(0, requestedPcs - availablePcs);
+      handleOrderPcsChange(itemId, autoFillPcs.toString());
+    }
+  };
+
+  const handleMatchAll = () => {
+    setOrderItems((prevItems: OrderItem[]) => {
+      const updatedItems = prevItems.map((item: OrderItem) => {
+        const requestedPcs = parseInt(item.pcs) || 0;
+        return { ...item, orderPcs: requestedPcs.toString() };
+      });
+      return updatedItems;
+    });
+    setHasUnsavedChanges(true);
+  };
+
+  const handleAutoFillAll = () => {
+    setOrderItems((prevItems: OrderItem[]) => {
+      const updatedItems = prevItems.map((item: OrderItem) => {
+        const requestedPcs = parseInt(item.pcs) || 0;
+        const availablePcs = parseInt(item.availablePcs || "0") || 0;
+        const autoFillPcs = Math.max(0, requestedPcs - availablePcs);
+        return { ...item, orderPcs: autoFillPcs.toString() };
+      });
+      return updatedItems;
+    });
+    setHasUnsavedChanges(true);
+  };
+
+  const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     }
@@ -201,7 +340,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     });
   };
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = () => {
     // Filter items with order pcs > 0
     const itemsToOrder = orderItems.filter(
       (item: OrderItem) => parseInt(item.orderPcs || "0") > 0,
@@ -211,6 +350,15 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
       toast.error("Please enter order quantities");
       return;
     }
+
+    // Show share dialog
+    setShowShareDialog(true);
+  };
+
+  const generateOrderMessage = () => {
+    const itemsToOrder = orderItems.filter(
+      (item: OrderItem) => parseInt(item.orderPcs || "0") > 0,
+    );
 
     // Get product details
     const jenisProdukLabel = getLabelFromValue(
@@ -245,44 +393,118 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     });
 
     message += `\n\n_Sent via SAPOM Order System_`;
+    return message;
+  };
 
-    // Encode message for URL
+  const getOrderImageFile = async (): Promise<File | null> => {
+    try {
+      const imageUrl = getOrderImage(order);
+
+      // Check if it's a base64 image
+      if (imageUrl.startsWith("data:image")) {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        return new File([blob], "jewelry-order.jpg", { type: "image/jpeg" });
+      } else {
+        // It's a regular URL (imported image)
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        return new File([blob], "jewelry-order.jpg", {
+          type: blob.type || "image/jpeg",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading image:", error);
+      return null;
+    }
+  };
+
+  const handleShareViaWhatsApp = async () => {
+    const message = generateOrderMessage();
+
+    // Try to use Web Share API with image if available
+    if (navigator.share && navigator.canShare) {
+      const imageFile = await getOrderImageFile();
+
+      if (imageFile) {
+        const shareData: ShareData = {
+          text: message,
+          files: [imageFile],
+        };
+
+        // Check if sharing with files is supported
+        if (navigator.canShare(shareData)) {
+          try {
+            await navigator.share(shareData);
+            setHasCreatedOrder(true);
+            setShowShareDialog(false);
+            toast.success("Order shared successfully");
+            return;
+          } catch (error) {
+            if ((error as Error).name !== "AbortError") {
+              console.error("Error sharing with image:", error);
+              // Fall through to text-only WhatsApp
+            } else {
+              return; // User cancelled
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback to text-only WhatsApp
     const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    window.open(whatsappUrl, "_blank");
+    setHasCreatedOrder(true);
+    setShowShareDialog(false);
+    toast.info(
+      "Opening WhatsApp... Please attach the jewelry image manually if needed.",
+    );
+  };
 
-    // Check if Web Share API is available
+  const handleShareViaSystem = async () => {
+    const message = generateOrderMessage();
+
     if (navigator.share) {
       try {
-        await navigator.share({
+        const imageFile = await getOrderImageFile();
+        const shareData: ShareData = {
           title: "Order to Supplier",
           text: message,
-        });
+        };
+
+        // Add image file if available and supported
+        if (imageFile && navigator.canShare) {
+          const dataWithFiles = { ...shareData, files: [imageFile] };
+          if (navigator.canShare(dataWithFiles)) {
+            await navigator.share(dataWithFiles);
+          } else {
+            // Share without files if not supported
+            await navigator.share(shareData);
+          }
+        } else {
+          await navigator.share(shareData);
+        }
+
         setHasCreatedOrder(true);
+        setShowShareDialog(false);
         toast.success("Order shared successfully");
       } catch (error) {
         if ((error as Error).name !== "AbortError") {
           console.error("Error sharing:", error);
-          // Fallback to WhatsApp
-          openWhatsApp(encodedMessage);
+          toast.error("Failed to share order");
         }
       }
     } else {
-      // Fallback to WhatsApp
-      openWhatsApp(encodedMessage);
-      setHasCreatedOrder(true);
+      toast.error("System sharing not supported on this device");
     }
   };
 
-  const openWhatsApp = (encodedMessage: string) => {
-    // Open WhatsApp with the message
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    window.open(whatsappUrl, "_blank");
-    toast.success("Opening WhatsApp...");
-  };
-
-  const handleMarkAsSent = () => {
-    if (!hasCreatedOrder) {
-      toast.error("Please create the order first before marking as sent");
-      return;
+  const handleCreateOrderStatus = () => {
+    // Save before creating order
+    if (hasUnsavedChanges) {
+      debouncedSave(true);
     }
 
     const currentUser =
@@ -293,16 +515,16 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
+      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
       if (orderIndex !== -1) {
-        orders[orderIndex].status = "Waiting for Supplier";
+        orders[orderIndex].status = "Ordered";
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
         orders[orderIndex].waktuKirim = eta;
         // Save the current order pcs values
         orders[orderIndex].detailItems = orderItems;
         localStorage.setItem("orders", JSON.stringify(orders));
-        toast.success("Order marked as sent to supplier");
+        toast.success("Order created and status updated to Ordered");
         setTimeout(() => {
           onBack();
         }, 500);
@@ -336,7 +558,13 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={onBack}
+          onClick={() => {
+            if (hasUnsavedChanges) {
+              debouncedSave(true);
+            }
+            toast.success("Request updated");
+            onBack();
+          }}
           className="h-8 w-8 p-0"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -444,6 +672,27 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
       {/* Order Items Table */}
       <Card className="p-4">
+        {/* Saving Indicator */}
+        {isSaving && (
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center gap-2">
+            <div className="flex gap-1">
+              <span
+                className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              />
+              <span
+                className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              />
+              <span
+                className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              />
+            </div>
+            <span className="text-sm text-blue-700">Saving changes...</span>
+          </div>
+        )}
+
         <h3 className="font-semibold mb-3">Order Items</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border text-xs">
@@ -454,8 +703,30 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
                 <th className="border p-2 text-left">Warna</th>
                 <th className="border p-2 text-left">Ukuran</th>
                 <th className="border p-2 text-left">Berat</th>
-                <th className="border p-2 text-left">Requested</th>
-                <th className="border p-2 text-left">Available</th>
+                <th className="border p-2 text-left">
+                  <div className="flex items-center justify-between gap-1">
+                    <span>Requested</span>
+                    <button
+                      onClick={handleMatchAll}
+                      title="Match All - Copy all requested values to Order Pcs"
+                      className="p-1 hover:bg-gray-200 rounded transition-colors text-blue-600"
+                    >
+                      <CopyPlus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </th>
+                <th className="border p-2 text-left">
+                  <div className="flex items-center justify-between gap-1">
+                    <span>Available</span>
+                    <button
+                      onClick={handleAutoFillAll}
+                      title="Auto-fill All - Calculate Requested - Available for all items"
+                      className="p-1 hover:bg-gray-200 rounded transition-colors text-green-600"
+                    >
+                      <Wand2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </th>
                 <th className="border p-2 text-left bg-amber-50">Order Pcs</th>
               </tr>
             </thead>
@@ -475,8 +746,30 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
                     {getUkuranDisplay(item.ukuran)}
                   </td>
                   <td className="border p-2">{item.berat || "-"}</td>
-                  <td className="border p-2">{item.pcs}</td>
-                  <td className="border p-2">{item.availablePcs || "0"}</td>
+                  <td className="border p-2">
+                    <div className="flex items-center justify-between">
+                      <span>{item.pcs}</span>
+                      <button
+                        onClick={() => handleMatchOrderPcs(item.id)}
+                        title="Match - Copy requested to Order Pcs"
+                        className="p-1 hover:bg-blue-50 rounded transition-colors text-blue-600"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="border p-2">
+                    <div className="flex items-center justify-between">
+                      <span>{item.availablePcs || "0"}</span>
+                      <button
+                        onClick={() => handleAutoFillOrderPcs(item.id)}
+                        title="Auto-fill - Calculate Requested - Available"
+                        className="p-1 hover:bg-green-50 rounded transition-colors text-green-600"
+                      >
+                        <Calculator className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
                   <td className="border p-2 bg-amber-50">
                     <Input
                       type="number"
@@ -485,6 +778,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleOrderPcsChange(item.id, e.target.value)
                       }
+                      onBlur={handleOrderPcsBlur}
                       className="w-20 h-8 text-center"
                     />
                   </td>
@@ -497,23 +791,66 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         {/* Action Buttons */}
         <div className="mt-4 flex justify-end gap-2">
           <Button
-            onClick={handleMarkAsSent}
+            onClick={handleCreateOrder}
             variant="outline"
-            disabled={!hasCreatedOrder}
-            className="border-blue-600 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border-green-600 text-green-600 hover:bg-green-50"
           >
-            <Check className="w-4 h-4 mr-2" />
-            Mark as Sent
+            <Share2 className="w-4 h-4 mr-2" />
+            Share Order
           </Button>
           <Button
-            onClick={handleCreateOrder}
+            onClick={handleCreateOrderStatus}
             className="bg-green-600 hover:bg-green-700"
           >
-            <Send className="w-4 h-4 mr-2" />
+            <Check className="w-4 h-4 mr-2" />
             Create Order
           </Button>
         </div>
       </Card>
+
+      {/* Share Dialog */}
+      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Share Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose how you want to share this order with the supplier.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              onClick={handleShareViaWhatsApp}
+              className="w-full bg-green-600 hover:bg-green-700 text-white justify-start"
+            >
+              <MessageCircle className="w-5 h-5 mr-3" />
+              <div className="text-left">
+                <div className="font-semibold">Share via WhatsApp</div>
+                <div className="text-xs opacity-90">
+                  Open WhatsApp to send order
+                </div>
+              </div>
+            </Button>
+            {navigator.share && (
+              <Button
+                onClick={handleShareViaSystem}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Share2 className="w-5 h-5 mr-3" />
+                <div className="text-left">
+                  <div className="font-semibold">Share via Other Apps</div>
+                  <div className="text-xs text-gray-500">
+                    Use system share menu
+                  </div>
+                </div>
+              </Button>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

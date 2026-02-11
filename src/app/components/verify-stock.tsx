@@ -8,6 +8,7 @@ import {
   UKURAN_KALUNG_OPTIONS,
   getLabelFromValue,
 } from "@/app/data/order-data";
+import { DetailBarangItem, Request } from "@/app/types/request";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -20,7 +21,7 @@ import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, CheckCircle, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -69,40 +70,8 @@ const WARNA_COLORS: Record<string, string> = {
   "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
 };
 
-interface OrderItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-  availablePcs?: string;
-  verified?: boolean;
-}
-
-interface Order {
-  id: string;
-  timestamp: number;
-  createdBy?: string;
-  requestNo?: string;
-  updatedDate?: number;
-  updatedBy?: string;
-  stockistId?: string;
-  pabrik: string;
-  kategoriBarang: string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  namaPelanggan: string;
-  waktuKirim: string;
-  customerExpectation: string;
-  detailItems: OrderItem[];
-  fotoBarangBase64?: string;
-  status: string;
-}
-
 interface VerifyStockProps {
-  order: Order;
+  order: Request;
   onBack: () => void;
   mode?: "verify" | "review" | "detail";
   isJBWaiting?: boolean;
@@ -114,11 +83,123 @@ export function VerifyStock({
   mode = "verify",
   isJBWaiting = false,
 }: VerifyStockProps) {
-  const [detailItems, setDetailItems] = useState<OrderItem[]>([]);
+  const [detailItems, setDetailItems] = useState<DetailBarangItem[]>([]);
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
   const [showSendToJBDialog, setShowSendToJBDialog] = useState(false);
   const [wasUpdated, setWasUpdated] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<Order>(order);
+  const [currentOrder, setCurrentOrder] = useState<Request>(order);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Refs for debounce management
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const savingAnimationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Save function to be reused
+  const saveChanges = () => {
+    const hasChanges = detailItems.some(
+      (item) => item.availablePcs !== undefined,
+    );
+
+    if (hasChanges) {
+      const savedOrders = localStorage.getItem("orders");
+      if (savedOrders) {
+        const orders = JSON.parse(savedOrders);
+        const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
+        if (orderIndex !== -1) {
+          orders[orderIndex].detailItems = detailItems;
+          const currentUser =
+            sessionStorage.getItem("username") ||
+            localStorage.getItem("username") ||
+            "";
+          orders[orderIndex].updatedDate = Date.now();
+          orders[orderIndex].updatedBy = currentUser;
+          localStorage.setItem("orders", JSON.stringify(orders));
+          setWasUpdated(true);
+          setHasUnsavedChanges(false);
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // Debounced save function with animation
+  const debouncedSave = (immediate = false) => {
+    // Clear any existing timeouts
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (savingAnimationTimeoutRef.current) {
+      clearTimeout(savingAnimationTimeoutRef.current);
+      savingAnimationTimeoutRef.current = null;
+    }
+
+    if (immediate) {
+      // Execute save immediately without animation for critical actions
+      const saved = saveChanges();
+      if (saved) {
+        setIsSaving(false);
+      }
+      return saved;
+    }
+
+    // Debounced save with animation
+    saveTimeoutRef.current = setTimeout(() => {
+      const hasChanges = detailItems.some(
+        (item) => item.availablePcs !== undefined,
+      );
+
+      if (hasChanges && hasUnsavedChanges) {
+        setIsSaving(true);
+
+        savingAnimationTimeoutRef.current = setTimeout(() => {
+          const saved = saveChanges();
+          if (saved) {
+            setIsSaving(false);
+            toast.success("Request updated");
+          }
+        }, 500);
+      }
+    }, 1200);
+  };
+
+  // Trigger debounced save when detailItems change
+  useEffect(() => {
+    if (hasUnsavedChanges) {
+      debouncedSave(false);
+    }
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      if (savingAnimationTimeoutRef.current) {
+        clearTimeout(savingAnimationTimeoutRef.current);
+      }
+    };
+  }, [detailItems, hasUnsavedChanges]);
+
+  // Save on unmount effect
+  useEffect(() => {
+    return () => {
+      // Save immediately when component unmounts if there are unsaved changes
+      if (hasUnsavedChanges) {
+        // Clear any pending saves
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        if (savingAnimationTimeoutRef.current) {
+          clearTimeout(savingAnimationTimeoutRef.current);
+        }
+
+        // Save without showing toast (will be shown by back button handler or final action)
+        saveChanges();
+      }
+    };
+  }, [hasUnsavedChanges, detailItems, order.id]);
 
   useEffect(() => {
     // Sort items on mount using the same logic as order-form
@@ -149,7 +230,7 @@ export function VerifyStock({
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
+      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
       if (orderIndex !== -1 && orders[orderIndex].status === "Open") {
         orders[orderIndex].status = "Stockist Processing";
         orders[orderIndex].updatedDate = Date.now();
@@ -219,21 +300,7 @@ export function VerifyStock({
         item.id === itemId ? { ...item, availablePcs: value } : item,
       ),
     );
-    setWasUpdated(true);
-
-    // Auto-save when user edits available pcs
-    const savedOrders = localStorage.getItem("orders");
-    if (savedOrders) {
-      const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
-      if (orderIndex !== -1) {
-        orders[orderIndex].detailItems = orders[orderIndex].detailItems.map(
-          (item: OrderItem) =>
-            item.id === itemId ? { ...item, availablePcs: value } : item,
-        );
-        localStorage.setItem("orders", JSON.stringify(orders));
-      }
-    }
+    setHasUnsavedChanges(true);
   };
 
   const updateOrderStatus = (newStatus: string) => {
@@ -245,10 +312,22 @@ export function VerifyStock({
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
+      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
       if (orderIndex !== -1) {
+        // If sending to JB, calculate orderPcs as requested - available
+        let updatedDetailItems = detailItems;
+        if (newStatus === "Requested to JB") {
+          updatedDetailItems = detailItems.map((item) => ({
+            ...item,
+            orderPcs: Math.max(
+              0,
+              parseInt(item.pcs) - parseInt(item.availablePcs || "0"),
+            ).toString(),
+          }));
+        }
+
         orders[orderIndex].status = newStatus;
-        orders[orderIndex].detailItems = detailItems;
+        orders[orderIndex].detailItems = updatedDetailItems;
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
         localStorage.setItem("orders", JSON.stringify(orders));
@@ -263,6 +342,9 @@ export function VerifyStock({
   };
 
   const handleReadyStock = () => {
+    // Save any pending changes first (immediate, no debounce)
+    debouncedSave(true);
+
     const currentUser =
       sessionStorage.getItem("username") ||
       localStorage.getItem("username") ||
@@ -280,7 +362,7 @@ export function VerifyStock({
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Order) => o.id === order.id);
+      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
       if (orderIndex !== -1) {
         orders[orderIndex].detailItems = updatedItems;
         orders[orderIndex].status = "Ready Stock Marketing";
@@ -297,6 +379,9 @@ export function VerifyStock({
   };
 
   const handleSendToJB = () => {
+    // Save any pending changes first (immediate, no debounce)
+    debouncedSave(true);
+
     // Check if all available pcs match requested pcs
     const allMatch = detailItems.every(
       (item) => item.availablePcs === item.pcs,
@@ -354,6 +439,11 @@ export function VerifyStock({
           variant="ghost"
           size="sm"
           onClick={() => {
+            // Clear any pending save animations
+            if (savingAnimationTimeoutRef.current) {
+              clearTimeout(savingAnimationTimeoutRef.current);
+              setIsSaving(false);
+            }
             if (wasUpdated) {
               toast.success("Request updated");
             }
@@ -373,6 +463,29 @@ export function VerifyStock({
               : "Verify Stock"}
         </h1>
       </div>
+
+      {/* Saving Indicator */}
+      {isSaving && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2 animate-pulse">
+          <div className="flex gap-1">
+            <div
+              className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+              style={{ animationDelay: "0ms" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+              style={{ animationDelay: "150ms" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            ></div>
+          </div>
+          <span className="text-sm text-blue-700 font-medium">
+            Saving changes...
+          </span>
+        </div>
+      )}
 
       {/* Request Header */}
       <Card className="p-4">

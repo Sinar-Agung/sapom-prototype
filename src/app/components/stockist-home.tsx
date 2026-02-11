@@ -6,6 +6,7 @@ import {
   NAMA_PRODUK_OPTIONS,
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
+import { Request } from "@/app/types/request";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -34,31 +35,6 @@ const NAMA_BASIC_IMAGES: Record<string, string> = {
   casteli: casteli,
 };
 
-interface OrderItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-}
-
-interface Order {
-  id: string;
-  timestamp: number;
-  pabrik: string;
-  kategoriBarang: string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  namaPelanggan: string;
-  waktuKirim: string;
-  customerExpectation: string;
-  detailItems: OrderItem[];
-  fotoBarangBase64?: string;
-  status: string;
-}
-
 interface StockistHomeProps {
   onNavigateToRequests: () => void;
   onNavigateToTab?: (tab: string) => void;
@@ -68,7 +44,7 @@ export function StockistHome({
   onNavigateToRequests,
   onNavigateToTab,
 }: StockistHomeProps) {
-  const [openRequests, setOpenRequests] = useState<Order[]>([]);
+  const [openRequests, setOpenRequests] = useState<Request[]>([]);
   const [openCount, setOpenCount] = useState(0);
   const [inProgressCount, setInProgressCount] = useState(0);
   const [doneCount, setDoneCount] = useState(0);
@@ -109,7 +85,7 @@ export function StockistHome({
   const loadOpenRequests = () => {
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
-      const allOrders = JSON.parse(savedOrders) as Order[];
+      const allOrders = JSON.parse(savedOrders) as Request[];
 
       // Calculate totals for each status - matching my-orders.tsx logic
       setOpenCount(allOrders.filter((order) => order.status === "Open").length);
@@ -156,7 +132,7 @@ export function StockistHome({
     });
   };
 
-  const getOrderImage = (order: Order) => {
+  const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     } else if (order.kategoriBarang === "model" && order.fotoBarangBase64) {

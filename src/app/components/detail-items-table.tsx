@@ -2,24 +2,10 @@ import {
   CUSTOMER_EXPECTATION_OPTIONS,
   getLabelFromValue,
 } from "../data/order-data";
-
-interface DetailBarangItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-  availablePcs?: string;
-}
-
-interface Order {
-  customerExpectation?: string;
-  detailItems: DetailBarangItem[];
-}
+import { MinimalRequest } from "../types/request";
 
 interface DetailItemsTableProps {
-  order: Order;
+  order: MinimalRequest;
   userRole: "sales" | "stockist" | "jb";
 }
 

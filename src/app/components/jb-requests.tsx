@@ -1,52 +1,16 @@
 import { useEffect, useState } from "react";
+import { Request } from "../types/request";
 import { RequestCard } from "./request-card";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
-interface DetailBarangItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-  availablePcs?: string;
-}
-
-interface Order {
-  id: string;
-  timestamp: number;
-  createdBy?: string;
-  requestNo?: string;
-  updatedDate?: number;
-  updatedBy?: string;
-  stockistId?: string;
-  pabrik: {
-    id: string;
-    name: string;
-  };
-  kategoriBarang: string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  fotoBarangBase64?: string;
-  namaPelanggan: {
-    id: string;
-    name: string;
-  };
-  waktuKirim: string;
-  customerExpectation: string;
-  detailItems: DetailBarangItem[];
-  status: string;
-}
-
 interface JBRequestsProps {
-  onSeeDetail?: (order: Order, currentTab: string) => void;
+  onSeeDetail?: (order: Request, currentTab: string) => void;
   initialTab?: string;
 }
 
 export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Request[]>([]);
   const [activeTab, setActiveTab] = useState(initialTab || "assigned");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
@@ -72,35 +36,23 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   };
 
   // Filter orders based on active tab
-  const filteredOrders = orders.filter((order: Order) => {
+  const filteredOrders = orders.filter((order: Request) => {
     if (activeTab === "assigned") {
       return order.status === "Requested to JB";
     } else if (activeTab === "waiting") {
-      // Waiting for Supplier - could be orders JB has placed with suppliers
+      // Ordered - could be orders JB has placed with suppliers
       // For now, we can use "In Progress" or create a new status
-      return order.status === "Waiting for Supplier";
-    } else if (activeTab === "done") {
-      return (
-        order.status === "Done" ||
-        order.status === "Ready Stock Marketing" ||
-        order.status === "Stock Unavailable"
-      );
+      return order.status === "Ordered";
     }
     return false;
   });
 
   // Calculate counts for each tab
   const assignedCount = orders.filter(
-    (order: Order) => order.status === "Requested to JB",
+    (order: Request) => order.status === "Requested to JB",
   ).length;
   const waitingCount = orders.filter(
-    (order: Order) => order.status === "Waiting for Supplier",
-  ).length;
-  const doneCount = orders.filter(
-    (order: Order) =>
-      order.status === "Done" ||
-      order.status === "Ready Stock Marketing" ||
-      order.status === "Stock Unavailable",
+    (order: Request) => order.status === "Ordered",
   ).length;
 
   const handleTabClick = (e: React.MouseEvent) => {
@@ -118,7 +70,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
         <div>
           <h1 className="text-2xl font-bold">Requests</h1>
           <p className="text-gray-600 text-sm">
-            Total: {filteredOrders.length} requests
+            Total: {assignedCount + waitingCount} requests
           </p>
         </div>
       </div>
@@ -144,16 +96,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
               activeTab === "waiting" ? "text-blue-600 border-blue-600" : ""
             }
           >
-            Waiting for Supplier ({waitingCount})
-          </TabsTrigger>
-          <TabsTrigger
-            value="done"
-            onClick={handleTabClick}
-            className={
-              activeTab === "done" ? "text-green-600 border-green-600" : ""
-            }
-          >
-            Done ({doneCount})
+            Ordered ({waitingCount})
           </TabsTrigger>
         </TabsList>
 

@@ -6,6 +6,7 @@ import {
   NAMA_PRODUK_OPTIONS,
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
+import { Request } from "@/app/types/request";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -33,31 +34,14 @@ const NAMA_BASIC_IMAGES: Record<string, string> = {
   casteli: casteli,
 };
 
-interface Order {
-  id: string;
-  timestamp: number;
-  requestNo?: string;
-  createdBy?: string;
-  stockistId?: string;
-  status: string;
-  namaPelanggan: { id: string; name: string } | string;
-  pabrik: { id: string; name: string } | string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  kategoriBarang: string;
-  waktuKirim: string;
-  detailItems: any[];
-}
-
 interface JBHomeProps {
   onNavigateToTab?: (tab: string) => void;
-  onSeeDetail?: (order: Order, currentTab: string) => void;
+  onSeeDetail?: (order: Request, currentTab: string) => void;
 }
 
 export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
-  const [recentRequests, setRecentRequests] = useState<Order[]>([]);
-  const [recentAssigned, setRecentAssigned] = useState<Order[]>([]);
+  const [recentRequests, setRecentRequests] = useState<Request[]>([]);
+  const [recentAssigned, setRecentAssigned] = useState<Request[]>([]);
   const [openCount, setOpenCount] = useState(0);
   const [assignedCount, setAssignedCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
@@ -74,7 +58,7 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
   const loadData = () => {
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
-      const orders: Order[] = JSON.parse(savedOrders);
+      const orders: Request[] = JSON.parse(savedOrders);
 
       // Get 5 most recently created requests
       const recent = [...orders]

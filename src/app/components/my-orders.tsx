@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Request } from "../types/request";
 import { RequestCard } from "./request-card";
 import { Card } from "./ui/card";
 import {
@@ -10,50 +11,13 @@ import {
 } from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
-interface DetailBarangItem {
-  id: string;
-  kadar: string;
-  warna: string;
-  ukuran: string;
-  berat: string;
-  pcs: string;
-  availablePcs?: string;
-}
-
-interface Order {
-  id: string;
-  timestamp: number;
-  createdBy?: string;
-  requestNo?: string;
-  updatedDate?: number;
-  updatedBy?: string;
-  stockistId?: string;
-  pabrik: {
-    id: string;
-    name: string;
-  };
-  kategoriBarang: string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  fotoBarangBase64?: string;
-  namaPelanggan: {
-    id: string;
-    name: string;
-  };
-  waktuKirim: string;
-  customerExpectation: string;
-  detailItems: DetailBarangItem[];
-  status: string;
-}
-
 interface MyOrdersProps {
-  onEditOrder?: (order: Order) => void;
-  onDuplicateOrder?: (order: Order) => void;
+  onEditOrder?: (order: Request) => void;
+  onDuplicateOrder?: (order: Request) => void;
   userRole?: "sales" | "stockist" | "jb";
-  onVerifyStock?: (order: Order, currentTab: string) => void;
-  onReviewRequest?: (order: Order, currentTab: string) => void;
-  onSeeDetail?: (order: Order, currentTab: string) => void;
+  onVerifyStock?: (order: Request, currentTab: string) => void;
+  onReviewRequest?: (order: Request, currentTab: string) => void;
+  onSeeDetail?: (order: Request, currentTab: string) => void;
   initialTab?: string;
 }
 
@@ -76,7 +40,7 @@ export function MyOrders({
   onSeeDetail,
   initialTab,
 }: MyOrdersProps) {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Request[]>([]);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(initialTab || "open");
   const [sortBy, setSortBy] = useState<SortOption>("updatedDate");
@@ -184,7 +148,7 @@ export function MyOrders({
   };
 
   const cancelOrder = (orderId: string) => {
-    const updatedOrders = orders.map((order: Order) =>
+    const updatedOrders = orders.map((order: Request) =>
       order.id === orderId ? { ...order, status: "Cancelled" } : order,
     );
     setOrders(updatedOrders);
@@ -192,7 +156,7 @@ export function MyOrders({
   };
 
   // Filter orders based on active tab
-  const filteredOrders = orders.filter((order: Order) => {
+  const filteredOrders = orders.filter((order: Request) => {
     // For sales role, only show orders created by them
     if (userRole === "sales" && order.createdBy !== currentUser) {
       return false;
@@ -225,11 +189,11 @@ export function MyOrders({
   });
 
   // Calculate counts for each tab
-  const openCount = orders.filter((order: Order) => {
+  const openCount = orders.filter((order: Request) => {
     if (userRole === "sales" && order.createdBy !== currentUser) return false;
     return order.status === "Open";
   }).length;
-  const inProgressCount = orders.filter((order: Order) => {
+  const inProgressCount = orders.filter((order: Request) => {
     if (userRole === "sales" && order.createdBy !== currentUser) return false;
     if (userRole === "stockist") {
       return (
@@ -239,7 +203,7 @@ export function MyOrders({
     }
     return order.status === "Stockist Processing";
   }).length;
-  const doneCount = orders.filter((order: Order) => {
+  const doneCount = orders.filter((order: Request) => {
     if (userRole === "sales" && order.createdBy !== currentUser) return false;
     return (
       order.status === "Done" ||
@@ -247,17 +211,17 @@ export function MyOrders({
       order.status === "Stock Unavailable"
     );
   }).length;
-  const cancelledCount = orders.filter((order: Order) => {
+  const cancelledCount = orders.filter((order: Request) => {
     if (userRole === "sales" && order.createdBy !== currentUser) return false;
     return order.status === "Cancelled";
   }).length;
-  const assignedCount = orders.filter((order: Order) => {
+  const assignedCount = orders.filter((order: Request) => {
     if (userRole === "sales" && order.createdBy !== currentUser) return false;
     return order.status === "Requested to JB";
   }).length;
 
   // Total requests visible to current user
-  const totalVisibleRequests = orders.filter((order: Order) => {
+  const totalVisibleRequests = orders.filter((order: Request) => {
     // For sales role, show only orders created by them
     if (userRole === "sales") {
       return order.createdBy === currentUser;
@@ -404,7 +368,7 @@ export function MyOrders({
     return `${dateStr} ${timeStr}`;
   };
 
-  const getOrderImage = (order: Order) => {
+  const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     } else if (order.kategoriBarang === "model" && order.fotoBarangBase64) {
@@ -413,7 +377,7 @@ export function MyOrders({
     return italySanta; // Default fallback
   };
 
-  const renderOrderCard = (order: Order) => {
+  const renderOrderCard = (order: Request) => {
     const isExpanded = expandedOrderId === order.id;
 
     // Check if we should show sales name (show if order is NOT created by current user)

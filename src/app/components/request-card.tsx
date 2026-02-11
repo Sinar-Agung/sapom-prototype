@@ -4,6 +4,7 @@ import {
   NAMA_BASIC_OPTIONS,
   NAMA_PRODUK_OPTIONS,
 } from "@/app/data/order-data";
+import { Request } from "@/app/types/request";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -33,46 +34,19 @@ const NAMA_BASIC_IMAGES: Record<string, string> = {
   casteli: casteli,
 };
 
-interface Order {
-  id: string;
-  timestamp: number;
-  createdBy?: string;
-  requestNo?: string;
-  updatedDate?: number;
-  updatedBy?: string;
-  stockistId?: string;
-  pabrik: {
-    id: string;
-    name: string;
-  };
-  kategoriBarang: string;
-  jenisProduk: string;
-  namaProduk: string;
-  namaBasic: string;
-  fotoBarangBase64?: string;
-  namaPelanggan: {
-    id: string;
-    name: string;
-  };
-  waktuKirim: string;
-  customerExpectation: string;
-  detailItems: any[];
-  status: string;
-}
-
 interface RequestCardProps {
-  order: Order;
+  order: Request;
   userRole?: "sales" | "stockist" | "jb";
   showSalesName?: boolean;
   activeTab?: string;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
-  onEditOrder?: (order: Order) => void;
-  onDuplicateOrder?: (order: Order) => void;
+  onEditOrder?: (order: Request) => void;
+  onDuplicateOrder?: (order: Request) => void;
   onCancelOrder?: (orderId: string) => void;
-  onReviewRequest?: (order: Order, tab: string) => void;
-  onVerifyStock?: (order: Order, tab: string) => void;
-  onSeeDetail?: (order: Order, tab: string) => void;
+  onReviewRequest?: (order: Request, tab: string) => void;
+  onVerifyStock?: (order: Request, tab: string) => void;
+  onSeeDetail?: (order: Request, tab: string) => void;
 }
 
 export function RequestCard({
@@ -124,7 +98,7 @@ export function RequestCard({
     return `${dateStr}, ${timeStr}`;
   };
 
-  const getOrderImage = (order: Order) => {
+  const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     }
