@@ -71,12 +71,10 @@ export function OrderCard({
       month: "short",
       year: "numeric",
     });
-    const timeStr = date.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    const timeStr = `${hours}:${minutes}:${seconds}`;
     return `${dateStr}, ${timeStr}`;
   };
 
@@ -201,6 +199,14 @@ export function OrderCard({
               </span>
             </div>
           </div>
+
+          {/* PO Number - Prominent display */}
+          <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
+            <span className="text-gray-500">PO Number: </span>
+            <span className="font-mono font-semibold text-blue-700">
+              {order.PONumber}
+            </span>
+          </p>
 
           {/* Request No */}
           {order.requestNo && (

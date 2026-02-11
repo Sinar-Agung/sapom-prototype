@@ -6,23 +6,33 @@
 🔐 LOGIN CREDENTIALS FOR TESTING
 ==========================================
 
+BRANCH CODES:
+- JKT: Jakarta
+- BDG: Bandung
+- SBY: Surabaya
+
 SALES USERS (4):
-1. Username: budi         | Password: sales123 | Full Name: Budi Santoso        | Credit: Rp 500,000,000
-2. Username: anie         | Password: sales123 | Full Name: Ani Wijaya          | Credit: Rp 750,000,000
-3. Username: cahy         | Password: sales123 | Full Name: Cahya Pratama       | Credit: Rp 600,000,000
-4. Username: dewi         | Password: sales123 | Full Name: Dewi Sari           | Credit: Rp 850,000,000
+1. Username: budi         | Password: sales123 | Full Name: Budi Santoso        | Credit: Rp 500,000,000 | Branch: JKT
+2. Username: anie         | Password: sales123 | Full Name: Ani Wijaya          | Credit: Rp 750,000,000 | Branch: BDG
+3. Username: cahy         | Password: sales123 | Full Name: Cahya Pratama       | Credit: Rp 600,000,000 | Branch: SBY
+4. Username: dewi         | Password: sales123 | Full Name: Dewi Sari           | Credit: Rp 850,000,000 | Branch: JKT
 
 STOCKIST USERS (2):
-1. Username: ekmw         | Password: stock123 | Full Name: Eko Widodo          | Group: Kadar Muda (375, 420, 700)
-2. Username: fitr         | Password: stock123 | Full Name: Fitri Rahmawati     | Group: Kadar Tua (750, 916, 999)
+1. Username: ekmw         | Password: stock123 | Full Name: Eko Widodo          | Group: Kadar Muda (375, 420, 700) | Branch: JKT
+2. Username: fitr         | Password: stock123 | Full Name: Fitri Rahmawati     | Group: Kadar Tua (750, 916, 999)  | Branch: BDG
 
 JEWELRY BUYER (JB) USERS (3):
-1. Username: hend         | Password: jb123    | Full Name: Hendra Gunawan      | Group: Domestic Supplier
-2. Username: inda         | Password: jb123    | Full Name: Indah Permatasari   | Group: Import Specialist
-3. Username: joko         | Password: jb123    | Full Name: Joko Susanto        | Group: Custom Design
+1. Username: hend         | Password: jb123    | Full Name: Hendra Gunawan      | Group: Domestic Supplier   | Branch: JKT
+2. Username: inda         | Password: jb123    | Full Name: Indah Permatasari   | Group: Import Specialist   | Branch: BDG
+3. Username: joko         | Password: jb123    | Full Name: Joko Susanto        | Group: Custom Design       | Branch: SBY
 
 ==========================================
 */
+
+/**
+ * Branch Code type - represents the branch/location where user is assigned
+ */
+export type BranchCode = "JKT" | "BDG" | "SBY";
 
 export interface SalesUser {
   username: string;
@@ -32,6 +42,7 @@ export interface SalesUser {
   creditLimit: number; // in IDR (Indonesian Rupiah)
   email: string;
   phone: string;
+  branchCode: BranchCode;
 }
 
 export interface StockistUser {
@@ -43,6 +54,7 @@ export interface StockistUser {
   group: "Kadar Muda" | "Kadar Tua";
   email: string;
   phone: string;
+  branchCode: BranchCode;
 }
 
 export interface JBUser {
@@ -53,6 +65,7 @@ export interface JBUser {
   group: string; // JB specialty group
   email: string;
   phone: string;
+  branchCode: BranchCode;
 }
 
 export type User = SalesUser | StockistUser | JBUser;
@@ -69,6 +82,7 @@ export const SALES_USERS: SalesUser[] = [
     creditLimit: 500000000, // 500 million IDR
     email: "budi.santoso@jewelry.co.id",
     phone: "+62 812-3456-7890",
+    branchCode: "JKT",
   },
   {
     username: "sales2",
@@ -78,6 +92,7 @@ export const SALES_USERS: SalesUser[] = [
     creditLimit: 750000000, // 750 million IDR
     email: "ani.wijaya@jewelry.co.id",
     phone: "+62 813-4567-8901",
+    branchCode: "BDG",
   },
   {
     username: "sales3",
@@ -87,6 +102,7 @@ export const SALES_USERS: SalesUser[] = [
     creditLimit: 600000000, // 600 million IDR
     email: "cahya.pratama@jewelry.co.id",
     phone: "+62 814-5678-9012",
+    branchCode: "SBY",
   },
   {
     username: "sales4",
@@ -96,6 +112,7 @@ export const SALES_USERS: SalesUser[] = [
     creditLimit: 850000000, // 850 million IDR
     email: "dewi.sari@jewelry.co.id",
     phone: "+62 815-6789-0123",
+    branchCode: "JKT",
   },
 ];
 
@@ -112,6 +129,7 @@ export const STOCKIST_USERS: StockistUser[] = [
     group: "Kadar Muda",
     email: "eko.widodo@jewelry.co.id",
     phone: "+62 816-7890-1234",
+    branchCode: "JKT",
   },
   {
     username: "stockist2",
@@ -122,6 +140,7 @@ export const STOCKIST_USERS: StockistUser[] = [
     group: "Kadar Tua",
     email: "fitri.rahmawati@jewelry.co.id",
     phone: "+62 817-8901-2345",
+    branchCode: "BDG",
   },
 ];
 
@@ -137,6 +156,7 @@ export const JB_USERS: JBUser[] = [
     group: "Domestic Supplier", // Handles local Indonesian suppliers
     email: "hendra.gunawan@jewelry.co.id",
     phone: "+62 818-9012-3456",
+    branchCode: "JKT",
   },
   {
     username: "jb2",
@@ -146,6 +166,7 @@ export const JB_USERS: JBUser[] = [
     group: "Import Specialist", // Handles international suppliers
     email: "indah.permatasari@jewelry.co.id",
     phone: "+62 819-0123-4567",
+    branchCode: "BDG",
   },
   {
     username: "jb3",
@@ -155,6 +176,7 @@ export const JB_USERS: JBUser[] = [
     group: "Custom Design", // Handles custom/model orders
     email: "joko.susanto@jewelry.co.id",
     phone: "+62 820-1234-5678",
+    branchCode: "SBY",
   },
 ];
 
@@ -235,6 +257,21 @@ export const getKadarGroups = () => {
     "Kadar Muda": ["375", "420", "700"], // 6k, 8k, 9k
     "Kadar Tua": ["750", "916", "999"], // 16k, 17k, 24k
   };
+};
+
+// Get branch name from branch code
+export const getBranchName = (branchCode: BranchCode): string => {
+  const branchNames: Record<BranchCode, string> = {
+    JKT: "Jakarta",
+    BDG: "Bandung",
+    SBY: "Surabaya",
+  };
+  return branchNames[branchCode];
+};
+
+// Get all users by branch
+export const getUsersByBranch = (branchCode: BranchCode): User[] => {
+  return ALL_USERS.filter((user) => user.branchCode === branchCode);
 };
 
 // Initialize user data in session storage

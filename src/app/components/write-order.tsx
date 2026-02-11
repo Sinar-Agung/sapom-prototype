@@ -8,7 +8,10 @@ import {
 import { Order } from "@/app/types/order";
 import { DetailBarangItem, Request } from "@/app/types/request";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import {
+  findUserByUsername,
+  getFullNameFromUsername,
+} from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -534,8 +537,32 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
           pcs: item.orderPcs || item.pcs, // Use orderPcs as the pcs value
         }));
 
+        // Generate PO Number: SA{BranchCode}{SupplierInitials}{YYYYMMDD}{SequentialNumber}
+        const user = findUserByUsername(currentUser);
+        const branchCode = user?.branchCode || "A"; // A=JKT, B=BDG, C=SBY
+        const supplierInitials = order.pabrik.name
+          .split(" ")
+          .map((word) => word[0])
+          .join("")
+          .substring(0, 2)
+          .toUpperCase();
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+        // Get sequential number from localStorage
+        const poCounterKey = `po-counter-${dateStr}`;
+        const currentCounter = parseInt(
+          localStorage.getItem(poCounterKey) || "0",
+          10,
+        );
+        const nextCounter = currentCounter + 1;
+        localStorage.setItem(poCounterKey, nextCounter.toString());
+        const sequentialNumber = nextCounter.toString().padStart(4, "0");
+
+        const PONumber = `SA${branchCode}${supplierInitials}${dateStr}${sequentialNumber}`;
+
         const newOrder: Order = {
           id: `order-${Date.now()}`,
+          PONumber,
           requestNo: order.requestNo,
           requestId: order.id,
           createdDate: Date.now(),

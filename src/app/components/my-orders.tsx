@@ -359,12 +359,10 @@ export function MyOrders({
       month: "short",
       year: "numeric",
     });
-    const timeStr = date.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    const timeStr = `${hours}:${minutes}:${seconds}`;
     return `${dateStr} ${timeStr}`;
   };
 

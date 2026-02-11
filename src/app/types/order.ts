@@ -27,6 +27,7 @@ export type OrderStatus =
 export interface Order {
   // Core identification
   id: string;
+  PONumber: string; // Purchase Order Number: SA{BranchCode}{SupplierInitials}{YYYYMMDD}{SequentialNumber}
 
   // Link to original request
   requestNo?: string;

@@ -1,10 +1,14 @@
 import {
+  CUSTOMER_EXPECTATION_OPTIONS,
   JENIS_PRODUK_OPTIONS,
   NAMA_BASIC_OPTIONS,
   NAMA_PRODUK_OPTIONS,
   getLabelFromValue,
 } from "@/app/data/order-data";
 import { Order } from "@/app/types/order";
+import { Request } from "@/app/types/request";
+import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -14,7 +18,8 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
@@ -37,6 +42,23 @@ interface OrderDetailsProps {
 }
 
 export function OrderDetails({ order, onBack }: OrderDetailsProps) {
+  const [relatedRequest, setRelatedRequest] = useState<Request | null>(null);
+  const [isRequestDetailsOpen, setIsRequestDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    // Load the related request from localStorage
+    if (order.requestId) {
+      const savedRequests = localStorage.getItem("requests");
+      if (savedRequests) {
+        const requests: Request[] = JSON.parse(savedRequests);
+        const request = requests.find((r) => r.id === order.requestId);
+        if (request) {
+          setRelatedRequest(request);
+        }
+      }
+    }
+  }, [order.requestId]);
+
   const formatDate = (isoString: string) => {
     if (!isoString) return "";
     return new Date(isoString).toLocaleDateString("id-ID", {
@@ -53,6 +75,21 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
       month: "short",
       year: "numeric",
     });
+  };
+
+  const formatTimestampWithTime = (timestamp: number) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const dateStr = date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    const timeStr = `${hours}:${minutes}:${seconds}`;
+    return `${dateStr}, ${timeStr}`;
   };
 
   const getOrderImage = () => {
@@ -154,7 +191,9 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
         </Button>
         <div className="flex-1">
           <h1 className="text-xl font-bold">Order Details</h1>
-          <p className="text-sm text-gray-600">{order.requestNo || order.id}</p>
+          <p className="text-sm text-gray-600 font-mono font-semibold">
+            {order.PONumber}
+          </p>
         </div>
         <span
           className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusColor(order.status)}`}
@@ -181,6 +220,12 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
               {jenisProdukLabel} {productNameLabel}
             </h2>
             <div className="space-y-1 text-sm">
+              <p>
+                <span className="text-gray-600">PO Number:</span>{" "}
+                <span className="font-mono font-semibold text-blue-700">
+                  {order.PONumber}
+                </span>
+              </p>
               <p>
                 <span className="text-gray-600">Category:</span>{" "}
                 <span
@@ -260,6 +305,196 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </table>
         </div>
       </Card>
+
+      {/* Related Request Details - Collapsible Panel */}
+      {relatedRequest && (
+        <Card className="p-4">
+          <button
+            onClick={() => setIsRequestDetailsOpen(!isRequestDetailsOpen)}
+            className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
+          >
+            <h3 className="font-semibold text-gray-900">
+              Related Request Details
+            </h3>
+            {isRequestDetailsOpen ? (
+              <ChevronUp className="w-5 h-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-500" />
+            )}
+          </button>
+
+          {isRequestDetailsOpen && (
+            <div className="mt-4 pt-4 border-t space-y-4">
+              {/* Request Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  {relatedRequest.requestNo && (
+                    <div>
+                      <span className="text-gray-500">Request No: </span>
+                      <span className="font-medium font-mono">
+                        {relatedRequest.requestNo}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-500">Created: </span>
+                    <span className="font-medium">
+                      {formatTimestamp(relatedRequest.timestamp)}
+                    </span>
+                  </div>
+                  {relatedRequest.createdBy && (
+                    <div>
+                      <span className="text-gray-500">Sales: </span>
+                      <span className="font-medium">
+                        {typeof relatedRequest.createdBy === "string"
+                          ? getFullNameFromUsername(relatedRequest.createdBy)
+                          : relatedRequest.createdBy.username}
+                      </span>
+                    </div>
+                  )}
+                  {relatedRequest.stockistId && (
+                    <div>
+                      <span className="text-gray-500">Stockist: </span>
+                      <span className="font-medium">
+                        {getFullNameFromUsername(relatedRequest.stockistId)}
+                      </span>
+                    </div>
+                  )}
+                  {relatedRequest.namaPelanggan && (
+                    <div>
+                      <span className="text-gray-500">Atas Nama: </span>
+                      <span className="font-medium">
+                        {relatedRequest.namaPelanggan.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {relatedRequest.customerExpectation && (
+                    <div>
+                      <span className="text-gray-500">
+                        Customer Expectation:{" "}
+                      </span>
+                      <span className="font-medium">
+                        {getLabelFromValue(
+                          CUSTOMER_EXPECTATION_OPTIONS,
+                          relatedRequest.customerExpectation,
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-500">Status: </span>
+                    <span
+                      className={`inline-block text-xs ${getStatusBadgeClasses(relatedRequest.status)} px-2 py-1 rounded-full font-medium`}
+                    >
+                      {relatedRequest.status}
+                    </span>
+                  </div>
+                  {relatedRequest.updatedDate && (
+                    <div>
+                      <span className="text-gray-500">Updated: </span>
+                      <span className="font-medium">
+                        {formatTimestampWithTime(relatedRequest.updatedDate)}
+                      </span>
+                    </div>
+                  )}
+                  {relatedRequest.updatedBy && (
+                    <div>
+                      <span className="text-gray-500">Updated By: </span>
+                      <span className="font-medium">
+                        {getFullNameFromUsername(relatedRequest.updatedBy)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Request Items Table */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">
+                  Request Items (Original)
+                </h4>
+                <div className="max-h-[250px] overflow-auto">
+                  <table className="w-full border-collapse border text-xs">
+                    <thead className="bg-gray-100 sticky top-0 z-10">
+                      <tr>
+                        <th className="border p-2 text-left bg-gray-100">#</th>
+                        <th className="border p-2 text-left bg-gray-100">
+                          Kadar
+                        </th>
+                        <th className="border p-2 text-left bg-gray-100">
+                          Warna
+                        </th>
+                        <th className="border p-2 text-left bg-gray-100">
+                          Ukuran
+                        </th>
+                        <th className="border p-2 text-left bg-gray-100">
+                          Berat
+                        </th>
+                        <th className="border p-2 text-left bg-gray-100">
+                          Pcs
+                        </th>
+                        {relatedRequest.detailItems.some(
+                          (item) => item.availablePcs,
+                        ) && (
+                          <th className="border p-2 text-left bg-gray-100">
+                            Available
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relatedRequest.detailItems.map((item, index) => {
+                        const ukuranDisplay = getUkuranDisplay(item.ukuran);
+                        return (
+                          <tr
+                            key={item.id || index}
+                            className="hover:bg-gray-50"
+                          >
+                            <td className="border p-2 text-center">
+                              {index + 1}
+                            </td>
+                            <td
+                              className={`border p-2 font-medium ${getKadarColor(
+                                item.kadar,
+                              )}`}
+                            >
+                              {item.kadar.toUpperCase()}
+                            </td>
+                            <td
+                              className={`border p-2 ${getWarnaColor(
+                                item.warna,
+                              )}`}
+                            >
+                              {getWarnaLabel(item.warna)}
+                            </td>
+                            <td className="border p-2">
+                              {ukuranDisplay.showUnit
+                                ? `${ukuranDisplay.value} cm`
+                                : ukuranDisplay.value}
+                            </td>
+                            <td className="border p-2">{item.berat || "-"}</td>
+                            <td className="border p-2">{item.pcs}</td>
+                            {relatedRequest.detailItems.some(
+                              (i) => i.availablePcs,
+                            ) && (
+                              <td className="border p-2">
+                                {item.availablePcs || "-"}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

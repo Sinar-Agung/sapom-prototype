@@ -7,8 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-11
+
 ### Added
 
+- **Branch Code System**: Added branch/location assignment for all users
+  - Created `BranchCode` type with three possible values: 'JKT' (Jakarta), 'BDG' (Bandung), 'SBY' (Surabaya)
+  - Added `branchCode` field to `SalesUser`, `StockistUser`, and `JBUser` interfaces
+  - Updated all mock user data with branch assignments distributed across three locations
+  - Added helper functions: `getBranchName()` and `getUsersByBranch()`
+  - Updated login credentials documentation to show branch assignments
+- **Purchase Order (PO) Number System**: Automatic generation of standardized PO numbers for orders
+  - Added `PONumber` field to Order interface with format: SA{BranchCode}{SupplierInitials}{YYYYMMDD}{SequentialNumber}
+  - Branch codes: A=Jakarta (JKT), B=Bandung (BDG), C=Surabaya (SBY)
+  - Implemented PO number generation in Write Order component with daily sequential counter
+  - Daily counter stored in localStorage with automatic reset per date
+  - Supplier initials extracted from first 2 characters of pabrik name
+  - Added PO number display in OrderCard component with blue styling
+  - Added PO number display in OrderDetails component (header and info section)
+- **Collapsible Request Details Panel**: Enhanced Order Details page with related request information
+  - Added collapsible panel showing full details of the original request that led to the order
+  - Panel displays request metadata in 2-column grid (Request No, Created, Sales, Stockist, Atas Nama, Customer Expectation, Status, Updated info)
+  - Includes complete request items table with all columns (Kadar, Warna, Ukuran, Berat, Pcs, Available Pcs)
+  - Panel defaults to collapsed state with ChevronDown/Up toggle icons
+  - Loads related request data from localStorage using order.requestId
 - **Order Management System**: Complete workflow for JB users to create and manage orders sent to suppliers
   - Created `src/app/types/order.ts` with comprehensive Order type definitions and OrderStatus enum
   - Created `OrderCard` component for displaying orders with consistent styling matching RequestCard
@@ -28,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Time Format Standardization**: Updated all time displays across the application to use HH:mm:ss format
+  - Updated `formatTimestampWithTime()` in RequestCard component to use manual time formatting
+  - Updated `formatTimestampWithTime()` in OrderCard component to use manual time formatting  
+  - Updated `formatTimestampWithTime()` in VerifyStock component to use manual time formatting
+  - Updated `formatTimestampWithTime()` in MyOrders component to use manual time formatting
+  - Updated `formatTimestampWithTime()` in OrderDetails component to use manual time formatting
+  - Replaced `toLocaleTimeString()` with manual `padStart(2, "0")` formatting for consistency across locales
 - **[BREAKING]** Renamed all `Order` interfaces to `Request` throughout the codebase to better reflect that these represent requests from cross-divisional staff, not actual orders
 - **[BREAKING]** localStorage key `"orders"` now stores Order objects (JB-to-supplier orders), while Request objects are stored in `"requests"`
 - Refactored all model/entity interface declarations into centralized type files under `src/app/types/`
