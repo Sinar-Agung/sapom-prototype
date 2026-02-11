@@ -13,6 +13,8 @@ import { OrderForm } from "./components/order-form";
 import { Register } from "./components/register";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
+import { SupplierHome } from "./components/supplier-home";
+import { SupplierOrders } from "./components/supplier-orders";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,18 +50,22 @@ export default function App() {
       ""
     );
   });
-  const [userRole, setUserRole] = useState<"sales" | "stockist" | "jb">(() => {
+  const [userRole, setUserRole] = useState<
+    "sales" | "stockist" | "jb" | "supplier"
+  >(() => {
     return (localStorage.getItem("userRole") ||
       sessionStorage.getItem("userRole") ||
-      "sales") as "sales" | "stockist" | "jb";
+      "sales") as "sales" | "stockist" | "jb" | "supplier";
   });
   const [authPage, setAuthPage] = useState<"login" | "register">("login");
   const [currentPage, setCurrentPage] = useState(() => {
-    // Stockists should see home page by default, sales see form
+    // Stockists, JB, and Suppliers should see home page by default, sales see form
     const role = (localStorage.getItem("userRole") ||
       sessionStorage.getItem("userRole") ||
-      "sales") as "sales" | "stockist" | "jb";
-    return role === "stockist" || role === "jb" ? "home" : "tambah-pesanan";
+      "sales") as "sales" | "stockist" | "jb" | "supplier";
+    return role === "stockist" || role === "jb" || role === "supplier"
+      ? "home"
+      : "tambah-pesanan";
   });
   const [hasFormChanges, setHasFormChanges] = useState(false);
   const [showNavigationWarning, setShowNavigationWarning] = useState(false);
@@ -88,7 +94,9 @@ export default function App() {
           ? "JB"
           : userRole === "stockist"
             ? "Stockist"
-            : "Sales";
+            : userRole === "supplier"
+              ? "Supplier"
+              : "Sales";
       document.title = `SAPOM (${roleLabel})`;
     } else {
       document.title = "SAPOM";
@@ -247,14 +255,19 @@ export default function App() {
       setCurrentPage("tambah-pesanan");
     }
 
+    // Store user profile in session storage
+    const userProfile = JSON.stringify(user);
+
     if (rememberMe) {
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("username", username);
       localStorage.setItem("userRole", role);
+      localStorage.setItem("userProfile", userProfile);
     } else {
       sessionStorage.setItem("isAuthenticated", "true");
       sessionStorage.setItem("username", username);
       sessionStorage.setItem("userRole", role);
+      sessionStorage.setItem("userProfile", userProfile);
     }
   };
 
@@ -278,9 +291,11 @@ export default function App() {
     localStorage.removeItem("isAuthenticated");
     localStorage.removeItem("username");
     localStorage.removeItem("userRole");
+    localStorage.removeItem("userProfile");
     sessionStorage.removeItem("isAuthenticated");
     sessionStorage.removeItem("username");
     sessionStorage.removeItem("userRole");
+    sessionStorage.removeItem("userProfile");
     // Clear form state
     setHasFormChanges(false);
     setEditingOrder(null);
@@ -342,6 +357,12 @@ export default function App() {
               onSeeDetail={handleSeeDetail}
             />
           );
+        } else if (userRole === "supplier") {
+          return (
+            <SupplierHome
+              onNavigateToOrders={() => handleNavigate("supplier-orders")}
+            />
+          );
         } else {
           // Demo page for Available Pcs Input
           return <AvailablePcsDemo />;
@@ -357,6 +378,8 @@ export default function App() {
         );
       case "inbound":
         return <JBInbound />;
+      case "supplier-orders":
+        return <SupplierOrders onSeeDetail={handleSeeOrderDetail} />;
       case "jb-orders":
       case "order":
         return <JBOrder onSeeDetail={handleSeeOrderDetail} />;

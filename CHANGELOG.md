@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-11
+
+### Added
+
+- **Supplier Portal System**: Complete portal for external supplier users to manage orders
+  - Created `SupplierUser` interface with `supplierId`, `supplierName`, and `branchCode: null`
+  - Added 10 supplier users with 2-character username initials: kh, ub, le, yt, mt, hw, ay, sa, se, lo
+  - Supplier IDs match mock data suppliers: king-halim, ubs-gold, lestari-gold, yt-gold, mt-gold, hwt, ayu, sb-gold, crm, lts-gold
+  - All supplier users use password "123" for easy testing
+  - Created `SupplierHome` component with comprehensive dashboard:
+    - Statistics cards showing new orders, in-progress orders, and completed orders counts
+    - Quick action buttons for navigation
+    - Recent orders list (5 most recent) with PO numbers and status badges
+    - Automatic filtering to show only orders assigned to logged-in supplier's factory
+  - Created `SupplierOrders` component with full order management workflow:
+    - Three status tabs: New, In Progress, Completed with order counts
+    - Order cards with product images, PO numbers, dates, and item counts
+    - Status update buttons with workflow: New → Viewed by Supplier → Confirmed → In Production → Ready for Pickup → Completed
+    - Order filtering by supplier ID (pabrik.id matching)
+    - View Details button integration for detailed order viewing
+  - Updated `App.tsx` to support supplier role:
+    - Added "supplier" to userRole type union
+    - Default page for suppliers set to "home" (not form input)
+    - Added SupplierHome and SupplierOrders route handling
+    - Browser title updates to "SAPOM (Supplier)" for supplier users
+  - Updated `Navigation` component to include supplier navigation items (Home, Orders, Settings)
+  - Updated login credentials documentation with all 10 supplier users and their supplier IDs
+- **User Profile Session Storage**: Enhanced authentication to store complete user profiles
+  - Modified `handleLogin` in App.tsx to store full user object as JSON in sessionStorage/localStorage
+  - Added `userProfile` key to both sessionStorage and localStorage based on "Remember Me" option
+  - Updated `handleLogout` to clear userProfile from both storage locations
+  - Enhanced `getCurrentUserDetails()` helper to prioritize reading from stored profile with username lookup fallback
+  - Updated `getSupplierId()` in supplier components to use stored userProfile for reliable supplier ID retrieval
+- **Mock Data Updates**: Expanded supplier data for comprehensive testing
+  - Added 3 new suppliers to suppliers constant: Lotus Gold (lts-gold), SB Gold (sb-gold), CRM (crm)
+  - Total of 10 suppliers matching the 10 supplier user accounts
+  - Updated supplier user data to match exact supplier IDs from mock-data.ts
+
+### Changed
+
+- **Supplier Order Storage**: Corrected localStorage key usage for supplier components
+  - Updated supplier-home.tsx to read from `localStorage "orders"` (Order objects) instead of "requests"
+  - Updated supplier-orders.tsx to read/write from `localStorage "orders"` for proper Order object handling
+  - Added debug logging to supplier-orders.tsx for troubleshooting order filtering
+- **User Data Management**: Refined supplier ID extraction
+  - Enhanced `getSupplierId()` function with userProfile priority check and userDatabase fallback
+  - Added error handling for JSON parsing failures in user profile retrieval
+
+### Fixed
+
+- Order filtering for suppliers now correctly reads from "orders" localStorage key where Order objects are stored
+- Supplier authentication properly stores and retrieves supplierId for order filtering
+
 ## [0.2.0] - 2026-02-11
 
 ### Added
@@ -52,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Time Format Standardization**: Updated all time displays across the application to use HH:mm:ss format
   - Updated `formatTimestampWithTime()` in RequestCard component to use manual time formatting
-  - Updated `formatTimestampWithTime()` in OrderCard component to use manual time formatting  
+  - Updated `formatTimestampWithTime()` in OrderCard component to use manual time formatting
   - Updated `formatTimestampWithTime()` in VerifyStock component to use manual time formatting
   - Updated `formatTimestampWithTime()` in MyOrders component to use manual time formatting
   - Updated `formatTimestampWithTime()` in OrderDetails component to use manual time formatting

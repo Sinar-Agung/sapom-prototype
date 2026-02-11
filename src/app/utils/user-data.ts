@@ -26,6 +26,18 @@ JEWELRY BUYER (JB) USERS (3):
 2. Username: inda         | Password: jb123    | Full Name: Indah Permatasari   | Group: Import Specialist   | Branch: BDG
 3. Username: joko         | Password: jb123    | Full Name: Joko Susanto        | Group: Custom Design       | Branch: SBY
 
+SUPPLIER USERS (10):
+1.  Username: kh          | Password: 123      | Full Name: King Halim Workshop     | Supplier: King Halim   (supplierId: king-halim)
+2.  Username: ub          | Password: 123      | Full Name: UBS Gold Factory        | Supplier: UBS Gold     (supplierId: ubs-gold)
+3.  Username: le          | Password: 123      | Full Name: Lestari Gold Corp       | Supplier: Lestari Gold (supplierId: lestari-gold)
+4.  Username: yt          | Password: 123      | Full Name: YT Gold Manufacturing   | Supplier: YT Gold      (supplierId: yt-gold)
+5.  Username: mt          | Password: 123      | Full Name: MT Gold Industries      | Supplier: MT Gold      (supplierId: mt-gold)
+6.  Username: hw          | Password: 123      | Full Name: HWT Jewelry             | Supplier: HWT          (supplierId: hwt)
+7.  Username: ay          | Password: 123      | Full Name: Ayu Gold Crafters       | Supplier: Ayu          (supplierId: ayu)
+8.  Username: sa          | Password: 123      | Full Name: SB Gold Works           | Supplier: SB Gold      (supplierId: sb-gold)
+9.  Username: se          | Password: 123      | Full Name: CRM Gold Manufacturing  | Supplier: CRM          (supplierId: crm)
+10. Username: lo          | Password: 123      | Full Name: Lotus Gold Artisan      | Supplier: Lotus Gold   (supplierId: lts-gold)
+
 ==========================================
 */
 
@@ -68,7 +80,19 @@ export interface JBUser {
   branchCode: BranchCode;
 }
 
-export type User = SalesUser | StockistUser | JBUser;
+export interface SupplierUser {
+  username: string;
+  password: string;
+  fullName: string;
+  accountType: "supplier";
+  supplierId: string; // Links to pabrik EntityReference
+  supplierName: string; // Name of the supplier company
+  email: string;
+  phone: string;
+  branchCode: null; // Suppliers don't have branch codes
+}
+
+export type User = SalesUser | StockistUser | JBUser | SupplierUser;
 
 // ==========================================
 // SALES USERS (4 users)
@@ -181,12 +205,129 @@ export const JB_USERS: JBUser[] = [
 ];
 
 // ==========================================
+// SUPPLIER USERS (13 users)
+// ==========================================
+export const SUPPLIER_USERS: SupplierUser[] = [
+  {
+    username: "kh",
+    password: "123",
+    fullName: "King Halim Workshop",
+    accountType: "supplier",
+    supplierId: "king-halim",
+    supplierName: "King Halim",
+    email: "contact@kinghalim.co.id",
+    phone: "+62 821-1111-0001",
+    branchCode: null,
+  },
+  {
+    username: "ub",
+    password: "123",
+    fullName: "UBS Gold Factory",
+    accountType: "supplier",
+    supplierId: "ubs-gold",
+    supplierName: "UBS Gold",
+    email: "info@ubsgold.co.id",
+    phone: "+62 821-1111-0002",
+    branchCode: null,
+  },
+  {
+    username: "le",
+    password: "123",
+    fullName: "Lestari Gold Corp",
+    accountType: "supplier",
+    supplierId: "lestari-gold",
+    supplierName: "Lestari Gold",
+    email: "sales@lestarigold.co.id",
+    phone: "+62 821-1111-0003",
+    branchCode: null,
+  },
+  {
+    username: "yt",
+    password: "123",
+    fullName: "YT Gold Manufacturing",
+    accountType: "supplier",
+    supplierId: "yt-gold",
+    supplierName: "YT Gold",
+    email: "orders@ytgold.co.id",
+    phone: "+62 821-1111-0004",
+    branchCode: null,
+  },
+  {
+    username: "mt",
+    password: "123",
+    fullName: "MT Gold Industries",
+    accountType: "supplier",
+    supplierId: "mt-gold",
+    supplierName: "MT Gold",
+    email: "info@mtgold.co.id",
+    phone: "+62 821-1111-0005",
+    branchCode: null,
+  },
+  {
+    username: "hw",
+    password: "123",
+    fullName: "HWT Jewelry",
+    accountType: "supplier",
+    supplierId: "hwt",
+    supplierName: "HWT",
+    email: "support@hwtjewelry.co.id",
+    phone: "+62 821-1111-0006",
+    branchCode: null,
+  },
+  {
+    username: "ay",
+    password: "123",
+    fullName: "Ayu Gold Crafters",
+    accountType: "supplier",
+    supplierId: "ayu",
+    supplierName: "Ayu",
+    email: "contact@ayugold.co.id",
+    phone: "+62 821-1111-0007",
+    branchCode: null,
+  },
+  {
+    username: "sa",
+    password: "123",
+    fullName: "SB Gold Works",
+    accountType: "supplier",
+    supplierId: "sb-gold",
+    supplierName: "SB Gold",
+    email: "orders@sbgold.co.id",
+    phone: "+62 821-1111-0008",
+    branchCode: null,
+  },
+  {
+    username: "se",
+    password: "123",
+    fullName: "CRM Gold Manufacturing",
+    accountType: "supplier",
+    supplierId: "crm",
+    supplierName: "CRM",
+    email: "info@crmgold.co.id",
+    phone: "+62 821-1111-0009",
+    branchCode: null,
+  },
+  {
+    username: "lo",
+    password: "123",
+    fullName: "Lotus Gold Artisan",
+    accountType: "supplier",
+    supplierId: "lts-gold",
+    supplierName: "Lotus Gold",
+    email: "info@lotusgold.co.id",
+    phone: "+62 821-1111-0012",
+    branchCode: null,
+  },
+];
+
+// ==========================================
 // COMBINED USER DATABASE
 // ==========================================
 export const ALL_USERS: User[] = [
   ...SALES_USERS,
   ...STOCKIST_USERS,
   ...JB_USERS,
+  ...SUPPLIER_USERS,
 ];
 
 // ==========================================
@@ -220,7 +361,9 @@ export const authenticateUser = (
 };
 
 // Get user role
-export const getUserRole = (user: User): "sales" | "stockist" | "jb" => {
+export const getUserRole = (
+  user: User,
+): "sales" | "stockist" | "jb" | "supplier" => {
   return user.accountType;
 };
 
@@ -274,6 +417,18 @@ export const getUsersByBranch = (branchCode: BranchCode): User[] => {
   return ALL_USERS.filter((user) => user.branchCode === branchCode);
 };
 
+// Get supplier by supplier ID
+export const getSupplierBySupplierId = (
+  supplierId: string,
+): SupplierUser | undefined => {
+  return SUPPLIER_USERS.find((supplier) => supplier.supplierId === supplierId);
+};
+
+// Get all suppliers
+export const getAllSuppliers = (): SupplierUser[] => {
+  return SUPPLIER_USERS;
+};
+
 // Initialize user data in session storage
 export const initializeUserData = () => {
   // Store user database in sessionStorage for easy access
@@ -283,11 +438,26 @@ export const initializeUserData = () => {
     console.log(`   - ${SALES_USERS.length} Sales users`);
     console.log(`   - ${STOCKIST_USERS.length} Stockist users`);
     console.log(`   - ${JB_USERS.length} JB users`);
+    console.log(`   - ${SUPPLIER_USERS.length} Supplier users`);
   }
 };
 
 // Get current logged-in user details
 export const getCurrentUserDetails = (): User | null => {
+  // First try to get from stored profile
+  const profileFromStorage =
+    localStorage.getItem("userProfile") ||
+    sessionStorage.getItem("userProfile");
+
+  if (profileFromStorage) {
+    try {
+      return JSON.parse(profileFromStorage) as User;
+    } catch (e) {
+      console.error("Failed to parse user profile from storage", e);
+    }
+  }
+
+  // Fallback to username lookup
   const username =
     localStorage.getItem("username") || sessionStorage.getItem("username");
   if (!username) return null;

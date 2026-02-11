@@ -12,7 +12,7 @@ import {
 interface NavigationProps {
   currentPage?: string;
   onNavigate?: (page: string) => void;
-  userRole?: "sales" | "stockist" | "jb";
+  userRole?: "sales" | "stockist" | "jb" | "supplier";
 }
 
 export function Navigation({
@@ -34,6 +34,12 @@ export function Navigation({
         { id: "jb-requests", label: "Requests", icon: List },
         { id: "inbound", label: "Inbound", icon: Inbox },
         { id: "jb-orders", label: "Orders", icon: Package },
+        { id: "settings", label: "Settings", icon: Settings },
+      ];
+    } else if (userRole === "supplier") {
+      return [
+        { id: "home", label: "Home", icon: Home },
+        { id: "supplier-orders", label: "Orders", icon: Package },
         { id: "settings", label: "Settings", icon: Settings },
       ];
     } else {

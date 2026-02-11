@@ -113,6 +113,9 @@ export const generateMockOrders = (): Request[] => {
     { id: "mt-gold", name: "MT Gold" },
     { id: "hwt", name: "HWT" },
     { id: "ayu", name: "Ayu" },
+    { id: "lts-gold", name: "Lotus Gold" },
+    { id: "sb-gold", name: "SB Gold" },
+    { id: "crm", name: "CRM" },
   ];
 
   // Open Request 1
