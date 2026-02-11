@@ -5,6 +5,7 @@ import {
   NAMA_PRODUK_OPTIONS,
   getLabelFromValue,
 } from "@/app/data/order-data";
+import { Order } from "@/app/types/order";
 import { DetailBarangItem, Request } from "@/app/types/request";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
@@ -132,7 +133,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
       // Save immediately if there are unsaved changes
       if (hasUnsavedChanges) {
-        const savedOrders = localStorage.getItem("orders");
+        const savedOrders = localStorage.getItem("requests");
         if (savedOrders) {
           const orders = JSON.parse(savedOrders);
           const orderIndex = orders.findIndex(
@@ -141,7 +142,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
           if (orderIndex !== -1) {
             orders[orderIndex].detailItems = orderItemsRef.current;
             orders[orderIndex].waktuKirim = eta;
-            localStorage.setItem("orders", JSON.stringify(orders));
+            localStorage.setItem("requests", JSON.stringify(orders));
           }
         }
       }
@@ -150,7 +151,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
   const saveChanges = () => {
     try {
-      const savedOrders = localStorage.getItem("orders");
+      const savedOrders = localStorage.getItem("requests");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
         const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
@@ -158,7 +159,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
           // Read from ref to get the latest orderItems
           orders[orderIndex].detailItems = orderItemsRef.current;
           orders[orderIndex].waktuKirim = eta;
-          localStorage.setItem("orders", JSON.stringify(orders));
+          localStorage.setItem("requests", JSON.stringify(orders));
           setHasUnsavedChanges(false);
           return true;
         }
@@ -510,21 +511,56 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     const currentUser =
       sessionStorage.getItem("username") ||
       localStorage.getItem("username") ||
-      "";
+      "User";
 
-    const savedOrders = localStorage.getItem("orders");
-    if (savedOrders) {
-      const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
-      if (orderIndex !== -1) {
-        orders[orderIndex].status = "Ordered";
-        orders[orderIndex].updatedDate = Date.now();
-        orders[orderIndex].updatedBy = currentUser;
-        orders[orderIndex].waktuKirim = eta;
-        // Save the current order pcs values
-        orders[orderIndex].detailItems = orderItems;
+    const savedRequests = localStorage.getItem("requests");
+    if (savedRequests) {
+      const requests = JSON.parse(savedRequests);
+      const requestIndex = requests.findIndex(
+        (o: Request) => o.id === order.id,
+      );
+      if (requestIndex !== -1) {
+        // Update the request status to "Ordered"
+        requests[requestIndex].status = "Ordered";
+        requests[requestIndex].updatedDate = Date.now();
+        requests[requestIndex].updatedBy = currentUser;
+        requests[requestIndex].waktuKirim = eta;
+        requests[requestIndex].detailItems = orderItems;
+        localStorage.setItem("requests", JSON.stringify(requests));
+
+        // Create a new Order object with orderPcs as pcs
+        const orderDetailItems = orderItems.map((item) => ({
+          ...item,
+          pcs: item.orderPcs || item.pcs, // Use orderPcs as the pcs value
+        }));
+
+        const newOrder: Order = {
+          id: `order-${Date.now()}`,
+          requestNo: order.requestNo,
+          requestId: order.id,
+          createdDate: Date.now(),
+          createdBy: currentUser,
+          jbId: currentUser,
+          pabrik: order.pabrik,
+          kategoriBarang: order.kategoriBarang,
+          jenisProduk: order.jenisProduk,
+          namaProduk: order.namaProduk,
+          namaBasic: order.namaBasic,
+          waktuKirim: eta,
+          customerExpectation: order.customerExpectation,
+          detailItems: orderDetailItems,
+          photoId: order.photoId,
+          fotoBarangBase64: order.fotoBarangBase64,
+          status: "New",
+        };
+
+        // Save the new order to localStorage
+        const savedOrders = localStorage.getItem("orders");
+        const orders: Order[] = savedOrders ? JSON.parse(savedOrders) : [];
+        orders.push(newOrder);
         localStorage.setItem("orders", JSON.stringify(orders));
-        toast.success("Order created and status updated to Ordered");
+
+        toast.success("Order created successfully!");
         setTimeout(() => {
           onBack();
         }, 500);

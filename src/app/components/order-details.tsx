@@ -1,0 +1,265 @@
+import {
+  JENIS_PRODUK_OPTIONS,
+  NAMA_BASIC_OPTIONS,
+  NAMA_PRODUK_OPTIONS,
+  getLabelFromValue,
+} from "@/app/data/order-data";
+import { Order } from "@/app/types/order";
+import casteli from "@/assets/images/casteli.png";
+import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
+import italyBambu from "@/assets/images/italy-bambu.png";
+import italyKaca from "@/assets/images/italy-kaca.png";
+import italySanta from "@/assets/images/italy-santa.png";
+import kalungFlexi from "@/assets/images/kalung-flexi.png";
+import milano from "@/assets/images/milano.png";
+import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
+import tambang from "@/assets/images/tambang.png";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+
+// Image mapping for Nama Basic
+const NAMA_BASIC_IMAGES: Record<string, string> = {
+  "italy-santa": italySanta,
+  "italy-kaca": italyKaca,
+  "italy-bambu": italyBambu,
+  "kalung-flexi": kalungFlexi,
+  "sunny-vanessa": sunnyVanessa,
+  "hollow-fancy-nori": hollowFancyNori,
+  milano: milano,
+  tambang: tambang,
+  casteli: casteli,
+};
+
+interface OrderDetailsProps {
+  order: Order;
+  onBack: () => void;
+}
+
+export function OrderDetails({ order, onBack }: OrderDetailsProps) {
+  const formatDate = (isoString: string) => {
+    if (!isoString) return "";
+    return new Date(isoString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatTimestamp = (timestamp: number) => {
+    if (!timestamp) return "";
+    return new Date(timestamp).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getOrderImage = () => {
+    if (order.kategoriBarang === "basic" && order.namaBasic) {
+      return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
+    }
+    return italySanta;
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "New":
+        return "bg-blue-100 text-blue-800";
+      case "Viewed by Supplier":
+        return "bg-purple-100 text-purple-800";
+      case "Confirmed":
+        return "bg-green-100 text-green-800";
+      case "In Production":
+        return "bg-yellow-100 text-yellow-800";
+      case "Ready for Pickup":
+        return "bg-orange-100 text-orange-800";
+      case "Completed":
+        return "bg-gray-100 text-gray-800";
+      case "Cancelled":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+
+  const pabrikLabel = order.pabrik?.name || "Unknown Pabrik";
+
+  const getKadarColor = (kadar: string) => {
+    const colors: Record<string, string> = {
+      "6k": "bg-green-500 text-white",
+      "8k": "bg-blue-500 text-white",
+      "9k": "bg-blue-700 text-white",
+      "16k": "bg-orange-500 text-white",
+      "17k": "bg-pink-500 text-white",
+      "24k": "bg-red-500 text-white",
+    };
+    return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
+  };
+
+  const getWarnaColor = (warna: string) => {
+    const colors: Record<string, string> = {
+      rg: "bg-rose-300 text-gray-800",
+      ap: "bg-gray-200 text-gray-800",
+      kn: "bg-yellow-400 text-gray-800",
+      ks: "bg-yellow-300 text-gray-800",
+      "2w-ap-rg": "bg-gradient-to-r from-gray-200 to-rose-300 text-gray-800",
+      "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
+    };
+    return colors[warna.toLowerCase()] || "bg-gray-300 text-gray-800";
+  };
+
+  const getWarnaLabel = (warna: string) => {
+    const labels: Record<string, string> = {
+      rg: "RG",
+      ap: "AP",
+      kn: "KN",
+      ks: "KS",
+      "2w-ap-rg": "2W (AP & RG)",
+      "2w-ap-kn": "2W (AP & KN)",
+    };
+    return labels[warna.toLowerCase()] || warna.toUpperCase();
+  };
+
+  const getUkuranDisplay = (ukuran: string) => {
+    // Check if ukuran is a number (which means it's in cm)
+    const numValue = parseFloat(ukuran);
+    if (!isNaN(numValue)) {
+      return { value: ukuran, showUnit: true };
+    }
+    // Otherwise it's a size like "S", "M", "L"
+    return { value: ukuran, showUnit: false };
+  };
+
+  return (
+    <div className="min-h-screen pb-20 md:pb-4">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="h-8 w-8 p-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold">Order Details</h1>
+          <p className="text-sm text-gray-600">{order.requestNo || order.id}</p>
+        </div>
+        <span
+          className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusColor(order.status)}`}
+        >
+          {order.status}
+        </span>
+      </div>
+
+      {/* Order Information Card */}
+      <Card className="p-4 mb-4">
+        <div className="flex gap-4">
+          {/* Product Image */}
+          <div className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
+            <img
+              src={getOrderImage()}
+              alt={productNameLabel}
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Order Info */}
+          <div className="flex-1">
+            <h2 className="text-lg font-bold mb-2">
+              {jenisProdukLabel} {productNameLabel}
+            </h2>
+            <div className="space-y-1 text-sm">
+              <p>
+                <span className="text-gray-600">Category:</span>{" "}
+                <span
+                  className={`px-2 py-0.5 rounded text-xs ${
+                    order.kategoriBarang === "basic"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-teal-100 text-teal-700"
+                  }`}
+                >
+                  {order.kategoriBarang === "basic" ? "Basic" : "Model"}
+                </span>
+              </p>
+              <p>
+                <span className="text-gray-600">Request No:</span>{" "}
+                <span className="font-mono">{order.requestNo || "-"}</span>
+              </p>
+              <p>
+                <span className="text-gray-600">Created:</span>{" "}
+                {formatTimestamp(order.createdDate)}
+              </p>
+              <p>
+                <span className="text-gray-600">Created By:</span> {order.jbId}
+              </p>
+              <p>
+                <span className="text-gray-600">Pabrik:</span>{" "}
+                <span className="font-medium">{pabrikLabel}</span>
+              </p>
+              <p>
+                <span className="text-gray-600">ETA:</span>{" "}
+                {formatDate(order.waktuKirim)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Order Items Card */}
+      <Card className="p-4">
+        <h3 className="font-semibold mb-3">Order Items</h3>
+        <div className="max-h-[300px] overflow-auto">
+          <table className="w-full border-collapse border text-xs">
+            <thead className="bg-gray-100 sticky top-0 z-10">
+              <tr>
+                <th className="border p-2 text-left bg-gray-100">#</th>
+                <th className="border p-2 text-left bg-gray-100">Kadar</th>
+                <th className="border p-2 text-left bg-gray-100">Warna</th>
+                <th className="border p-2 text-left bg-gray-100">Ukuran</th>
+                <th className="border p-2 text-left bg-gray-100">Berat</th>
+                <th className="border p-2 text-left bg-gray-100">Pcs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.detailItems.map((item, index) => {
+                const ukuranDisplay = getUkuranDisplay(item.ukuran);
+                return (
+                  <tr key={item.id || index} className="hover:bg-gray-50">
+                    <td className="border p-2 text-center">{index + 1}</td>
+                    <td
+                      className={`border p-2 font-medium ${getKadarColor(item.kadar)}`}
+                    >
+                      {item.kadar.toUpperCase()}
+                    </td>
+                    <td className={`border p-2 ${getWarnaColor(item.warna)}`}>
+                      {getWarnaLabel(item.warna)}
+                    </td>
+                    <td className="border p-2">
+                      {ukuranDisplay.showUnit
+                        ? `${ukuranDisplay.value} cm`
+                        : ukuranDisplay.value}
+                    </td>
+                    <td className="border p-2">{item.berat || "-"}</td>
+                    <td className="border p-2">{item.pcs}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}

@@ -14,12 +14,20 @@ Contains the core type definitions for requests (formerly called "orders"):
 - **`Request`**: Main request interface with all possible attributes (superset)
 - **`MinimalRequest`**: Simplified request interface for components that only need basic fields
 
+### `order.ts`
+
+Contains type definitions for orders created by JB and sent to suppliers:
+
+- **`Order`**: Main order interface representing orders created from requests by JB users
+- **`OrderStatus`**: Type-safe enum for order status values (New, Viewed by Supplier, Confirmed, etc.)
+- **`CreateOrderFromRequest`**: Helper type for creating new orders from requests
+
 ### `index.ts`
 
 Central export point for all types. Import from here for convenience:
 
 ```typescript
-import { Request, DetailBarangItem, EntityReference } from "@/app/types";
+import { Request, Order, DetailBarangItem, EntityReference } from "@/app/types";
 ```
 
 ## Usage
@@ -27,12 +35,13 @@ import { Request, DetailBarangItem, EntityReference } from "@/app/types";
 ### In Components
 
 ```typescript
-import { Request } from "@/app/types/request";
+import { Request, Order } from "@/app/types/request";
 // or
-import { Request } from "@/app/types";
+import { Request, Order } from "@/app/types";
 
 interface MyComponentProps {
   request: Request;
+  order?: Order;
 }
 ```
 
@@ -78,6 +87,67 @@ interface Request {
   status: string;
 }
 ```
+
+### Order Interface
+
+The `Order` interface represents orders created by JB users from requests and sent to suppliers:
+
+```typescript
+interface Order {
+  // Core identification
+  id: string;
+
+  // Link to original request
+  requestNo?: string;
+  requestId?: string;
+
+  // Timestamps and user tracking
+  createdDate: number;
+  createdBy: string;
+  updatedDate?: number;
+  updatedBy?: string;
+
+  // JB user who created the order
+  jbId: string;
+
+  // Supplier/Factory reference
+  pabrik: EntityReference;
+
+  // Product information
+  kategoriBarang: string;
+  jenisProduk: string;
+  namaProduk: string;
+  namaBasic: string;
+
+  // Delivery and expectations
+  waktuKirim: string;
+  customerExpectation: string;
+
+  // Order items to be produced
+  detailItems: DetailBarangItem[];
+
+  // Media
+  fotoBarangBase64?: string;
+  photoId?: string;
+
+  // Status tracking
+  status: OrderStatus; // "New" | "Viewed by Supplier" | "Confirmed" | etc.
+}
+```
+
+### Workflow: Request to Order
+
+1. **Request Creation**: Sales staff creates a `Request` for items needed by customers
+2. **JB Review**: JB reviews requests and decides which items to order from suppliers
+3. **Order Creation**: JB creates an `Order` from a `Request` using `CreateOrderFromRequest` helper
+4. **Order Status Flow**:
+   - **New**: Order created by JB, not yet viewed by supplier
+   - **Viewed by Supplier**: Supplier has viewed the order details
+   - **Confirmed**: Supplier confirmed they can fulfill the order
+   - **In Production**: Order is being produced
+   - **Ready for Pickup**: Order ready for delivery/pickup
+   - **Completed**: Order fulfilled and delivered
+   - **Cancelled**: Order was cancelled
 
 ## Migration Notes
 

@@ -33,7 +33,7 @@ export function Navigation({
         { id: "home", label: "Home", icon: Home },
         { id: "jb-requests", label: "Requests", icon: List },
         { id: "inbound", label: "Inbound", icon: Inbox },
-        { id: "order", label: "Order", icon: Package },
+        { id: "jb-orders", label: "Orders", icon: Package },
         { id: "settings", label: "Settings", icon: Settings },
       ];
     } else {

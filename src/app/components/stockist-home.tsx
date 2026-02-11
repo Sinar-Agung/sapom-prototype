@@ -83,7 +83,7 @@ export function StockistHome({
   }, []);
 
   const loadOpenRequests = () => {
-    const savedOrders = localStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       const allOrders = JSON.parse(savedOrders) as Request[];
 

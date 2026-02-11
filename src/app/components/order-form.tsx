@@ -899,7 +899,7 @@ export function OrderForm(props: OrderFormProps) {
     }
 
     // Get existing orders from local storage
-    const existingOrders = localStorage.getItem("orders");
+    const existingOrders = localStorage.getItem("requests");
     const orders = existingOrders ? JSON.parse(existingOrders) : [];
 
     if (mode === "edit" && initialData?.id) {
@@ -952,7 +952,7 @@ export function OrderForm(props: OrderFormProps) {
     }
 
     // Save back to local storage
-    localStorage.setItem("orders", JSON.stringify(orders));
+    localStorage.setItem("requests", JSON.stringify(orders));
 
     // Show dialog asking if user wants to create new order with same values
     setShowNewOrderDialog(true);

@@ -56,7 +56,7 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
   }, []);
 
   const loadData = () => {
-    const savedOrders = localStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       const orders: Request[] = JSON.parse(savedOrders);
 

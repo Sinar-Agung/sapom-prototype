@@ -25,7 +25,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   }, [initialTab]);
 
   const loadOrders = () => {
-    const savedOrders = localStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       setOrders(JSON.parse(savedOrders));
     }

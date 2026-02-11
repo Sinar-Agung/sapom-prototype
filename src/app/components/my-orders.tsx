@@ -137,7 +137,7 @@ export function MyOrders({
   }, []);
 
   const loadOrders = () => {
-    const savedOrders = localStorage.getItem("orders");
+    const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       setOrders(JSON.parse(savedOrders));
     }
@@ -152,7 +152,7 @@ export function MyOrders({
       order.id === orderId ? { ...order, status: "Cancelled" } : order,
     );
     setOrders(updatedOrders);
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
+    localStorage.setItem("requests", JSON.stringify(updatedOrders));
   };
 
   // Filter orders based on active tab

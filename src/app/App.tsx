@@ -8,6 +8,7 @@ import { JBRequests } from "./components/jb-requests";
 import { Login } from "./components/login";
 import { MyOrders } from "./components/my-orders";
 import { Navigation } from "./components/navigation";
+import { OrderDetails } from "./components/order-details";
 import { OrderForm } from "./components/order-form";
 import { Register } from "./components/register";
 import { Settings } from "./components/settings";
@@ -68,6 +69,7 @@ export default function App() {
   const [editingOrder, setEditingOrder] = useState<any>(null);
   const [formMode, setFormMode] = useState<"new" | "edit" | "duplicate">("new");
   const [verifyingOrder, setVerifyingOrder] = useState<any>(null);
+  const [viewingOrder, setViewingOrder] = useState<any>(null);
   const [verifyMode, setVerifyMode] = useState<"verify" | "review">("verify");
   const [myOrdersTab, setMyOrdersTab] = useState<string>("open");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
@@ -182,6 +184,16 @@ export default function App() {
   const handleBackFromWriteOrder = () => {
     setVerifyingOrder(null);
     setCurrentPage("jb-requests");
+  };
+
+  const handleSeeOrderDetail = (order: any) => {
+    setViewingOrder(order);
+    setCurrentPage("order-details");
+  };
+
+  const handleBackFromOrderDetails = () => {
+    setViewingOrder(null);
+    setCurrentPage("jb-orders");
   };
 
   const handleNavigateToTab = (tab: string) => {
@@ -345,8 +357,9 @@ export default function App() {
         );
       case "inbound":
         return <JBInbound />;
+      case "jb-orders":
       case "order":
-        return <JBOrder />;
+        return <JBOrder onSeeDetail={handleSeeOrderDetail} />;
       case "jb-requests":
         return (
           <JBRequests
@@ -370,6 +383,13 @@ export default function App() {
           <WriteOrder
             order={verifyingOrder}
             onBack={handleBackFromWriteOrder}
+          />
+        );
+      case "order-details":
+        return (
+          <OrderDetails
+            order={viewingOrder}
+            onBack={handleBackFromOrderDetails}
           />
         );
       default:
