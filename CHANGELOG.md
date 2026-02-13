@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-02-13
+
+### Added
+
+- **Drag-to-Scroll Functionality for Tabs**: Interactive drag navigation for tab lists
+  - Click and drag horizontally across tabs to scroll left and right
+  - Smart drag detection with 5px movement threshold to distinguish between clicks and drags
+  - Visual cursor feedback: `cursor-grab` when idle, `cursor-grabbing` while dragging
+  - Prevents accidental tab changes during scroll operations
+  - 2x scroll speed multiplier for smooth, responsive movement
+  - Text selection disabled (`select-none`) during drag to prevent highlighting
+  - Mouse leave handling to properly end drag operations when cursor exits tab area
+  - Applied to all pages with scrollable tabs: JB Orders, Supplier Orders, JB Inbound, JB Requests
+
+### Changed
+
+- **TabsList Component Interaction Model**: Enhanced user experience
+  - Added state tracking for drag operations (isDragging, startX, scrollLeft)
+  - Implemented draggedRef to differentiate between clicks and drags
+  - Click events prevented when user drags more than threshold distance
+  - Maintains all existing auto-centering and scrolling functionality
+
+### Technical Improvements
+
+- Fully self-contained drag logic within TabsList component
+- No external dependencies or configuration required
+- Works seamlessly with existing auto-centering behavior
+- Mobile-friendly interaction pattern
+
 ## [0.5.0] - 2026-02-13
 
 ### Added

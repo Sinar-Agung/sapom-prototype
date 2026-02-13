@@ -46,6 +46,10 @@ export function Tabs({
 export function TabsList({ children, className = "" }: TabsListProps) {
   const context = React.useContext(TabsContext);
   const listRef = React.useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [startX, setStartX] = React.useState(0);
+  const [scrollLeft, setScrollLeft] = React.useState(0);
+  const draggedRef = React.useRef(false);
 
   // Auto-center active tab
   React.useEffect(() => {
@@ -63,10 +67,50 @@ export function TabsList({ children, className = "" }: TabsListProps) {
     }
   }, [context?.value]);
 
+  // Drag to scroll handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!listRef.current) return;
+    setIsDragging(true);
+    draggedRef.current = false;
+    setStartX(e.pageX - listRef.current.offsetLeft);
+    setScrollLeft(listRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !listRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - listRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // Multiply by 2 for faster scrolling
+
+    // If moved more than 5px, consider it a drag
+    if (Math.abs(walk) > 5) {
+      draggedRef.current = true;
+    }
+
+    listRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Prevent click if we were dragging
+    if (draggedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
   return (
     <div
       ref={listRef}
-      className={`inline-flex w-full items-center justify-start gap-1 border-b border-gray-200 ${className}`}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUpOrLeave}
+      onMouseLeave={handleMouseUpOrLeave}
+      onClick={handleClick}
+      className={`inline-flex w-full items-center justify-start gap-1 border-b border-gray-200 select-none ${isDragging ? "cursor-grabbing" : ""} ${className}`}
     >
       {children}
     </div>
