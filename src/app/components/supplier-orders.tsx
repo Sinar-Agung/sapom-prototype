@@ -15,18 +15,11 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowDown, ArrowUp, Package, X } from "lucide-react";
+import { Package } from "lucide-react";
 import { useEffect, useState } from "react";
+import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { Input } from "./ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 // Image mapping for Nama Basic
@@ -47,6 +40,17 @@ interface SupplierOrdersProps {
   initialTab?: string;
 }
 
+const ORDER_SORT_OPTIONS: SortOption[] = [
+  { value: "updatedDate", label: "Updated Date" },
+  { value: "created", label: "Created Date" },
+  { value: "eta", label: "ETA" },
+  { value: "productName", label: "Product Name" },
+  { value: "sales", label: "Sales" },
+  { value: "atasNama", label: "Atas Nama" },
+  { value: "pabrik", label: "Pabrik" },
+  { value: "orderNo", label: "Order No" },
+];
+
 export function SupplierOrders({
   onSeeDetail,
   initialTab = "new",
@@ -57,6 +61,7 @@ export function SupplierOrders({
   const [sortBy, setSortBy] = useState<string>("updatedDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [orderNoFilter, setOrderNoFilter] = useState<string>("");
+
   const currentUser =
     sessionStorage.getItem("username") ||
     localStorage.getItem("username") ||
@@ -177,8 +182,8 @@ export function SupplierOrders({
     // Filter by Order No
     if (orderNoFilter) {
       const searchTerm = orderNoFilter.toLowerCase();
-      const orderNo = order.orderNo?.toLowerCase() || "";
-      return orderNo.includes(searchTerm);
+      const poNumber = order.PONumber?.toLowerCase() || "";
+      return poNumber.includes(searchTerm);
     }
     return true;
   });
@@ -189,6 +194,9 @@ export function SupplierOrders({
   ).length;
   const filteredViewedCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Viewed",
+  ).length;
+  const filteredInProductionCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "In Production",
   ).length;
   const filteredRequestChangeCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Request Change",
@@ -206,6 +214,8 @@ export function SupplierOrders({
       return order.status === "New";
     } else if (activeTab === "viewed") {
       return order.status === "Viewed";
+    } else if (activeTab === "in-production") {
+      return order.status === "In Production";
     } else if (activeTab === "request-change") {
       return order.status === "Request Change";
     } else if (activeTab === "stock-ready") {
@@ -259,6 +269,10 @@ export function SupplierOrders({
   ).length;
   const viewedCount = orders.filter(
     (order) => order.pabrik?.id === supplierId && order.status === "Viewed",
+  ).length;
+  const inProductionCount = orders.filter(
+    (order) =>
+      order.pabrik?.id === supplierId && order.status === "In Production",
   ).length;
   const requestChangeCount = orders.filter(
     (order) =>
@@ -384,73 +398,29 @@ export function SupplierOrders({
         <h1 className="text-2xl font-bold">My Orders</h1>
       </div>
 
-      {/* Total and Controls */}
-      <div className="flex items-center justify-between">
-        <p className="text-gray-600 text-sm">
-          Total:{" "}
-          {newCount +
-            viewedCount +
-            requestChangeCount +
-            stockReadyCount +
-            unableCount}{" "}
-          orders
-        </p>
-        <div className="flex gap-6 items-center">
-          <div className="w-52 relative">
-            <Input
-              placeholder="Filter by Order No..."
-              value={orderNoFilter}
-              onChange={(e) => setOrderNoFilter(e.target.value)}
-              className="h-9 pr-8"
-            />
-            {orderNoFilter && (
-              <button
-                onClick={() => setOrderNoFilter("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600 whitespace-nowrap">
-              Sort by
-            </label>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="h-9 w-48">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="updatedDate">Updated Date</SelectItem>
-                <SelectItem value="created">Created Date</SelectItem>
-                <SelectItem value="eta">ETA</SelectItem>
-                <SelectItem value="productName">Product Name</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="atasNama">Atas Nama</SelectItem>
-                <SelectItem value="pabrik">Pabrik</SelectItem>
-                <SelectItem value="orderNo">Order No</SelectItem>
-              </SelectContent>
-            </Select>
-            <button
-              onClick={() =>
-                setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-              }
-              className="h-9 w-9 flex items-center justify-center border rounded-md hover:bg-gray-100 transition-colors"
-              title={sortDirection === "asc" ? "Ascending" : "Descending"}
-            >
-              {sortDirection === "asc" ? (
-                <ArrowDown className="w-4 h-4" />
-              ) : (
-                <ArrowUp className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Filter and Sort Controls */}
+      <FilterSortControls
+        type="order"
+        totalCount={
+          newCount +
+          viewedCount +
+          inProductionCount +
+          requestChangeCount +
+          stockReadyCount +
+          unableCount
+        }
+        filterValue={orderNoFilter}
+        onFilterChange={setOrderNoFilter}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortDirection={sortDirection}
+        onSortDirectionChange={setSortDirection}
+        sortOptions={ORDER_SORT_OPTIONS}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex-shrink-0 grid grid-cols-5">
+        <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
           <TabsTrigger
             value="new"
             className={
@@ -466,6 +436,16 @@ export function SupplierOrders({
             }
           >
             Viewed ({filteredViewedCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="in-production"
+            className={
+              activeTab === "in-production"
+                ? "text-blue-600 border-blue-600"
+                : ""
+            }
+          >
+            In Production ({filteredInProductionCount})
           </TabsTrigger>
           <TabsTrigger
             value="request-change"
@@ -509,13 +489,15 @@ export function SupplierOrders({
                     ? "You don't have any new orders yet."
                     : activeTab === "viewed"
                       ? "No viewed orders."
-                      : activeTab === "request-change"
-                        ? "No orders requesting changes."
-                        : activeTab === "stock-ready"
-                          ? "No orders marked as stock ready."
-                          : activeTab === "unable"
-                            ? "No orders marked as unable to fulfill."
-                            : "No orders found."}
+                      : activeTab === "in-production"
+                        ? "No orders in production."
+                        : activeTab === "request-change"
+                          ? "No orders requesting changes."
+                          : activeTab === "stock-ready"
+                            ? "No orders marked as stock ready."
+                            : activeTab === "unable"
+                              ? "No orders marked as unable to fulfill."
+                              : "No orders found."}
                 </p>
               </div>
             </Card>

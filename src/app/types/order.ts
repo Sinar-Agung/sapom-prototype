@@ -13,10 +13,37 @@ export type OrderStatus =
   | "New" // Order created by JB, not yet viewed by supplier
   | "Viewed" // Supplier has viewed the order details
   | "Request Change" // Supplier needs changes/clarification
+  | "In Production" // Supplier has started production
   | "Stock Ready" // Order is ready for pickup/delivery
+  | "Partially Delivered" // Order has partial deliveries
+  | "Fully Delivered" // Order fully delivered to JB
   | "Unable to Fulfill" // Supplier cannot fulfill the order
   | "Completed" // Order fulfilled and delivered
+  | "Confirmed by JB" // Order delivery confirmed by JB
   | "Cancelled"; // Order was cancelled
+
+/**
+ * Order Arrival Item - tracks delivered quantities for a specific item
+ */
+export interface OrderArrivalItem {
+  karat: string;
+  warna: string;
+  size: string;
+  berat: string;
+  pcs: number; // Number of pieces delivered in this arrival
+}
+
+/**
+ * Order Arrival - tracks delivery of order items
+ */
+export interface OrderArrival {
+  id: string;
+  orderId: string;
+  orderPONumber: string;
+  createdDate: number; // Arrival date
+  createdBy: string; // JB user who recorded the arrival
+  items: OrderArrivalItem[]; // Items delivered in this arrival
+}
 
 /**
  * Order Revision - tracks changes made to an order

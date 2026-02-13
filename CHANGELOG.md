@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-13
+
+### Added
+
+- **Scrollable Tabs with Auto-Centering**: Enhanced tab navigation across all list pages
+  - TabsList component (`ui/tabs.tsx`) now supports horizontal scrolling with hidden scrollbar
+  - Active tab automatically centers itself when selected for better visibility
+  - Auto-centering logic is self-contained within TabsList component using `useEffect` and `useRef`
+  - TabsTrigger components now include `data-state` attribute ("active" or "inactive") for query selection
+  - Applied to: JB Orders, Supplier Orders, JB Inbound, and JB Requests pages
+  - Cursor changes to grab icon to indicate draggable/scrollable behavior
+  - Smooth scroll animation when tab becomes active
+  - Works with any number of tabs without layout breaking
+  - Responsive behavior ensures active tab is always visible
+
+### Changed
+
+- **TabsList Component Architecture**: Refactored for better encapsulation
+  - Added context awareness to TabsList to monitor active tab value
+  - Scrolling behavior is now declarative and reactive to tab changes
+  - Auto-centering triggers on any tab change (click, keyboard, programmatic)
+  - Removed grid-based layout in favor of flexible scrollable container
+  - Added `data-state` attribute to TabsTrigger for better state management
+  - Component is now fully self-contained with no external dependencies for centering logic
+
+### Technical Improvements
+
+- Clean separation of concerns: UI behavior lives in UI component
+- Declarative pattern: "when tab changes, center it" vs imperative click handlers
+- Works universally across all tab usage without duplication
+- Improved maintainability with single source of truth
+
 ## [0.4.0] - 2026-02-13
 
 ### Added
@@ -33,18 +65,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Only visible to non-supplier users (hidden from supplier view)
 - **Enhanced Filtering and Sorting**: Advanced list management for Requests and Orders
   - JB Requests page:
-    * Added Request No filter input with clear (X) button
-    * Sort dropdown with 8 criteria: Updated Date, Created Date, ETA, Product Name, Sales, Atas Nama, Pabrik, Request No
-    * Ascending/Descending toggle button with arrow icons
-    * Filter input width: w-52, sort dropdown width: w-48
-    * Dynamic tab counts update based on filtered results
-    * Filter and sort controls right-aligned with 6-gap spacing
+    - Added Request No filter input with clear (X) button
+    - Sort dropdown with 8 criteria: Updated Date, Created Date, ETA, Product Name, Sales, Atas Nama, Pabrik, Request No
+    - Ascending/Descending toggle button with arrow icons
+    - Filter input width: w-52, sort dropdown width: w-48
+    - Dynamic tab counts update based on filtered results
+    - Filter and sort controls right-aligned with 6-gap spacing
   - Supplier Orders page:
-    * Added Order No filter input with clear (X) button  
-    * Same 8 sort criteria (with Order No instead of Request No)
-    * Ascending/Descending toggle with visual arrow indicators
-    * Same layout and styling as JB Requests for consistency
-    * Tab counts dynamically reflect filtered results
+    - Added Order No filter input with clear (X) button
+    - Same 8 sort criteria (with Order No instead of Request No)
+    - Ascending/Descending toggle with visual arrow indicators
+    - Same layout and styling as JB Requests for consistency
+    - Tab counts dynamically reflect filtered results
 - **Auto-Refresh Functionality**: Real-time data synchronization across pages
   - Added window focus event listeners to reload data when returning from other pages
   - Added document visibility change listeners for tab switching
@@ -75,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Order Type Definition Updates**: Streamlined order structure and removed deprecated fields
   - Removed `fotoBarangBase64` field from Order interface completely
-  - Removed `fotoBarangBase64` from CreateOrderFromRequest interface  
+  - Removed `fotoBarangBase64` from CreateOrderFromRequest interface
   - All orders now use `photoId` exclusively for image references
   - OrderRevision now tracks photoId changes in revision history
 - **Status Workflow Simplification**: Clearer supplier order lifecycle

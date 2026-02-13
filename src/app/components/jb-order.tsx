@@ -1,6 +1,7 @@
 import { Package } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Order } from "../types/order";
+import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { OrderCard } from "./order-card";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -11,6 +12,17 @@ interface JBOrderProps {
   initialTab?: string;
 }
 
+const ORDER_SORT_OPTIONS: SortOption[] = [
+  { value: "updatedDate", label: "Updated Date" },
+  { value: "created", label: "Created Date" },
+  { value: "eta", label: "ETA" },
+  { value: "productName", label: "Product Name" },
+  { value: "sales", label: "Sales" },
+  { value: "atasNama", label: "Atas Nama" },
+  { value: "pabrik", label: "Pabrik" },
+  { value: "orderNo", label: "Order No" },
+];
+
 export function JBOrder({
   onSeeDetail,
   onUpdateOrder,
@@ -19,6 +31,9 @@ export function JBOrder({
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string>("updatedDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [orderNoFilter, setOrderNoFilter] = useState<string>("");
 
   useEffect(() => {
     loadOrders();
@@ -64,50 +79,127 @@ export function JBOrder({
     setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
   };
 
-  // Filter orders based on active tab
-  const filteredOrders = orders.filter((order: Order) => {
+  // Filter by Order No first (before tab filtering)
+  const orderNoFiltered = orders.filter((order: Order) => {
+    if (orderNoFilter) {
+      const searchTerm = orderNoFilter.toLowerCase();
+      const poNumber = order.PONumber?.toLowerCase() || "";
+      return poNumber.includes(searchTerm);
+    }
+    return true;
+  });
+
+  // Calculate filtered counts for each tab based on orderNo filter
+  const newCount = orderNoFiltered.filter(
+    (order) => order.status === "New",
+  ).length;
+  const viewedCount = orderNoFiltered.filter(
+    (order) => order.status === "Viewed",
+  ).length;
+  const inProductionCount = orderNoFiltered.filter(
+    (order) => order.status === "In Production",
+  ).length;
+  const requestChangeCount = orderNoFiltered.filter(
+    (order) => order.status === "Request Change",
+  ).length;
+  const stockReadyCount = orderNoFiltered.filter(
+    (order) => order.status === "Stock Ready",
+  ).length;
+  const unableCount = orderNoFiltered.filter(
+    (order) => order.status === "Unable to Fulfill",
+  ).length;
+  const confirmedByJBCount = orderNoFiltered.filter(
+    (order) => order.status === "Confirmed by JB",
+  ).length;
+
+  // Filter orders based on active tab from orderNoFiltered
+  let filteredOrders = orderNoFiltered.filter((order: Order) => {
     if (activeTab === "new") {
       return order.status === "New";
     } else if (activeTab === "viewed") {
       return order.status === "Viewed";
+    } else if (activeTab === "in-production") {
+      return order.status === "In Production";
     } else if (activeTab === "request-change") {
       return order.status === "Request Change";
     } else if (activeTab === "stock-ready") {
       return order.status === "Stock Ready";
     } else if (activeTab === "unable") {
       return order.status === "Unable to Fulfill";
+    } else if (activeTab === "confirmed") {
+      return order.status === "Confirmed by JB";
     }
     return false;
   });
 
-  // Calculate counts for each tab
-  const newCount = orders.filter((order) => order.status === "New").length;
-  const viewedCount = orders.filter(
-    (order) => order.status === "Viewed",
-  ).length;
-  const requestChangeCount = orders.filter(
-    (order) => order.status === "Request Change",
-  ).length;
-  const stockReadyCount = orders.filter(
-    (order) => order.status === "Stock Ready",
-  ).length;
-  const unableCount = orders.filter(
-    (order) => order.status === "Unable to Fulfill",
-  ).length;
+  // Sort orders
+  filteredOrders = filteredOrders.sort((a, b) => {
+    let comparison = 0;
+    switch (sortBy) {
+      case "updatedDate":
+        comparison =
+          new Date(b.updatedDate).getTime() - new Date(a.updatedDate).getTime();
+        break;
+      case "created":
+        comparison =
+          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        break;
+      case "eta":
+        comparison =
+          new Date(a.waktuKirim).getTime() - new Date(b.waktuKirim).getTime();
+        break;
+      case "productName":
+        comparison = (a.namaBarang || "").localeCompare(b.namaBarang || "");
+        break;
+      case "sales":
+        comparison = (a.sales || "").localeCompare(b.sales || "");
+        break;
+      case "atasNama":
+        comparison = (a.atasNama || "").localeCompare(b.atasNama || "");
+        break;
+      case "pabrik":
+        comparison = (a.pabrik?.nama || "").localeCompare(b.pabrik?.nama || "");
+        break;
+      case "orderNo":
+        comparison = (a.PONumber || "").localeCompare(b.PONumber || "");
+        break;
+      default:
+        return 0;
+    }
+    return sortDirection === "desc" ? comparison : -comparison;
+  });
 
   return (
     <div className="space-y-4 pb-20 md:pb-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Orders</h1>
-          <p className="text-gray-600 text-sm">Total: {orders.length} orders</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Orders</h1>
       </div>
+
+      {/* Filter and Sort Controls */}
+      <FilterSortControls
+        type="order"
+        totalCount={
+          newCount +
+          viewedCount +
+          inProductionCount +
+          requestChangeCount +
+          stockReadyCount +
+          unableCount +
+          confirmedByJBCount
+        }
+        filterValue={orderNoFilter}
+        onFilterChange={setOrderNoFilter}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortDirection={sortDirection}
+        onSortDirectionChange={setSortDirection}
+        sortOptions={ORDER_SORT_OPTIONS}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex-shrink-0 grid grid-cols-5">
+        <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
           <TabsTrigger
             value="new"
             className={
@@ -123,6 +215,16 @@ export function JBOrder({
             }
           >
             Viewed ({viewedCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="in-production"
+            className={
+              activeTab === "in-production"
+                ? "text-blue-600 border-blue-600"
+                : ""
+            }
+          >
+            In Production ({inProductionCount})
           </TabsTrigger>
           <TabsTrigger
             value="request-change"
@@ -152,6 +254,14 @@ export function JBOrder({
           >
             Unable to Fulfill ({unableCount})
           </TabsTrigger>
+          <TabsTrigger
+            value="confirmed"
+            className={
+              activeTab === "confirmed" ? "text-teal-600 border-teal-600" : ""
+            }
+          >
+            Confirmed by JB ({confirmedByJBCount})
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab Content */}
@@ -166,13 +276,17 @@ export function JBOrder({
                     ? "No new orders yet"
                     : activeTab === "viewed"
                       ? "No viewed orders"
-                      : activeTab === "request-change"
-                        ? "No orders requesting changes"
-                        : activeTab === "stock-ready"
-                          ? "No orders marked as stock ready"
-                          : activeTab === "unable"
-                            ? "No orders marked as unable to fulfill"
-                            : "No orders found"}
+                      : activeTab === "in-production"
+                        ? "No orders in production"
+                        : activeTab === "request-change"
+                          ? "No orders requesting changes"
+                          : activeTab === "stock-ready"
+                            ? "No orders marked as stock ready"
+                            : activeTab === "unable"
+                              ? "No orders marked as unable to fulfill"
+                              : activeTab === "confirmed"
+                                ? "No orders confirmed by JB"
+                                : "No orders found"}
                 </p>
               </div>
             </Card>

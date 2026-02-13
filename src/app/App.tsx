@@ -6,7 +6,7 @@ import { JBInbound } from "./components/jb-inbound";
 import { JBOrder } from "./components/jb-order";
 import { JBRequests } from "./components/jb-requests";
 import { Login } from "./components/login";
-import { MyOrders } from "./components/my-orders";
+import { MyOrders } from "./components/my-requests";
 import { Navigation } from "./components/navigation";
 import { OrderDetails } from "./components/order-details";
 import { OrderEditForm } from "./components/order-edit-form";

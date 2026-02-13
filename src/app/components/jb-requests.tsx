@@ -1,22 +1,25 @@
-import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Request } from "../types/request";
+import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { RequestCard } from "./request-card";
 import { Card } from "./ui/card";
-import { Input } from "./ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface JBRequestsProps {
   onSeeDetail?: (order: Request, currentTab: string) => void;
   initialTab?: string;
 }
+
+const REQUEST_SORT_OPTIONS: SortOption[] = [
+  { value: "updatedDate", label: "Updated Date" },
+  { value: "created", label: "Created Date" },
+  { value: "eta", label: "ETA" },
+  { value: "productName", label: "Product Name" },
+  { value: "sales", label: "Sales" },
+  { value: "atasNama", label: "Atas Nama" },
+  { value: "pabrik", label: "Pabrik" },
+  { value: "requestNo", label: "Request No" },
+];
 
 export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   const [orders, setOrders] = useState<Request[]>([]);
@@ -144,85 +147,37 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
     (order: Request) => order.status === "Ordered",
   ).length;
 
-  const handleTabClick = (e: React.MouseEvent) => {
-    const target = e.currentTarget as HTMLElement;
-    const value = target.getAttribute("data-value");
-    if (value) {
-      setActiveTab(value);
-    }
-  };
-
   return (
-    <div className="space-y-4 pb-20 md:pb-4">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Requests</h1>
+      <div className="flex-shrink-0 mb-4">
+        <h1 className="text-xl font-semibold">Requests</h1>
       </div>
 
-      {/* Total and Controls */}
-      <div className="flex items-center justify-between">
-        <p className="text-gray-600 text-sm">
-          Total: {assignedCount + waitingCount} requests
-        </p>
-        <div className="flex gap-6 items-center">
-          <div className="w-52 relative">
-            <Input
-              placeholder="Filter by Request No..."
-              value={requestNoFilter}
-              onChange={(e) => setRequestNoFilter(e.target.value)}
-              className="h-9 pr-8"
-            />
-            {requestNoFilter && (
-              <button
-                onClick={() => setRequestNoFilter("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600 whitespace-nowrap">
-              Sort by
-            </label>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="h-9 w-48">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="updatedDate">Updated Date</SelectItem>
-                <SelectItem value="created">Created Date</SelectItem>
-                <SelectItem value="eta">ETA</SelectItem>
-                <SelectItem value="productName">Product Name</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="atasNama">Atas Nama</SelectItem>
-                <SelectItem value="pabrik">Pabrik</SelectItem>
-                <SelectItem value="requestNo">Request No</SelectItem>
-              </SelectContent>
-            </Select>
-            <button
-              onClick={() =>
-                setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-              }
-              className="h-9 w-9 flex items-center justify-center border rounded-md hover:bg-gray-100 transition-colors"
-              title={sortDirection === "asc" ? "Ascending" : "Descending"}
-            >
-              {sortDirection === "asc" ? (
-                <ArrowDown className="w-4 h-4" />
-              ) : (
-                <ArrowUp className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        </div>
+      {/* Filter and Sort Controls */}
+      <div className="flex-shrink-0 mb-4">
+        <FilterSortControls
+          type="request"
+          totalCount={assignedCount + waitingCount}
+          filterValue={requestNoFilter}
+          onFilterChange={setRequestNoFilter}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortDirection={sortDirection}
+          onSortDirectionChange={setSortDirection}
+          sortOptions={REQUEST_SORT_OPTIONS}
+        />
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex-shrink-0">
+      {/* Tabs and Content */}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex flex-col flex-1 min-h-0"
+      >
+        <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
           <TabsTrigger
             value="assigned"
-            onClick={handleTabClick}
             className={
               activeTab === "assigned"
                 ? "text-purple-600 border-purple-600"
@@ -233,7 +188,6 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
           </TabsTrigger>
           <TabsTrigger
             value="waiting"
-            onClick={handleTabClick}
             className={
               activeTab === "waiting" ? "text-blue-600 border-blue-600" : ""
             }
@@ -243,7 +197,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
         </TabsList>
 
         {/* Tab Content */}
-        <TabsContent value={activeTab} className="mt-4">
+        <TabsContent value={activeTab} className="flex-1 min-h-0 m-0">
           {filteredOrders.length === 0 ? (
             <Card className="p-8">
               <div className="text-center text-gray-500">
@@ -251,21 +205,23 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
               </div>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {filteredOrders.map((order) => {
-                const isExpanded = expandedOrderId === order.id;
-                return (
-                  <RequestCard
-                    key={order.id}
-                    order={order}
-                    userRole="jb"
-                    activeTab={activeTab}
-                    isExpanded={isExpanded}
-                    onToggleExpand={() => toggleExpand(order.id)}
-                    onSeeDetail={onSeeDetail}
-                  />
-                );
-              })}
+            <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="space-y-3 pb-4">
+                {filteredOrders.map((order) => {
+                  const isExpanded = expandedOrderId === order.id;
+                  return (
+                    <RequestCard
+                      key={order.id}
+                      order={order}
+                      userRole="jb"
+                      activeTab={activeTab}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => toggleExpand(order.id)}
+                      onSeeDetail={onSeeDetail}
+                    />
+                  );
+                })}
+              </div>
             </div>
           )}
         </TabsContent>

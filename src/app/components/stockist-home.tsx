@@ -7,6 +7,7 @@ import {
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
+import { getImage } from "@/app/utils/image-storage";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";

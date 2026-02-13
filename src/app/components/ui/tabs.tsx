@@ -44,8 +44,28 @@ export function Tabs({
 }
 
 export function TabsList({ children, className = "" }: TabsListProps) {
+  const context = React.useContext(TabsContext);
+  const listRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-center active tab
+  React.useEffect(() => {
+    if (listRef.current && context?.value) {
+      const activeButton = listRef.current.querySelector(
+        '[data-state="active"]',
+      );
+      if (activeButton) {
+        activeButton.scrollIntoView({
+          behavior: "smooth",
+          inline: "center",
+          block: "nearest",
+        });
+      }
+    }
+  }, [context?.value]);
+
   return (
     <div
+      ref={listRef}
       className={`inline-flex w-full items-center justify-start gap-1 border-b border-gray-200 ${className}`}
     >
       {children}
@@ -72,6 +92,7 @@ export function TabsTrigger({
   return (
     <button
       onClick={handleClick}
+      data-state={isActive ? "active" : "inactive"}
       className={`inline-flex items-center justify-center whitespace-nowrap px-6 py-3 text-base font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative ${
         isActive
           ? "border-b-2"

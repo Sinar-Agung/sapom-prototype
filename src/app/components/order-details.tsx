@@ -369,15 +369,24 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
         (currentOrder.status === "New" || currentOrder.status === "Viewed") && (
           <div className="flex gap-2 flex-wrap justify-end mt-6">
             <Button
+              onClick={() =>
+                handleUpdateStatus(currentOrder.id, "In Production")
+              }
+              className="bg-yellow-500 hover:bg-yellow-600 text-white"
+            >
+              Start Production
+            </Button>
+            <Button
               onClick={() => handleUpdateStatus(currentOrder.id, "Stock Ready")}
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               Mark Stock Ready
             </Button>
             <Button
-              variant="outline"
               onClick={() =>
                 handleUpdateStatus(currentOrder.id, "Request Change")
               }
+              className="bg-blue-500 hover:bg-blue-600 text-white"
             >
               Request Change
             </Button>
@@ -391,6 +400,26 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </Button>
           </div>
         )}
+
+      {/* Supplier Action Buttons - In Production */}
+      {userRole === "supplier" && currentOrder.status === "In Production" && (
+        <div className="flex gap-2 flex-wrap justify-end mt-6">
+          <Button
+            onClick={() => handleUpdateStatus(currentOrder.id, "Stock Ready")}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            Mark Stock Ready
+          </Button>
+          <Button
+            onClick={() =>
+              handleUpdateStatus(currentOrder.id, "Request Change")
+            }
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Request Change
+          </Button>
+        </div>
+      )}
 
       {/* Related Request Details - Collapsible Panel */}
       {relatedRequest && userRole !== "supplier" && (

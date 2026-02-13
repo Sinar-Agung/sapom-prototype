@@ -1,16 +1,8 @@
-import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Request } from "../types/request";
+import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { RequestCard } from "./request-card";
 import { Card } from "./ui/card";
-import { Input } from "./ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface MyOrdersProps {
@@ -23,7 +15,7 @@ interface MyOrdersProps {
   initialTab?: string;
 }
 
-type SortOption =
+type MySortOption =
   | "created"
   | "eta"
   | "sales"
@@ -32,6 +24,17 @@ type SortOption =
   | "atasNama"
   | "updatedDate"
   | "updatedBy";
+
+const REQUEST_SORT_OPTIONS: SortOption[] = [
+  { value: "updatedDate", label: "Updated Date" },
+  { value: "created", label: "Created Date" },
+  { value: "updatedBy", label: "Updated By" },
+  { value: "eta", label: "ETA" },
+  { value: "sales", label: "Sales" },
+  { value: "pabrik", label: "Pabrik" },
+  { value: "jenis", label: "Jenis Barang" },
+  { value: "atasNama", label: "Atas Nama" },
+];
 
 export function MyOrders({
   onEditOrder,
@@ -45,7 +48,7 @@ export function MyOrders({
   const [orders, setOrders] = useState<Request[]>([]);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(initialTab || "open");
-  const [sortBy, setSortBy] = useState<SortOption>("updatedDate");
+  const [sortBy, setSortBy] = useState<MySortOption>("updatedDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [requestNoFilter, setRequestNoFilter] = useState<string>("");
   const [displayedCount, setDisplayedCount] = useState(20);
@@ -461,65 +464,19 @@ export function MyOrders({
         </h1>
       </div>
 
-      {/* Total and Controls */}
-      <div className="flex-shrink-0 mb-4 flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          {totalVisibleRequests} request(s)
-        </p>
-        <div className="flex gap-6 items-center">
-          <div className="w-52 relative">
-            <Input
-              placeholder="Filter by Request No..."
-              value={requestNoFilter}
-              onChange={(e) => setRequestNoFilter(e.target.value)}
-              className="h-9 pr-8"
-            />
-            {requestNoFilter && (
-              <button
-                onClick={() => setRequestNoFilter("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600 whitespace-nowrap">
-              Sort by
-            </label>
-            <Select
-              value={sortBy}
-              onValueChange={(value: string) => setSortBy(value as SortOption)}
-            >
-              <SelectTrigger className="h-9 w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="updatedDate">Updated Date</SelectItem>
-                <SelectItem value="created">Created Date</SelectItem>
-                <SelectItem value="updatedBy">Updated By</SelectItem>
-                <SelectItem value="eta">ETA</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="pabrik">Pabrik</SelectItem>
-                <SelectItem value="jenis">Jenis Barang</SelectItem>
-                <SelectItem value="atasNama">Atas Nama</SelectItem>
-              </SelectContent>
-            </Select>
-            <button
-              onClick={() =>
-                setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-              }
-              className="h-9 w-9 flex items-center justify-center border rounded-md hover:bg-gray-100 transition-colors"
-              title={sortDirection === "asc" ? "Ascending" : "Descending"}
-            >
-              {sortDirection === "asc" ? (
-                <ArrowDown className="w-4 h-4" />
-              ) : (
-                <ArrowUp className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        </div>
+      {/* Filter and Sort Controls */}
+      <div className="flex-shrink-0 mb-4">
+        <FilterSortControls
+          type="request"
+          totalCount={totalVisibleRequests}
+          filterValue={requestNoFilter}
+          onFilterChange={setRequestNoFilter}
+          sortBy={sortBy}
+          onSortChange={(value) => setSortBy(value as MySortOption)}
+          sortDirection={sortDirection}
+          onSortDirectionChange={setSortDirection}
+          sortOptions={REQUEST_SORT_OPTIONS}
+        />
       </div>
 
       {/* Tabs and Content */}

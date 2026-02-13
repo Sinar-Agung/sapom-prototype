@@ -65,10 +65,20 @@ export const STATUS_COLORS: Record<string, StatusConfig> = {
   },
 
   // 4. Supplier Action
+  "In Production": {
+    bg: "bg-[#3B82F6]",
+    text: "text-white",
+    label: "In Production",
+  },
   "Stock Ready by Supplier": {
     bg: "bg-[#14B8A6]",
     text: "text-white",
     label: "Stock Ready by Supplier",
+  },
+  "Stock Ready": {
+    bg: "bg-[#14B8A6]",
+    text: "text-white",
+    label: "Stock Ready",
   },
   "Ordered to Supplier": {
     bg: "bg-[#8B5CF6]",

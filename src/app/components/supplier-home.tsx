@@ -1,12 +1,6 @@
 import { Order } from "@/app/types/order";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
-import {
-  CheckCircle,
-  Clock,
-  Package,
-  ShoppingCart,
-  TrendingUp,
-} from "lucide-react";
+import { Package, ShoppingCart, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Card } from "./ui/card";
 
@@ -16,8 +10,6 @@ interface SupplierHomeProps {
 
 export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
   const [newOrdersCount, setNewOrdersCount] = useState(0);
-  const [inProgressCount, setInProgressCount] = useState(0);
-  const [completedCount, setCompletedCount] = useState(0);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const currentUser =
     sessionStorage.getItem("username") ||
@@ -77,15 +69,6 @@ export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
 
       // Calculate counts
       setNewOrdersCount(myOrders.filter((o) => o.status === "New").length);
-      setInProgressCount(
-        myOrders.filter((o) => ["Viewed", "Request Change"].includes(o.status))
-          .length,
-      );
-      setCompletedCount(
-        myOrders.filter((o) =>
-          ["Stock Ready", "Unable to Fulfill"].includes(o.status),
-        ).length,
-      );
     }
   };
 
@@ -103,57 +86,6 @@ export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
       <div>
         <h1 className="text-2xl font-bold">Welcome, {fullName}!</h1>
         <p className="text-gray-600">Supplier Dashboard</p>
-      </div>
-
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* New Orders Card */}
-        <Card
-          className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => onNavigateToOrders?.()}
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Package className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">New Orders</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {newOrdersCount}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* In Progress Card */}
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <Clock className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">In Progress</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {inProgressCount}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Completed Card */}
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-green-600">
-                {completedCount}
-              </p>
-            </div>
-          </div>
-        </Card>
       </div>
 
       {/* Quick Actions */}
