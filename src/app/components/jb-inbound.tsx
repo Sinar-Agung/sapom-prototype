@@ -61,8 +61,16 @@ export function JBInbound() {
   // Filter orders by tab
   const getFilteredOrders = () => {
     return orders.filter((order) => {
-      // Only show Stock Ready or In Production orders
-      if (order.status !== "Stock Ready" && order.status !== "In Production") {
+      // Show Stock Ready, In Production, and legacy delivery status orders
+      // Note: "Partially Delivered" and "Fully Delivered" are legacy statuses
+      // that should be migrated to "Stock Ready" or "In Production"
+      const isValidStatus =
+        order.status === "Stock Ready" ||
+        order.status === "In Production" ||
+        order.status === "Partially Delivered" ||
+        order.status === "Fully Delivered";
+
+      if (!isValidStatus) {
         return false;
       }
 
@@ -99,50 +107,11 @@ export function JBInbound() {
     setArrivals(updatedArrivals);
     localStorage.setItem("orderArrivals", JSON.stringify(updatedArrivals));
 
-    // Calculate delivery status and update order
+    // Refresh selected order to show updated arrivals
+    // Note: Order status remains unchanged until JB explicitly closes the order
     const order = orders.find((o) => o.id === orderId);
     if (order) {
-      // Calculate total delivered for each item with the new arrival
-      const deliveredCounts = new Map<string, number>();
-      updatedArrivals
-        .filter((a) => a.orderId === orderId)
-        .forEach((arrival) => {
-          arrival.items.forEach((item) => {
-            const key = `${item.karat}-${item.warna}-${item.size}-${item.berat}`;
-            deliveredCounts.set(
-              key,
-              (deliveredCounts.get(key) || 0) + item.pcs,
-            );
-          });
-        });
-
-      // Check if all items are fully delivered
-      const allFullyDelivered = order.detailItems.every((item) => {
-        const key = `${item.kadar}-${item.warna}-${item.ukuran}-${item.berat}`;
-        const delivered = deliveredCounts.get(key) || 0;
-        return delivered >= parseInt(item.pcs);
-      });
-
-      const newStatus = allFullyDelivered
-        ? "Fully Delivered"
-        : "Partially Delivered";
-
-      // Update order status
-      const updatedOrders = orders.map((o) => {
-        if (o.id === orderId) {
-          return {
-            ...o,
-            status: newStatus as OrderStatus,
-            updatedDate: Date.now(),
-            updatedBy: localStorage.getItem("currentUser") || "jbuser1",
-          };
-        }
-        return o;
-      });
-
-      setOrders(updatedOrders);
-      localStorage.setItem("orders", JSON.stringify(updatedOrders));
-      setSelectedOrder({ ...order, status: newStatus as OrderStatus });
+      setSelectedOrder({ ...order });
     }
   };
 
@@ -167,17 +136,26 @@ export function JBInbound() {
   const filteredOrders = getFilteredOrders();
   const waitingCount = orders.filter(
     (o) =>
-      (o.status === "Stock Ready" || o.status === "In Production") &&
+      (o.status === "Stock Ready" ||
+        o.status === "In Production" ||
+        o.status === "Partially Delivered" ||
+        o.status === "Fully Delivered") &&
       getDeliveryStatus(o) === "waiting",
   ).length;
   const partialCount = orders.filter(
     (o) =>
-      (o.status === "Stock Ready" || o.status === "In Production") &&
+      (o.status === "Stock Ready" ||
+        o.status === "In Production" ||
+        o.status === "Partially Delivered" ||
+        o.status === "Fully Delivered") &&
       getDeliveryStatus(o) === "partial",
   ).length;
   const deliveredCount = orders.filter(
     (o) =>
-      (o.status === "Stock Ready" || o.status === "In Production") &&
+      (o.status === "Stock Ready" ||
+        o.status === "In Production" ||
+        o.status === "Partially Delivered" ||
+        o.status === "Fully Delivered") &&
       getDeliveryStatus(o) === "delivered",
   ).length;
 

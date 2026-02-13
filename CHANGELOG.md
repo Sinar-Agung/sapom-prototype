@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-02-13
+
+### Fixed
+
+- **Inbound Order Status Flow**: Corrected order status management in delivery workflow
+  - Orders now remain in "Stock Ready" or "In Production" status when deliveries are recorded
+  - Delivery progress (waiting/partially delivered/fully delivered) is calculated dynamically based on arrival records
+  - Orders stay visible in their respective delivery status tabs (Waiting/Partially Delivered/Fully Delivered)
+  - Order status only changes to "Confirmed by JB" when JB explicitly closes the order via "Close Order" button
+  - Previously: Order status was automatically changed to "Fully Delivered" or "Partially Delivered" on arrival submission, making orders disappear from tabs
+  - Added support for legacy orders with "Partially Delivered" or "Fully Delivered" statuses to maintain backward compatibility
+
+### Changed
+
+- **JB Inbound Component**: Refactored delivery status handling
+  - Removed automatic status updates in `handleSubmitArrival` function
+  - Simplified order state management - delivery status is now view-only calculation
+  - Added legacy status support in filtering and count calculations
+  - Orders can only change status through explicit JB action (closing order)
+
+### Technical Improvements
+
+- Cleaner separation of concerns: delivery tracking vs order lifecycle status
+- More predictable order flow aligned with business requirements
+- Reduced state mutations improving data consistency
+
 ## [0.5.1] - 2026-02-13
 
 ### Added
