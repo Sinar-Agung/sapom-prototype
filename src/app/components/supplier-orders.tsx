@@ -5,6 +5,7 @@ import {
   NAMA_PRODUK_OPTIONS,
 } from "@/app/data/order-data";
 import { Order } from "@/app/types/order";
+import { getImage } from "@/app/utils/image-storage";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -14,10 +15,18 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { Package } from "lucide-react";
+import { ArrowDown, ArrowUp, Package, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { Input } from "./ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 // Image mapping for Nama Basic
@@ -34,13 +43,20 @@ const NAMA_BASIC_IMAGES: Record<string, string> = {
 };
 
 interface SupplierOrdersProps {
-  onSeeDetail?: (order: Order) => void;
+  onSeeDetail?: (order: Order, currentTab?: string) => void;
+  initialTab?: string;
 }
 
-export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
+export function SupplierOrders({
+  onSeeDetail,
+  initialTab = "new",
+}: SupplierOrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [activeTab, setActiveTab] = useState("new");
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string>("updatedDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [orderNoFilter, setOrderNoFilter] = useState<string>("");
   const currentUser =
     sessionStorage.getItem("username") ||
     localStorage.getItem("username") ||
@@ -76,7 +92,36 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
 
   useEffect(() => {
     loadOrders();
+
+    // Reload orders when window regains focus (e.g., returning from detail view)
+    const handleFocus = () => {
+      loadOrders();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // Also reload when component becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadOrders();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
+
+  // Update activeTab when initialTab changes (e.g., returning from order details)
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  // Reload data when tab changes
+  useEffect(() => {
+    loadOrders();
+  }, [activeTab]);
 
   const loadOrders = () => {
     const savedOrders = localStorage.getItem("orders");
@@ -122,27 +167,110 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
     }
   };
 
-  // Filter orders based on active tab
-  const filteredOrders = orders.filter((order: Order) => {
+  // Filter by Order No first (before tab filtering)
+  const supplierId = getSupplierId();
+  const orderNoFiltered = orders.filter((order: Order) => {
+    // Ensure this order belongs to the current supplier
+    if (order.pabrik?.id !== supplierId) {
+      return false;
+    }
+    // Filter by Order No
+    if (orderNoFilter) {
+      const searchTerm = orderNoFilter.toLowerCase();
+      const orderNo = order.orderNo?.toLowerCase() || "";
+      return orderNo.includes(searchTerm);
+    }
+    return true;
+  });
+
+  // Calculate filtered counts for each tab based on orderNo filter
+  const filteredNewCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "New",
+  ).length;
+  const filteredViewedCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Viewed",
+  ).length;
+  const filteredRequestChangeCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Request Change",
+  ).length;
+  const filteredStockReadyCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Stock Ready",
+  ).length;
+  const filteredUnableCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Unable to Fulfill",
+  ).length;
+
+  // Filter by active tab
+  let filteredOrders = orderNoFiltered.filter((order: Order) => {
     if (activeTab === "new") {
       return order.status === "New";
-    } else if (activeTab === "in-progress") {
-      return ["Viewed by Supplier", "Confirmed", "In Production"].includes(
-        order.status,
-      );
-    } else if (activeTab === "completed") {
-      return ["Ready for Pickup", "Completed"].includes(order.status);
+    } else if (activeTab === "viewed") {
+      return order.status === "Viewed";
+    } else if (activeTab === "request-change") {
+      return order.status === "Request Change";
+    } else if (activeTab === "stock-ready") {
+      return order.status === "Stock Ready";
+    } else if (activeTab === "unable") {
+      return order.status === "Unable to Fulfill";
     }
     return false;
   });
 
-  // Calculate counts for each tab
-  const newCount = orders.filter((order) => order.status === "New").length;
-  const inProgressCount = orders.filter((order) =>
-    ["Viewed by Supplier", "Confirmed", "In Production"].includes(order.status),
+  // Sort orders
+  filteredOrders = filteredOrders.sort((a, b) => {
+    let comparison = 0;
+    switch (sortBy) {
+      case "updatedDate":
+        comparison =
+          new Date(b.updatedDate).getTime() - new Date(a.updatedDate).getTime();
+        break;
+      case "created":
+        comparison =
+          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        break;
+      case "eta":
+        comparison =
+          new Date(a.waktuKirim).getTime() - new Date(b.waktuKirim).getTime();
+        break;
+      case "productName":
+        comparison = (a.namaBarang || "").localeCompare(b.namaBarang || "");
+        break;
+      case "sales":
+        comparison = (a.sales || "").localeCompare(b.sales || "");
+        break;
+      case "atasNama":
+        comparison = (a.atasNama || "").localeCompare(b.atasNama || "");
+        break;
+      case "pabrik":
+        comparison = (a.pabrik?.nama || "").localeCompare(b.pabrik?.nama || "");
+        break;
+      case "orderNo":
+        comparison = (a.orderNo || "").localeCompare(b.orderNo || "");
+        break;
+      default:
+        return 0;
+    }
+    return sortDirection === "desc" ? comparison : -comparison;
+  });
+
+  // Calculate counts for each tab (also filter by supplier ID)
+  const newCount = orders.filter(
+    (order) => order.pabrik?.id === supplierId && order.status === "New",
   ).length;
-  const completedCount = orders.filter((order) =>
-    ["Ready for Pickup", "Completed"].includes(order.status),
+  const viewedCount = orders.filter(
+    (order) => order.pabrik?.id === supplierId && order.status === "Viewed",
+  ).length;
+  const requestChangeCount = orders.filter(
+    (order) =>
+      order.pabrik?.id === supplierId && order.status === "Request Change",
+  ).length;
+  const stockReadyCount = orders.filter(
+    (order) =>
+      order.pabrik?.id === supplierId && order.status === "Stock Ready",
+  ).length;
+  const unableCount = orders.filter(
+    (order) =>
+      order.pabrik?.id === supplierId && order.status === "Unable to Fulfill",
   ).length;
 
   const formatDate = (isoString: string) => {
@@ -164,6 +292,12 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
   };
 
   const getOrderImage = (order: Order) => {
+    // Check for latest uploaded photo via photoId
+    if (order.photoId) {
+      const storedImage = getImage(order.photoId);
+      if (storedImage) return storedImage;
+    }
+    // Fallback to predefined Basic images
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     }
@@ -174,61 +308,192 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
     switch (status) {
       case "New":
         return "bg-blue-100 text-blue-800";
-      case "Viewed by Supplier":
+      case "Viewed":
         return "bg-purple-100 text-purple-800";
-      case "Confirmed":
-        return "bg-green-100 text-green-800";
-      case "In Production":
-        return "bg-yellow-100 text-yellow-800";
-      case "Ready for Pickup":
+      case "Request Change":
         return "bg-orange-100 text-orange-800";
+      case "Stock Ready":
+        return "bg-green-100 text-green-800";
+      case "Unable to Fulfill":
+        return "bg-red-100 text-red-800";
       case "Completed":
         return "bg-gray-100 text-gray-800";
       case "Cancelled":
-        return "bg-red-100 text-red-800";
+        return "bg-gray-300 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
+  const getKadarColor = (kadar: string) => {
+    const colors: Record<string, string> = {
+      "6k": "bg-green-500 text-white",
+      "8k": "bg-blue-500 text-white",
+      "9k": "bg-blue-700 text-white",
+      "16k": "bg-orange-500 text-white",
+      "17k": "bg-pink-500 text-white",
+      "24k": "bg-red-500 text-white",
+    };
+    return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
+  };
+
+  const getWarnaColor = (warna: string) => {
+    const colors: Record<string, string> = {
+      rg: "bg-rose-300 text-gray-800",
+      ap: "bg-gray-200 text-gray-800",
+      kn: "bg-yellow-400 text-gray-800",
+      ks: "bg-yellow-300 text-gray-800",
+      "2w-ap-rg": "bg-gradient-to-r from-gray-200 to-rose-300 text-gray-800",
+      "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
+    };
+    return colors[warna.toLowerCase()] || "bg-gray-300 text-gray-800";
+  };
+
+  const getWarnaLabel = (warna: string) => {
+    const labels: Record<string, string> = {
+      rg: "RG",
+      ap: "AP",
+      kn: "KN",
+      ks: "KS",
+      "2w-ap-rg": "2W (AP & RG)",
+      "2w-ap-kn": "2W (AP & KN)",
+    };
+    return labels[warna.toLowerCase()] || warna.toUpperCase();
+  };
+
+  const getUkuranDisplay = (ukuran: string) => {
+    // Check if ukuran is a number (which means it's in cm)
+    const numValue = parseFloat(ukuran);
+    if (!isNaN(numValue)) {
+      return ukuran + " cm";
+    }
+    // Check if it's a size code (a, n, p, t)
+    const ukuranLabels: Record<string, string> = {
+      a: "A - Anak",
+      n: "N - Normal",
+      p: "P - Panjang",
+      t: "T - Tanggung",
+    };
+    return ukuranLabels[ukuran.toLowerCase()] || ukuran;
+  };
+
   return (
     <div className="space-y-4 pb-20 md:pb-4">
       {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold">My Orders</h1>
+      </div>
+
+      {/* Total and Controls */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">My Orders</h1>
-          <p className="text-gray-600 text-sm">Total: {orders.length} orders</p>
+        <p className="text-gray-600 text-sm">
+          Total:{" "}
+          {newCount +
+            viewedCount +
+            requestChangeCount +
+            stockReadyCount +
+            unableCount}{" "}
+          orders
+        </p>
+        <div className="flex gap-6 items-center">
+          <div className="w-52 relative">
+            <Input
+              placeholder="Filter by Order No..."
+              value={orderNoFilter}
+              onChange={(e) => setOrderNoFilter(e.target.value)}
+              className="h-9 pr-8"
+            />
+            {orderNoFilter && (
+              <button
+                onClick={() => setOrderNoFilter("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600 whitespace-nowrap">
+              Sort by
+            </label>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="h-9 w-48">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="updatedDate">Updated Date</SelectItem>
+                <SelectItem value="created">Created Date</SelectItem>
+                <SelectItem value="eta">ETA</SelectItem>
+                <SelectItem value="productName">Product Name</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="atasNama">Atas Nama</SelectItem>
+                <SelectItem value="pabrik">Pabrik</SelectItem>
+                <SelectItem value="orderNo">Order No</SelectItem>
+              </SelectContent>
+            </Select>
+            <button
+              onClick={() =>
+                setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+              }
+              className="h-9 w-9 flex items-center justify-center border rounded-md hover:bg-gray-100 transition-colors"
+              title={sortDirection === "asc" ? "Ascending" : "Descending"}
+            >
+              {sortDirection === "asc" ? (
+                <ArrowDown className="w-4 h-4" />
+              ) : (
+                <ArrowUp className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex-shrink-0">
+        <TabsList className="w-full flex-shrink-0 grid grid-cols-5">
           <TabsTrigger
             value="new"
             className={
               activeTab === "new" ? "text-blue-600 border-blue-600" : ""
             }
           >
-            New ({newCount})
+            New ({filteredNewCount})
           </TabsTrigger>
           <TabsTrigger
-            value="in-progress"
+            value="viewed"
             className={
-              activeTab === "in-progress"
-                ? "text-yellow-600 border-yellow-600"
+              activeTab === "viewed" ? "text-purple-600 border-purple-600" : ""
+            }
+          >
+            Viewed ({filteredViewedCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="request-change"
+            className={
+              activeTab === "request-change"
+                ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
-            In Progress ({inProgressCount})
+            Request Change ({filteredRequestChangeCount})
           </TabsTrigger>
           <TabsTrigger
-            value="completed"
+            value="stock-ready"
             className={
-              activeTab === "completed" ? "text-green-600 border-green-600" : ""
+              activeTab === "stock-ready"
+                ? "text-green-600 border-green-600"
+                : ""
             }
           >
-            Completed ({completedCount})
+            Stock Ready ({filteredStockReadyCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="unable"
+            className={
+              activeTab === "unable" ? "text-red-600 border-red-600" : ""
+            }
+          >
+            Unable ({filteredUnableCount})
           </TabsTrigger>
         </TabsList>
 
@@ -242,9 +507,15 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
                 <p className="text-sm">
                   {activeTab === "new"
                     ? "You don't have any new orders yet."
-                    : activeTab === "in-progress"
-                      ? "No orders in progress."
-                      : "No completed orders."}
+                    : activeTab === "viewed"
+                      ? "No viewed orders."
+                      : activeTab === "request-change"
+                        ? "No orders requesting changes."
+                        : activeTab === "stock-ready"
+                          ? "No orders marked as stock ready."
+                          : activeTab === "unable"
+                            ? "No orders marked as unable to fulfill."
+                            : "No orders found."}
                 </p>
               </div>
             </Card>
@@ -299,14 +570,6 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
                             <span className="text-gray-500">ETA:</span>{" "}
                             {formatDate(order.waktuKirim) || "-"}
                           </div>
-                          {order.requestNo && (
-                            <div>
-                              <span className="text-gray-500">Request No:</span>{" "}
-                              <span className="font-mono">
-                                {order.requestNo}
-                              </span>
-                            </div>
-                          )}
                           <div>
                             <span className="text-gray-500">Items:</span>{" "}
                             {order.detailItems.length}
@@ -315,75 +578,26 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
 
                         {/* Action Buttons */}
                         <div className="flex gap-2">
-                          {order.status === "New" && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() =>
-                                  handleUpdateStatus(
-                                    order.id,
-                                    "Viewed by Supplier",
-                                  )
-                                }
-                              >
-                                Mark as Viewed
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  handleUpdateStatus(order.id, "Confirmed")
-                                }
-                              >
-                                Confirm Order
-                              </Button>
-                            </>
-                          )}
-                          {order.status === "Viewed by Supplier" && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateStatus(order.id, "Confirmed")
-                              }
-                            >
-                              Confirm Order
-                            </Button>
-                          )}
-                          {order.status === "Confirmed" && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateStatus(order.id, "In Production")
-                              }
-                            >
-                              Start Production
-                            </Button>
-                          )}
-                          {order.status === "In Production" && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateStatus(order.id, "Ready for Pickup")
-                              }
-                            >
-                              Mark as Ready
-                            </Button>
-                          )}
-                          {order.status === "Ready for Pickup" && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateStatus(order.id, "Completed")
-                              }
-                            >
-                              Mark as Completed
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toggleExpand(order.id)}
+                          >
+                            {expandedOrderId === order.id
+                              ? "Hide Items"
+                              : "Show Items"}
+                          </Button>
                           {onSeeDetail && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => onSeeDetail(order)}
+                              onClick={() => {
+                                // Auto-update status to Viewed if order is New
+                                if (order.status === "New") {
+                                  handleUpdateStatus(order.id, "Viewed");
+                                }
+                                onSeeDetail(order, activeTab);
+                              }}
                             >
                               View Details
                             </Button>
@@ -391,6 +605,74 @@ export function SupplierOrders({ onSeeDetail }: SupplierOrdersProps) {
                         </div>
                       </div>
                     </div>
+
+                    {/* Expandable Items Table */}
+                    {expandedOrderId === order.id && (
+                      <div className="mt-4 pt-4 border-t space-y-3 bg-white p-3 sm:p-4 rounded-lg border">
+                        <div className="mt-4">
+                          <h4 className="text-xs font-semibold mb-2">
+                            Detail Barang
+                          </h4>
+                          <div className="max-h-[300px] overflow-auto">
+                            <table className="w-full border-collapse border text-xs">
+                              <thead className="bg-gray-100 sticky top-0 z-10">
+                                <tr>
+                                  <th className="border p-2 text-left bg-gray-100">
+                                    #
+                                  </th>
+                                  <th className="border p-2 text-left bg-gray-100">
+                                    Kadar
+                                  </th>
+                                  <th className="border p-2 text-left bg-gray-100">
+                                    Warna
+                                  </th>
+                                  <th className="border p-2 text-left bg-gray-100">
+                                    Ukuran
+                                  </th>
+                                  <th className="border p-2 text-left bg-gray-100">
+                                    Berat
+                                  </th>
+                                  <th className="border p-2 text-left bg-gray-100">
+                                    Pcs
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {order.detailItems.map((item, index) => {
+                                  return (
+                                    <tr
+                                      key={item.id || index}
+                                      className="hover:bg-gray-50"
+                                    >
+                                      <td className="border p-2 text-center">
+                                        {index + 1}
+                                      </td>
+                                      <td
+                                        className={`border p-2 font-medium ${getKadarColor(item.kadar)}`}
+                                      >
+                                        {item.kadar.toUpperCase()}
+                                      </td>
+                                      <td
+                                        className={`border p-2 ${getWarnaColor(item.warna)}`}
+                                      >
+                                        {getWarnaLabel(item.warna)}
+                                      </td>
+                                      <td className="border p-2">
+                                        {getUkuranDisplay(item.ukuran)}
+                                      </td>
+                                      <td className="border p-2">
+                                        {item.berat || "-"}
+                                      </td>
+                                      <td className="border p-2">{item.pcs}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </Card>
                 );
               })}

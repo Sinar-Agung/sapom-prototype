@@ -1,5 +1,10 @@
 // Shared data file - mimics database structure
 
+export const KATEGORI_BARANG_OPTIONS = [
+  { value: "basic", label: "Basic" },
+  { value: "model", label: "Model" },
+];
+
 export const ATAS_NAMA_OPTIONS = [
   {
     value: "toko-emas-sejahtera",

@@ -9,6 +9,7 @@ import {
   getLabelFromValue,
 } from "@/app/data/order-data";
 import { DetailBarangItem, Request } from "@/app/types/request";
+import { getImage } from "@/app/utils/image-storage";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -284,10 +285,12 @@ export function VerifyStock({
   };
 
   const getOrderImage = () => {
+    if (order.photoId) {
+      const storedImage = getImage(order.photoId);
+      if (storedImage) return storedImage;
+    }
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
-    } else if (order.kategoriBarang === "model" && order.fotoBarangBase64) {
-      return order.fotoBarangBase64;
     }
     return italySanta;
   };

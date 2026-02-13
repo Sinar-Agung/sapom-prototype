@@ -133,10 +133,12 @@ export function StockistHome({
   };
 
   const getOrderImage = (order: Request) => {
+    if (order.photoId) {
+      const storedImage = getImage(order.photoId);
+      if (storedImage) return storedImage;
+    }
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
-    } else if (order.kategoriBarang === "model" && order.fotoBarangBase64) {
-      return order.fotoBarangBase64;
     }
     return italySanta;
   };

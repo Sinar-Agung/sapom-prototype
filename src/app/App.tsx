@@ -1,4 +1,4 @@
-import { Briefcase, Package, UserCircle } from "lucide-react";
+import { Briefcase, Factory, Package, UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AvailablePcsDemo } from "./components/available-pcs-demo";
 import { JBHome } from "./components/jb-home";
@@ -9,6 +9,7 @@ import { Login } from "./components/login";
 import { MyOrders } from "./components/my-orders";
 import { Navigation } from "./components/navigation";
 import { OrderDetails } from "./components/order-details";
+import { OrderEditForm } from "./components/order-edit-form";
 import { OrderForm } from "./components/order-form";
 import { Register } from "./components/register";
 import { Settings } from "./components/settings";
@@ -76,8 +77,10 @@ export default function App() {
   const [formMode, setFormMode] = useState<"new" | "edit" | "duplicate">("new");
   const [verifyingOrder, setVerifyingOrder] = useState<any>(null);
   const [viewingOrder, setViewingOrder] = useState<any>(null);
+  const [editingOrderForUpdate, setEditingOrderForUpdate] = useState<any>(null);
   const [verifyMode, setVerifyMode] = useState<"verify" | "review">("verify");
   const [myOrdersTab, setMyOrdersTab] = useState<string>("open");
+  const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("new");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
 
   // Initialize mock data and user data on first load
@@ -194,13 +197,39 @@ export default function App() {
     setCurrentPage("jb-requests");
   };
 
-  const handleSeeOrderDetail = (order: any) => {
+  const handleSeeOrderDetail = (order: any, currentTab?: string) => {
     setViewingOrder(order);
+    if (currentTab) {
+      setPreviousOrdersTab(currentTab);
+    }
     setCurrentPage("order-details");
   };
 
   const handleBackFromOrderDetails = () => {
     setViewingOrder(null);
+    // Navigate back to appropriate orders page based on user role
+    if (userRole === "supplier") {
+      setCurrentPage("supplier-orders");
+    } else {
+      setCurrentPage("jb-orders");
+    }
+  };
+
+  const handleUpdateOrder = (order: any, currentTab?: string) => {
+    setEditingOrderForUpdate(order);
+    if (currentTab) {
+      setPreviousOrdersTab(currentTab);
+    }
+    setCurrentPage("order-edit");
+  };
+
+  const handleBackFromOrderEdit = () => {
+    setEditingOrderForUpdate(null);
+    setCurrentPage("jb-orders");
+  };
+
+  const handleOrderEditSave = () => {
+    setEditingOrderForUpdate(null);
     setCurrentPage("jb-orders");
   };
 
@@ -379,10 +408,29 @@ export default function App() {
       case "inbound":
         return <JBInbound />;
       case "supplier-orders":
-        return <SupplierOrders onSeeDetail={handleSeeOrderDetail} />;
+        return (
+          <SupplierOrders
+            onSeeDetail={handleSeeOrderDetail}
+            initialTab={previousOrdersTab}
+          />
+        );
       case "jb-orders":
       case "order":
-        return <JBOrder onSeeDetail={handleSeeOrderDetail} />;
+        return (
+          <JBOrder
+            onSeeDetail={handleSeeOrderDetail}
+            onUpdateOrder={handleUpdateOrder}
+            initialTab={previousOrdersTab}
+          />
+        );
+      case "order-edit":
+        return (
+          <OrderEditForm
+            order={editingOrderForUpdate}
+            onBack={handleBackFromOrderEdit}
+            onSave={handleOrderEditSave}
+          />
+        );
       case "jb-requests":
         return (
           <JBRequests
@@ -444,6 +492,13 @@ export default function App() {
           label: "Stockist",
           color: "text-green-600",
           bg: "bg-green-50",
+        };
+      case "supplier":
+        return {
+          icon: Factory,
+          label: "Supplier",
+          color: "text-orange-600",
+          bg: "bg-orange-50",
         };
       case "sales":
       default:

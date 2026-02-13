@@ -5,6 +5,7 @@ import {
   NAMA_PRODUK_OPTIONS,
 } from "@/app/data/order-data";
 import { Order, OrderStatus } from "@/app/types/order";
+import { getImage } from "@/app/utils/image-storage";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -18,6 +19,22 @@ import { ClipboardCheck, Eye } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+
+// Helper function to get JB full name from username
+const getJBFullName = (username: string): string => {
+  const userDataString = sessionStorage.getItem("userDatabase");
+  if (!userDataString) return username;
+
+  try {
+    const users = JSON.parse(userDataString);
+    const jbUser = users.find(
+      (u: any) => u.accountType === "jb" && u.username === username,
+    );
+    return jbUser?.fullName || username;
+  } catch (e) {
+    return username;
+  }
+};
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -37,6 +54,7 @@ interface OrderCardProps {
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   onSeeDetail?: (order: Order) => void;
+  onUpdateOrder?: (order: Order) => void;
 }
 
 export function OrderCard({
@@ -44,6 +62,7 @@ export function OrderCard({
   isExpanded = false,
   onToggleExpand,
   onSeeDetail,
+  onUpdateOrder,
 }: OrderCardProps) {
   const formatDate = (isoString: string) => {
     if (!isoString) return "";
@@ -79,6 +98,12 @@ export function OrderCard({
   };
 
   const getOrderImage = (order: Order) => {
+    // Check for latest uploaded photo via photoId
+    if (order.photoId) {
+      const storedImage = getImage(order.photoId);
+      if (storedImage) return storedImage;
+    }
+    // Fallback to predefined Basic images
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     }
@@ -226,7 +251,7 @@ export function OrderCard({
           {order.jbId && (
             <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
               <span className="text-gray-500 hidden sm:inline">JB: </span>
-              {order.jbId}
+              {getJBFullName(order.jbId)}
             </p>
           )}
 
@@ -249,8 +274,20 @@ export function OrderCard({
           </p>
 
           {/* Action Buttons */}
-          {(onToggleExpand || onSeeDetail) && (
+          {(onToggleExpand || onSeeDetail || onUpdateOrder) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
+              {/* Update Order Button - Only for Request Change status */}
+              {onUpdateOrder && (
+                <Button
+                  size="sm"
+                  onClick={() => onUpdateOrder(order)}
+                  className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                >
+                  <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Update Order</span>
+                </Button>
+              )}
+
               {/* Show/Hide Items Button */}
               {onToggleExpand && (
                 <Button

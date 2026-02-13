@@ -134,7 +134,31 @@ export function MyOrders({
 
   useEffect(() => {
     loadOrders();
+
+    // Reload orders when window regains focus
+    const handleFocus = () => {
+      loadOrders();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // Also reload when component becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadOrders();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
+
+  // Reload data when tab changes
+  useEffect(() => {
+    loadOrders();
+  }, [activeTab]);
 
   const loadOrders = () => {
     const savedOrders = localStorage.getItem("requests");

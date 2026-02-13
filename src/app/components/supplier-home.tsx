@@ -78,15 +78,12 @@ export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
       // Calculate counts
       setNewOrdersCount(myOrders.filter((o) => o.status === "New").length);
       setInProgressCount(
-        myOrders.filter((o) =>
-          ["Viewed by Supplier", "Confirmed", "In Production"].includes(
-            o.status,
-          ),
-        ).length,
+        myOrders.filter((o) => ["Viewed", "Request Change"].includes(o.status))
+          .length,
       );
       setCompletedCount(
         myOrders.filter((o) =>
-          ["Ready for Pickup", "Completed"].includes(o.status),
+          ["Stock Ready", "Unable to Fulfill"].includes(o.status),
         ).length,
       );
     }
@@ -222,13 +219,15 @@ export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
                     className={`text-xs px-2 py-1 rounded-full ${
                       order.status === "New"
                         ? "bg-blue-100 text-blue-800"
-                        : order.status === "Viewed by Supplier"
+                        : order.status === "Viewed"
                           ? "bg-purple-100 text-purple-800"
-                          : order.status === "Confirmed"
-                            ? "bg-green-100 text-green-800"
-                            : order.status === "In Production"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
+                          : order.status === "Request Change"
+                            ? "bg-orange-100 text-orange-800"
+                            : order.status === "Stock Ready"
+                              ? "bg-green-100 text-green-800"
+                              : order.status === "Unable to Fulfill"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
                     }`}
                   >
                     {order.status}

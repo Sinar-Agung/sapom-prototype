@@ -7,6 +7,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-13
+
+### Added
+
+- **Order Update Workflow**: Complete order revision system with change tracking
+  - Created `OrderEditForm` component for JB users to modify existing orders
+  - Added `OrderRevision` interface to track all changes with timestamps and user info
+  - Order revisions store both new values and previous values for full audit trail
+  - Added "Update Order" button in OrderCard for orders with "Request Change" status
+  - Integrated update workflow in App.tsx with proper routing and state management
+  - Orders automatically revert to "Viewed" status after update submission
+- **Supplier Order Management Enhancements**: Improved supplier workflow and status handling
+  - Updated OrderStatus type to reflect supplier workflow: New → Viewed → Request Change / Stock Ready / Unable to Fulfill
+  - Removed old statuses: "Viewed by Supplier", "Confirmed", "In Production", "Ready for Pickup"
+  - Added action buttons in SupplierOrders for status updates: Mark Stock Ready, Request Change, Unable to Fulfill
+  - Supplier order details page auto-updates status to "Viewed" when opened from "New" status
+  - Updated SupplierHome dashboard to show correct counts based on new status workflow
+- **Revision History Display**: Complete order change tracking for JB users
+  - Added collapsible Revision History panel in OrderDetails component
+  - Shows complete order state at each revision with all field changes
+  - Displays initial version with first revision's previous values
+  - Each revision shows changed fields side-by-side with product images
+  - Detail items table included in each revision for complete transparency
+  - Only visible to non-supplier users (hidden from supplier view)
+- **Enhanced Filtering and Sorting**: Advanced list management for Requests and Orders
+  - JB Requests page:
+    * Added Request No filter input with clear (X) button
+    * Sort dropdown with 8 criteria: Updated Date, Created Date, ETA, Product Name, Sales, Atas Nama, Pabrik, Request No
+    * Ascending/Descending toggle button with arrow icons
+    * Filter input width: w-52, sort dropdown width: w-48
+    * Dynamic tab counts update based on filtered results
+    * Filter and sort controls right-aligned with 6-gap spacing
+  - Supplier Orders page:
+    * Added Order No filter input with clear (X) button  
+    * Same 8 sort criteria (with Order No instead of Request No)
+    * Ascending/Descending toggle with visual arrow indicators
+    * Same layout and styling as JB Requests for consistency
+    * Tab counts dynamically reflect filtered results
+- **Auto-Refresh Functionality**: Real-time data synchronization across pages
+  - Added window focus event listeners to reload data when returning from other pages
+  - Added document visibility change listeners for tab switching
+  - Implemented in: jb-requests, jb-order, my-orders, supplier-orders
+  - Ensures data stays current when navigating between order details and lists
+- **Image Storage System Enhancements**: Improved photo management across orders
+  - Extended image-storage.ts usage to all order-related components
+  - OrderDetails displays latest photo via photoId with getImage()
+  - OrderCard shows order photos via photoId with NAMA_BASIC_IMAGES fallback
+  - SupplierOrders retrieves photos using getImage(order.photoId)
+  - StockistHome updated to use photoId instead of fotoBarangBase64
+  - VerifyStock component updated to use photoId for image display
+- **JB Order Management Improvements**: Enhanced order tracking and status workflow
+  - Updated JB Orders page tabs to match supplier workflow: New, Viewed, Request Change, Stock Ready, Unable to Fulfill
+  - Removed old tabs: In Progress, Completed
+  - Added grid layout for 5 tabs (grid-cols-5) for better visual balance
+  - Updated status badge colors to match new workflow
+  - Order cards show JB full name instead of username
+  - Orders page supports initialTab prop for returning to correct tab after detail view
+- **UI/UX Refinements**: Polished user interface across multiple pages
+  - Total request/order count moved below title on left side, parallel with filter controls
+  - Sort direction icons swap correctly: arrow down for descending, arrow up for ascending
+  - Sort by label without colon for cleaner appearance
+  - Filter placeholder fully visible with adjusted input width
+  - Consistent spacing and alignment across all list pages
+
+### Changed
+
+- **Order Type Definition Updates**: Streamlined order structure and removed deprecated fields
+  - Removed `fotoBarangBase64` field from Order interface completely
+  - Removed `fotoBarangBase64` from CreateOrderFromRequest interface  
+  - All orders now use `photoId` exclusively for image references
+  - OrderRevision now tracks photoId changes in revision history
+- **Status Workflow Simplification**: Clearer supplier order lifecycle
+  - Replaced complex multi-stage workflow with simpler 3-outcome model
+  - Supplier can now: view order → mark stock ready OR request changes OR mark unable to fulfill
+  - Removed intermediate "Confirmed" and "In Production" statuses
+  - Order updates from JB trigger status change back to "Viewed"
+- **Component Refactoring**: Improved code organization and reusability
+  - OrderCard now accepts `onUpdateOrder` callback for update button functionality
+  - OrderDetails enhanced with revision history state management and display logic
+  - App.tsx routing updated to handle order-edit page with proper back navigation
+  - Added Factory icon import for supplier role indicator
+
+### Fixed
+
+- Missing getImage import in verify-stock component causing undefined function errors
+- Image display issues in order cards now properly show photoId-based images
+- Tab counts in JB Requests now correctly show filtered counts instead of total counts
+- Sort direction indicator now matches actual sort direction (arrow down = descending, arrow up = ascending)
+- Filter box width increased to show full placeholder text "Filter by Request No..."
+- Order status colors updated throughout supplier components for consistency
+
+### Removed
+
+- Removed all references to `fotoBarangBase64` from Order type definitions
+- Removed old supplier order statuses: "Viewed by Supplier", "Confirmed", "In Production", "Ready for Pickup"
+- Removed In Progress and Completed tabs from JB Orders page
+
 ## [0.3.0] - 2026-02-11
 
 ### Added

@@ -6,17 +6,52 @@ import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface JBOrderProps {
-  onSeeDetail?: (order: Order) => void;
+  onSeeDetail?: (order: Order, currentTab?: string) => void;
+  onUpdateOrder?: (order: Order, currentTab?: string) => void;
+  initialTab?: string;
 }
 
-export function JBOrder({ onSeeDetail }: JBOrderProps) {
+export function JBOrder({
+  onSeeDetail,
+  onUpdateOrder,
+  initialTab = "new",
+}: JBOrderProps) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [activeTab, setActiveTab] = useState("new");
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
+
+    // Reload orders when window regains focus
+    const handleFocus = () => {
+      loadOrders();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // Also reload when component becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadOrders();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
+
+  // Update activeTab when initialTab changes (e.g., returning from order details)
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  // Reload data when tab changes
+  useEffect(() => {
+    loadOrders();
+  }, [activeTab]);
 
   const loadOrders = () => {
     const savedOrders = localStorage.getItem("orders");
@@ -33,23 +68,31 @@ export function JBOrder({ onSeeDetail }: JBOrderProps) {
   const filteredOrders = orders.filter((order: Order) => {
     if (activeTab === "new") {
       return order.status === "New";
-    } else if (activeTab === "in-progress") {
-      return ["Viewed by Supplier", "Confirmed", "In Production"].includes(
-        order.status,
-      );
-    } else if (activeTab === "completed") {
-      return ["Ready for Pickup", "Completed"].includes(order.status);
+    } else if (activeTab === "viewed") {
+      return order.status === "Viewed";
+    } else if (activeTab === "request-change") {
+      return order.status === "Request Change";
+    } else if (activeTab === "stock-ready") {
+      return order.status === "Stock Ready";
+    } else if (activeTab === "unable") {
+      return order.status === "Unable to Fulfill";
     }
     return false;
   });
 
   // Calculate counts for each tab
   const newCount = orders.filter((order) => order.status === "New").length;
-  const inProgressCount = orders.filter((order) =>
-    ["Viewed by Supplier", "Confirmed", "In Production"].includes(order.status),
+  const viewedCount = orders.filter(
+    (order) => order.status === "Viewed",
   ).length;
-  const completedCount = orders.filter((order) =>
-    ["Ready for Pickup", "Completed"].includes(order.status),
+  const requestChangeCount = orders.filter(
+    (order) => order.status === "Request Change",
+  ).length;
+  const stockReadyCount = orders.filter(
+    (order) => order.status === "Stock Ready",
+  ).length;
+  const unableCount = orders.filter(
+    (order) => order.status === "Unable to Fulfill",
   ).length;
 
   return (
@@ -64,7 +107,7 @@ export function JBOrder({ onSeeDetail }: JBOrderProps) {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex-shrink-0">
+        <TabsList className="w-full flex-shrink-0 grid grid-cols-5">
           <TabsTrigger
             value="new"
             className={
@@ -74,22 +117,40 @@ export function JBOrder({ onSeeDetail }: JBOrderProps) {
             New ({newCount})
           </TabsTrigger>
           <TabsTrigger
-            value="in-progress"
+            value="viewed"
             className={
-              activeTab === "in-progress"
-                ? "text-yellow-600 border-yellow-600"
+              activeTab === "viewed" ? "text-purple-600 border-purple-600" : ""
+            }
+          >
+            Viewed ({viewedCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="request-change"
+            className={
+              activeTab === "request-change"
+                ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
-            In Progress ({inProgressCount})
+            Request Change ({requestChangeCount})
           </TabsTrigger>
           <TabsTrigger
-            value="completed"
+            value="stock-ready"
             className={
-              activeTab === "completed" ? "text-green-600 border-green-600" : ""
+              activeTab === "stock-ready"
+                ? "text-green-600 border-green-600"
+                : ""
             }
           >
-            Completed ({completedCount})
+            Stock Ready ({stockReadyCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="unable"
+            className={
+              activeTab === "unable" ? "text-red-600 border-red-600" : ""
+            }
+          >
+            Unable to Fulfill ({unableCount})
           </TabsTrigger>
         </TabsList>
 
@@ -101,9 +162,17 @@ export function JBOrder({ onSeeDetail }: JBOrderProps) {
                 <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                 <p className="text-lg mb-2">No orders found</p>
                 <p className="text-sm">
-                  {activeTab === "new" && "No new orders yet"}
-                  {activeTab === "in-progress" && "No orders in progress"}
-                  {activeTab === "completed" && "No completed orders"}
+                  {activeTab === "new"
+                    ? "No new orders yet"
+                    : activeTab === "viewed"
+                      ? "No viewed orders"
+                      : activeTab === "request-change"
+                        ? "No orders requesting changes"
+                        : activeTab === "stock-ready"
+                          ? "No orders marked as stock ready"
+                          : activeTab === "unable"
+                            ? "No orders marked as unable to fulfill"
+                            : "No orders found"}
                 </p>
               </div>
             </Card>
@@ -115,7 +184,12 @@ export function JBOrder({ onSeeDetail }: JBOrderProps) {
                   order={order}
                   isExpanded={expandedOrderId === order.id}
                   onToggleExpand={() => toggleExpand(order.id)}
-                  onSeeDetail={onSeeDetail}
+                  onSeeDetail={(order) => onSeeDetail?.(order, activeTab)}
+                  onUpdateOrder={
+                    activeTab === "request-change"
+                      ? (order) => onUpdateOrder?.(order, activeTab)
+                      : undefined
+                  }
                 />
               ))}
             </div>

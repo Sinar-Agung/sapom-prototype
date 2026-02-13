@@ -11,12 +11,37 @@ import { DetailBarangItem, EntityReference } from "./request";
  */
 export type OrderStatus =
   | "New" // Order created by JB, not yet viewed by supplier
-  | "Viewed by Supplier" // Supplier has viewed the order details
-  | "Confirmed" // Supplier confirmed they can fulfill the order
-  | "In Production" // Order is being produced
-  | "Ready for Pickup" // Order ready for delivery/pickup
+  | "Viewed" // Supplier has viewed the order details
+  | "Request Change" // Supplier needs changes/clarification
+  | "Stock Ready" // Order is ready for pickup/delivery
+  | "Unable to Fulfill" // Supplier cannot fulfill the order
   | "Completed" // Order fulfilled and delivered
   | "Cancelled"; // Order was cancelled
+
+/**
+ * Order Revision - tracks changes made to an order
+ */
+export interface OrderRevision {
+  revisionNumber: number;
+  timestamp: number;
+  updatedBy: string;
+  changes: {
+    kategoriBarang?: string;
+    jenisProduk?: string;
+    namaProduk?: string;
+    namaBasic?: string;
+    detailItems?: DetailBarangItem[];
+    photoId?: string;
+  };
+  previousValues: {
+    kategoriBarang?: string;
+    jenisProduk?: string;
+    namaProduk?: string;
+    namaBasic?: string;
+    detailItems?: DetailBarangItem[];
+    photoId?: string;
+  };
+}
 
 /**
  * Order interface - represents an order created by JB and sent to suppliers
@@ -59,11 +84,13 @@ export interface Order {
   detailItems: DetailBarangItem[];
 
   // Media
-  fotoBarangBase64?: string;
   photoId?: string;
 
   // Status tracking
   status: OrderStatus;
+
+  // Revision history
+  revisionHistory?: OrderRevision[];
 }
 
 /**
@@ -81,6 +108,5 @@ export interface CreateOrderFromRequest {
   waktuKirim: string;
   customerExpectation: string;
   detailItems: DetailBarangItem[];
-  fotoBarangBase64?: string;
   photoId?: string;
 }
