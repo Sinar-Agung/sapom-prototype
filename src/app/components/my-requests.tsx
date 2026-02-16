@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Request } from "../types/request";
+import { notifyRequestCancelled } from "../utils/notification-helper";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { RequestCard } from "./request-card";
 import { Card } from "./ui/card";
@@ -184,6 +185,18 @@ export function MyOrders({
     );
     setOrders(updatedOrders);
     localStorage.setItem("requests", JSON.stringify(updatedOrders));
+
+    // Create notification about the cancellation
+    const cancelledRequest = updatedOrders.find(
+      (order: Request) => order.id === orderId,
+    );
+    if (cancelledRequest) {
+      const currentUser =
+        sessionStorage.getItem("username") ||
+        localStorage.getItem("username") ||
+        "";
+      notifyRequestCancelled(cancelledRequest, currentUser);
+    }
   };
 
   // Filter by Request No first

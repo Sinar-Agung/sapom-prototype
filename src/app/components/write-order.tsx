@@ -7,6 +7,10 @@ import {
 } from "@/app/data/order-data";
 import { Order } from "@/app/types/order";
 import { DetailBarangItem, Request } from "@/app/types/request";
+import {
+  notifyOrderCreated,
+  notifyRequestStatusChanged,
+} from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import {
   findUserByUsername,
@@ -586,6 +590,32 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         const orders: Order[] = savedOrders ? JSON.parse(savedOrders) : [];
         orders.push(newOrder);
         localStorage.setItem("orders", JSON.stringify(orders));
+
+        // Update request status to "Ordered"
+        const savedRequests = localStorage.getItem("requests");
+        if (savedRequests) {
+          const requests: Request[] = JSON.parse(savedRequests);
+          const requestIndex = requests.findIndex((r) => r.id === order.id);
+          if (requestIndex !== -1) {
+            const oldStatus = requests[requestIndex].status;
+            requests[requestIndex].status = "Ordered";
+            requests[requestIndex].updatedDate = Date.now();
+            requests[requestIndex].updatedBy = currentUser;
+            localStorage.setItem("requests", JSON.stringify(requests));
+
+            // Create notification for request status change to Ordered
+            notifyRequestStatusChanged(
+              requests[requestIndex],
+              oldStatus,
+              "Ordered",
+              currentUser,
+              "jb",
+            );
+          }
+        }
+
+        // Create notification for order creation
+        notifyOrderCreated(newOrder, currentUser);
 
         toast.success("Order created successfully!");
         setTimeout(() => {

@@ -10,6 +10,10 @@ import {
 } from "@/app/data/order-data";
 import { DetailBarangItem, Request } from "@/app/types/request";
 import { getImage } from "@/app/utils/image-storage";
+import {
+  notifyRequestStatusChanged,
+  notifyRequestViewedByStockist,
+} from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -233,11 +237,20 @@ export function VerifyStock({
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
       if (orderIndex !== -1 && orders[orderIndex].status === "Open") {
+        const oldStatus = orders[orderIndex].status;
         orders[orderIndex].status = "Stockist Processing";
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
         orders[orderIndex].stockistId = currentUser; // Assign stockist ownership
         localStorage.setItem("requests", JSON.stringify(orders));
+
+        // Create notification for stockist viewing the request with status change
+        notifyRequestViewedByStockist(
+          orders[orderIndex],
+          currentUser,
+          oldStatus,
+          "Stockist Processing",
+        );
 
         // Update local state to reflect changes immediately
         setCurrentOrder({
@@ -327,11 +340,21 @@ export function VerifyStock({
           }));
         }
 
+        const oldStatus = orders[orderIndex].status;
         orders[orderIndex].status = newStatus;
         orders[orderIndex].detailItems = updatedDetailItems;
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
         localStorage.setItem("requests", JSON.stringify(orders));
+
+        // Create notification for status change
+        notifyRequestStatusChanged(
+          orders[orderIndex],
+          oldStatus,
+          newStatus,
+          currentUser,
+          "stockist",
+        );
       }
     }
     setWasUpdated(true);
@@ -365,11 +388,21 @@ export function VerifyStock({
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
       if (orderIndex !== -1) {
+        const oldStatus = orders[orderIndex].status;
         orders[orderIndex].detailItems = updatedItems;
         orders[orderIndex].status = "Ready Stock Marketing";
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
         localStorage.setItem("requests", JSON.stringify(orders));
+
+        // Create notification for status change
+        notifyRequestStatusChanged(
+          orders[orderIndex],
+          oldStatus,
+          "Ready Stock Marketing",
+          currentUser,
+          "stockist",
+        );
       }
     }
     setWasUpdated(true);

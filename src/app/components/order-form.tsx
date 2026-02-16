@@ -10,6 +10,11 @@ import {
 } from "@/app/components/ui/alert-dialog";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
+import {
+  notifyRequestCreated,
+  notifyRequestUpdated,
+} from "@/app/utils/notification-helper";
+import { generateRequestNo } from "@/app/utils/request-number";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DetailItemInput } from "./order-form/detail-item-input";
@@ -31,6 +36,7 @@ interface OrderFormProps {
   initialData?: any;
   mode?: "new" | "edit" | "duplicate";
   onSaveComplete?: () => void;
+  onNavigateToMyRequests?: () => void;
   formTitle?: string;
 }
 
@@ -40,6 +46,7 @@ export function OrderForm(props: OrderFormProps) {
     initialData,
     mode = "new",
     onSaveComplete,
+    onNavigateToMyRequests,
     formTitle = "Form Input Pesanan (Salesman E / I)",
   } = props;
 
@@ -906,6 +913,16 @@ export function OrderForm(props: OrderFormProps) {
       // Update existing order
       const orderIndex = orders.findIndex((o: any) => o.id === initialData.id);
       if (orderIndex !== -1) {
+        // Save old request for change detection
+        const oldRequest = { ...orders[orderIndex] };
+
+        // Get current user
+        const currentUser =
+          sessionStorage.getItem("username") ||
+          localStorage.getItem("username") ||
+          "";
+
+        // Update the request
         orders[orderIndex] = {
           ...orders[orderIndex],
           pabrik: formData.pabrik,
@@ -918,8 +935,16 @@ export function OrderForm(props: OrderFormProps) {
           customerExpectation: formData.customerExpectation,
           detailItems: detailItems,
           fotoBarangBase64: fotoBarangBase64,
+          updatedDate: Date.now(),
+          updatedBy: currentUser,
           // Keep existing id, timestamp, and status
         };
+
+        // Create notification about the update
+        const newRequest = orders[orderIndex];
+        if (newRequest.status === "Open") {
+          notifyRequestUpdated(oldRequest, newRequest, currentUser);
+        }
       }
     } else {
       // Create new order (for "new" and "duplicate" modes)
@@ -927,6 +952,7 @@ export function OrderForm(props: OrderFormProps) {
       const order = {
         id: orderId,
         timestamp: Date.now(),
+        requestNo: generateRequestNo(),
         createdBy:
           sessionStorage.getItem("username") ||
           localStorage.getItem("username") ||
@@ -954,6 +980,16 @@ export function OrderForm(props: OrderFormProps) {
     // Save back to local storage
     localStorage.setItem("requests", JSON.stringify(orders));
 
+    // Create notification for new request (only for new and duplicate modes)
+    if (mode !== "edit") {
+      const currentUser =
+        sessionStorage.getItem("username") ||
+        localStorage.getItem("username") ||
+        "";
+      const savedOrder = orders[orders.length - 1]; // Get the newly added order
+      notifyRequestCreated(savedOrder, currentUser);
+    }
+
     // Show dialog asking if user wants to create new order with same values
     setShowNewOrderDialog(true);
 
@@ -979,7 +1015,9 @@ export function OrderForm(props: OrderFormProps) {
     }
     setShowNewOrderDialog(false);
     // Navigate to My Requests page
-    window.location.href = "/my-requests";
+    if (onNavigateToMyRequests) {
+      onNavigateToMyRequests();
+    }
   };
 
   // Initialize form with initial data if provided

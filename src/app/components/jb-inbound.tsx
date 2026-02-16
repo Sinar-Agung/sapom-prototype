@@ -1,4 +1,9 @@
 import { Order, OrderArrival } from "@/app/types/order";
+import {
+  notifyOrderArrival,
+  notifyOrderClosed,
+  notifyOrderStatusChanged,
+} from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import { useEffect, useState } from "react";
@@ -99,7 +104,7 @@ export function JBInbound() {
       orderId,
       orderPONumber: orders.find((o) => o.id === orderId)?.PONumber || "",
       createdDate: Date.now(),
-      createdBy: localStorage.getItem("currentUser") || "jbuser1",
+      createdBy: localStorage.getItem("currentUser") || "jb1",
       items: arrivalItems,
     };
 
@@ -107,23 +112,92 @@ export function JBInbound() {
     setArrivals(updatedArrivals);
     localStorage.setItem("orderArrivals", JSON.stringify(updatedArrivals));
 
-    // Refresh selected order to show updated arrivals
-    // Note: Order status remains unchanged until JB explicitly closes the order
+    // Calculate delivery status and update order
     const order = orders.find((o) => o.id === orderId);
     if (order) {
-      setSelectedOrder({ ...order });
+      // Calculate total delivered for each item with the new arrival
+      const deliveredCounts = new Map<string, number>();
+      updatedArrivals
+        .filter((a) => a.orderId === orderId)
+        .forEach((arrival) => {
+          arrival.items.forEach((item) => {
+            const key = `${item.karat}-${item.warna}-${item.size}-${item.berat}`;
+            deliveredCounts.set(
+              key,
+              (deliveredCounts.get(key) || 0) + item.pcs,
+            );
+          });
+        });
+
+      // Check if all items are fully delivered
+      const allFullyDelivered = order.detailItems.every((item) => {
+        const key = `${item.kadar}-${item.warna}-${item.ukuran}-${item.berat}`;
+        const delivered = deliveredCounts.get(key) || 0;
+        return delivered >= parseInt(item.pcs);
+      });
+
+      const newStatus = allFullyDelivered
+        ? "Fully Delivered"
+        : "Partially Delivered";
+
+      // Calculate total pieces delivered in this arrival
+      const totalPcsDelivered = arrivalItems.reduce(
+        (sum, item) => sum + item.pcs,
+        0,
+      );
+
+      // Update order status
+      const currentUser = localStorage.getItem("currentUser") || "jb1";
+      const updatedOrders = orders.map((o) => {
+        if (o.id === orderId) {
+          const oldStatus = o.status;
+          const updated = {
+            ...o,
+            status: newStatus as OrderStatus,
+            updatedDate: Date.now(),
+            updatedBy: currentUser,
+          };
+
+          // Create notifications if status changed
+          if (oldStatus !== newStatus) {
+            notifyOrderStatusChanged(
+              updated,
+              oldStatus,
+              newStatus,
+              currentUser,
+              "jb",
+            );
+          }
+
+          // Create notification for arrival
+          notifyOrderArrival(updated, currentUser, totalPcsDelivered);
+
+          return updated;
+        }
+        return o;
+      });
+
+      setOrders(updatedOrders);
+      localStorage.setItem("orders", JSON.stringify(updatedOrders));
+      setSelectedOrder({ ...order, status: newStatus as OrderStatus });
     }
   };
 
   const handleCloseOrder = (orderId: string) => {
+    const currentUser = localStorage.getItem("currentUser") || "jb1";
     const updatedOrders = orders.map((order) => {
       if (order.id === orderId) {
-        return {
+        const updated = {
           ...order,
           status: "Confirmed by JB" as const,
           updatedDate: Date.now(),
-          updatedBy: localStorage.getItem("currentUser") || "jbuser1",
+          updatedBy: currentUser,
         };
+
+        // Create notification for order closure
+        notifyOrderClosed(updated, currentUser);
+
+        return updated;
       }
       return order;
     });

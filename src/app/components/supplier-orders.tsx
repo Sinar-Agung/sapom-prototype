@@ -6,6 +6,7 @@ import {
 } from "@/app/data/order-data";
 import { Order } from "@/app/types/order";
 import { getImage } from "@/app/utils/image-storage";
+import { notifyOrderStatusChanged } from "@/app/utils/notification-helper";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -163,10 +164,21 @@ export function SupplierOrders({
       const allOrders: Order[] = JSON.parse(savedOrders);
       const orderIndex = allOrders.findIndex((o) => o.id === orderId);
       if (orderIndex !== -1) {
+        const oldStatus = allOrders[orderIndex].status;
         allOrders[orderIndex].status = newStatus as any;
         allOrders[orderIndex].updatedDate = Date.now();
         allOrders[orderIndex].updatedBy = currentUser;
         localStorage.setItem("orders", JSON.stringify(allOrders));
+
+        // Create notification for order status change
+        notifyOrderStatusChanged(
+          allOrders[orderIndex],
+          oldStatus,
+          newStatus,
+          currentUser,
+          "supplier",
+        );
+
         loadOrders();
       }
     }

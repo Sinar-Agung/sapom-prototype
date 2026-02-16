@@ -8,6 +8,7 @@ import { JBRequests } from "./components/jb-requests";
 import { Login } from "./components/login";
 import { MyOrders } from "./components/my-requests";
 import { Navigation } from "./components/navigation";
+import { Notifications } from "./components/notifications";
 import { OrderDetails } from "./components/order-details";
 import { OrderEditForm } from "./components/order-edit-form";
 import { OrderForm } from "./components/order-form";
@@ -82,6 +83,7 @@ export default function App() {
   const [myOrdersTab, setMyOrdersTab] = useState<string>("open");
   const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("new");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
+  const [cameFromNotifications, setCameFromNotifications] = useState(false);
 
   // Initialize mock data and user data on first load
   useEffect(() => {
@@ -154,17 +156,31 @@ export default function App() {
   };
 
   const handleVerifyStock = (order: any, currentTab: string) => {
+    console.log(
+      "📋 handleVerifyStock called with:",
+      order?.requestNo || order?.id,
+      "tab:",
+      currentTab,
+    );
     setMyOrdersTab(currentTab); // Save the current tab
     setVerifyingOrder(order);
     setVerifyMode("verify");
     setCurrentPage("verify-stock");
+    console.log("   ✅ Page set to verify-stock, mode: verify");
   };
 
   const handleReviewRequest = (order: any, currentTab: string) => {
+    console.log(
+      "📋 handleReviewRequest called with:",
+      order?.requestNo || order?.id,
+      "tab:",
+      currentTab,
+    );
     setMyOrdersTab(currentTab); // Save the current tab
     setVerifyingOrder(order);
     setVerifyMode("review");
     setCurrentPage("verify-stock");
+    console.log("   ✅ Page set to verify-stock, mode: review");
   };
 
   const handleSeeDetail = (order: any, currentTab: string) => {
@@ -184,6 +200,14 @@ export default function App() {
   const handleBackFromVerify = () => {
     setVerifyingOrder(null);
     setVerifyMode("verify");
+
+    // If came from notifications, return to notifications
+    if (cameFromNotifications) {
+      setCameFromNotifications(false);
+      setCurrentPage("notifications");
+      return;
+    }
+
     // Return to appropriate page based on user role
     if (userRole === "jb") {
       setCurrentPage("jb-requests");
@@ -194,7 +218,63 @@ export default function App() {
 
   const handleBackFromWriteOrder = () => {
     setVerifyingOrder(null);
+
+    // If came from notifications, return to notifications
+    if (cameFromNotifications) {
+      setCameFromNotifications(false);
+      setCurrentPage("notifications");
+      return;
+    }
+
     setCurrentPage("jb-requests");
+  };
+
+  const handleNavigateToRequest = (requestId: string) => {
+    // Mark that we're navigating from notifications
+    setCameFromNotifications(true);
+
+    // Load the request from localStorage
+    const requestsJson = localStorage.getItem("requests");
+    if (!requestsJson) {
+      console.error("No requests found in localStorage");
+      return;
+    }
+
+    const requests = JSON.parse(requestsJson);
+    const request = requests.find((r: any) => r.id === requestId);
+
+    if (!request) {
+      console.error(`Request with ID ${requestId} not found`);
+      return;
+    }
+
+    console.log(
+      `📍 Navigating to request ${request.requestNo || request.id} (Status: ${request.status}, Role: ${userRole})`,
+    );
+
+    // Navigate based on user role
+    if (userRole === "stockist") {
+      // For stockist: if status is Open or Stockist Processing, go to verify-stock in verify mode
+      // Otherwise, go to review mode (for already processed requests)
+      const isVerifyMode =
+        request.status === "Open" || request.status === "Stockist Processing";
+
+      if (isVerifyMode) {
+        console.log("→ Opening in Verify Stock mode (can edit/verify)");
+        handleVerifyStock(request, "open");
+      } else {
+        console.log("→ Opening in Review mode (read-only)");
+        handleReviewRequest(request, "open");
+      }
+    } else if (userRole === "jb") {
+      // JB sees request details
+      console.log("→ Opening request detail for JB");
+      handleSeeDetail(request, "assigned");
+    } else {
+      // Default to review mode
+      console.log("→ Opening in Review mode (default)");
+      handleReviewRequest(request, "open");
+    }
   };
 
   const handleSeeOrderDetail = (order: any, currentTab?: string) => {
@@ -247,6 +327,12 @@ export default function App() {
     // After saving, reset to new mode
     setEditingOrder(null);
     setFormMode("new");
+    setHasFormChanges(false);
+  };
+
+  const handleNavigateToMyRequests = () => {
+    // Navigate to My Requests page
+    setCurrentPage("my-orders");
     setHasFormChanges(false);
   };
 
@@ -356,6 +442,7 @@ export default function App() {
             initialData={editingOrder}
             mode={formMode}
             onSaveComplete={handleSaveComplete}
+            onNavigateToMyRequests={handleNavigateToMyRequests}
             formTitle={getFormTitle()}
           />
         );
@@ -440,6 +527,8 @@ export default function App() {
         );
       case "settings":
         return <Settings onLogout={handleLogout} username={currentUser} />;
+      case "notifications":
+        return <Notifications onNavigateToRequest={handleNavigateToRequest} />;
       case "verify-stock":
         return (
           <VerifyStock
@@ -470,6 +559,7 @@ export default function App() {
             initialData={editingOrder}
             mode={formMode}
             onSaveComplete={handleSaveComplete}
+            onNavigateToMyRequests={handleNavigateToMyRequests}
             formTitle={getFormTitle()}
           />
         );
@@ -529,13 +619,13 @@ export default function App() {
         <div className="fixed top-4 right-4 z-40">
           <div
             className={`flex items-center gap-2 px-3 py-2 rounded-full shadow-md ${roleConfig.bg} border border-gray-200`}
-            title={roleConfig.label}
+            title={`${roleConfig.label} - ${currentUser}`}
           >
             <RoleIcon className={`w-5 h-5 ${roleConfig.color}`} />
             <span
               className={`text-sm font-medium ${roleConfig.color} hidden sm:inline`}
             >
-              {roleConfig.label}
+              {roleConfig.label} - {currentUser}
             </span>
           </div>
         </div>
