@@ -1,3 +1,4 @@
+// ...existing code...
 import { Briefcase, Factory, Package, UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AvailablePcsDemo } from "./components/available-pcs-demo";
@@ -30,7 +31,11 @@ import {
 import { Toaster } from "./components/ui/sonner";
 import { VerifyStock } from "./components/verify-stock";
 import { WriteOrder } from "./components/write-order";
-import { initializeMockData } from "./utils/mock-data";
+import {
+  initializeMockData,
+  initializeMockNotifications,
+} from "./utils/mock-data";
+import { checkAndNotifyExpiringRequests } from "./utils/notification-helper";
 import {
   authenticateUser,
   getUserRole,
@@ -38,6 +43,11 @@ import {
 } from "./utils/user-data";
 
 export default function App() {
+  // ...state declarations...
+  // (First set of isAuthenticated, currentUser, userRole already declared above)
+  // ...other state declarations...
+
+  // Place the ETA reminder useEffect after userRole/currentUser are declared
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     // Check if user is already logged in (from localStorage or sessionStorage)
     return (
@@ -88,8 +98,16 @@ export default function App() {
   // Initialize mock data and user data on first load
   useEffect(() => {
     initializeMockData();
+    initializeMockNotifications();
     initializeUserData();
   }, []);
+
+  // Check for expiring requests when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && currentUser && userRole) {
+      checkAndNotifyExpiringRequests(currentUser, userRole);
+    }
+  }, [isAuthenticated, currentUser, userRole]);
 
   // Update browser tab title based on user role
   useEffect(() => {
@@ -229,6 +247,31 @@ export default function App() {
     setCurrentPage("jb-requests");
   };
 
+  const handleNavigateToOrder = (orderId: string) => {
+    console.log(`📍 Navigating to order ${orderId} (Role: ${userRole})`);
+
+    // Load the order from localStorage
+    const ordersJson = localStorage.getItem("orders");
+    if (!ordersJson) {
+      console.error("No orders found in localStorage");
+      return;
+    }
+
+    const orders = JSON.parse(ordersJson);
+    const order = orders.find((o: any) => o.id === orderId);
+
+    if (!order) {
+      console.error(`Order ${orderId} not found`);
+      return;
+    }
+
+    // Mark that we're navigating from notifications
+    setCameFromNotifications(true);
+
+    // Set the order as viewing order and navigate to details
+    handleSeeOrderDetail(order);
+  };
+
   const handleNavigateToRequest = (requestId: string) => {
     // Mark that we're navigating from notifications
     setCameFromNotifications(true);
@@ -362,6 +405,9 @@ export default function App() {
     setIsAuthenticated(true);
     setCurrentUser(username);
     setUserRole(role);
+
+    // Check for expiring requests immediately on login
+    checkAndNotifyExpiringRequests(username, role);
 
     // Set default page based on role
     if (role === "stockist" || role === "jb") {
@@ -528,7 +574,12 @@ export default function App() {
       case "settings":
         return <Settings onLogout={handleLogout} username={currentUser} />;
       case "notifications":
-        return <Notifications onNavigateToRequest={handleNavigateToRequest} />;
+        return (
+          <Notifications
+            onNavigateToRequest={handleNavigateToRequest}
+            onNavigateToOrder={handleNavigateToOrder}
+          />
+        );
       case "verify-stock":
         return (
           <VerifyStock

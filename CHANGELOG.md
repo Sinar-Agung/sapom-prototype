@@ -8,16 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **Mock Notification Data**: Comprehensive mock notifications for testing the notification system
+  - Added 50 total mock notifications (28 request-type, 22 order-type)
+  - Request notifications cover complete workflow: creation → viewing → approval/rejection → conversion to order
+  - Order notifications track: creation → supplier viewing → updates/revisions → status changes → delivery
+  - Notifications include proper timestamps, user attribution, target audiences, and metadata
+  - All notifications consistent with existing mock orders and requests data
+  - Added `generateMockNotifications()` function to create realistic notification data
+  - Added `initializeMockNotifications()` function to initialize notifications in localStorage
+  - Added `resetMockNotifications()` function to reset notification data
+  - Integrated notification initialization in App.tsx on startup
 - Notification system for when sales update or cancel a request, with role-based targeting for stockists, sales, and JB users.
 - Personalized notification messages: when the subject is the current user, the notification card says "You <action> request/order XXXX ..." for all event types.
 - Notification for stockist status updates: Stock Unavailable, Ready Stock Marketing, and Assigned to JB, with correct audience targeting.
 - Visual color coding for notification types (created, updated, cancelled, status changed, etc).
 
 ### Fixed
+
 - Stockists now always receive cancellation and status change notifications, even if the request is no longer Open.
 - All notification cards now consistently show personalized "You <action> ..." messages for the acting user.
 
 ### Changed
+
 - Improved notification filtering logic for stockists to always show important status changes.
 - Generalized notification message override for all event types.
 
