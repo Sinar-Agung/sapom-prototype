@@ -8,6 +8,7 @@ import {
 import { Order } from "@/app/types/order";
 import { Request } from "@/app/types/request";
 import { getImage } from "@/app/utils/image-storage";
+import { notifyOrderStatusChanged } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -64,10 +65,21 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
       const allOrders: Order[] = JSON.parse(savedOrders);
       const orderIndex = allOrders.findIndex((o) => o.id === orderId);
       if (orderIndex !== -1) {
+        const oldStatus = allOrders[orderIndex].status;
         allOrders[orderIndex].status = newStatus as any;
         allOrders[orderIndex].updatedDate = Date.now();
         allOrders[orderIndex].updatedBy = currentUser;
         localStorage.setItem("orders", JSON.stringify(allOrders));
+
+        // Create notification for order status change
+        notifyOrderStatusChanged(
+          allOrders[orderIndex],
+          oldStatus,
+          newStatus,
+          currentUser,
+          userRole,
+        );
+
         setCurrentOrder(allOrders[orderIndex]);
       }
     }
@@ -141,7 +153,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
         return "bg-blue-100 text-blue-800";
       case "Viewed":
         return "bg-purple-100 text-purple-800";
-      case "Request Change":
+      case "Change Requested":
         return "bg-orange-100 text-orange-800";
       case "Stock Ready":
         return "bg-green-100 text-green-800";
@@ -384,7 +396,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </Button>
             <Button
               onClick={() =>
-                handleUpdateStatus(currentOrder.id, "Request Change")
+                handleUpdateStatus(currentOrder.id, "Change Requested")
               }
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
@@ -412,7 +424,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </Button>
           <Button
             onClick={() =>
-              handleUpdateStatus(currentOrder.id, "Request Change")
+              handleUpdateStatus(currentOrder.id, "Change Requested")
             }
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >

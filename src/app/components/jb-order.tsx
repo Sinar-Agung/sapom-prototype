@@ -17,10 +17,10 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
   { value: "created", label: "Created Date" },
   { value: "eta", label: "ETA" },
   { value: "productName", label: "Product Name" },
+  { value: "pabrik", label: "Pabrik" },
   { value: "sales", label: "Sales" },
   { value: "atasNama", label: "Atas Nama" },
-  { value: "pabrik", label: "Pabrik" },
-  { value: "orderNo", label: "Order No" },
+  { value: "requestNo", label: "Request No" },
 ];
 
 export function JBOrder({
@@ -29,11 +29,40 @@ export function JBOrder({
   initialTab = "new",
 }: JBOrderProps) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = sessionStorage.getItem("jbOrderActiveTab");
+    return saved || initialTab;
+  });
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<string>("updatedDate");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [orderNoFilter, setOrderNoFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>(() => {
+    return sessionStorage.getItem("jbOrderSortBy") || "updatedDate";
+  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+    return (
+      (sessionStorage.getItem("jbOrderSortDirection") as "asc" | "desc") ||
+      "desc"
+    );
+  });
+  const [orderNoFilter, setOrderNoFilter] = useState<string>(() => {
+    return sessionStorage.getItem("jbOrderFilter") || "";
+  });
+
+  // Persist filter/sort state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("jbOrderActiveTab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem("jbOrderSortBy", sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem("jbOrderSortDirection", sortDirection);
+  }, [sortDirection]);
+
+  useEffect(() => {
+    sessionStorage.setItem("jbOrderFilter", orderNoFilter);
+  }, [orderNoFilter]);
 
   useEffect(() => {
     loadOrders();
@@ -96,11 +125,14 @@ export function JBOrder({
   const viewedCount = orderNoFiltered.filter(
     (order) => order.status === "Viewed",
   ).length;
+  const orderRevisedCount = orderNoFiltered.filter(
+    (order) => order.status === "Revised - Internal Review",
+  ).length;
   const inProductionCount = orderNoFiltered.filter(
     (order) => order.status === "In Production",
   ).length;
   const requestChangeCount = orderNoFiltered.filter(
-    (order) => order.status === "Request Change",
+    (order) => order.status === "Change Requested",
   ).length;
   const stockReadyCount = orderNoFiltered.filter(
     (order) => order.status === "Stock Ready",
@@ -118,10 +150,12 @@ export function JBOrder({
       return order.status === "New";
     } else if (activeTab === "viewed") {
       return order.status === "Viewed";
+    } else if (activeTab === "order-revised") {
+      return order.status === "Revised - Internal Review";
     } else if (activeTab === "in-production") {
       return order.status === "In Production";
     } else if (activeTab === "request-change") {
-      return order.status === "Request Change";
+      return order.status === "Change Requested";
     } else if (activeTab === "stock-ready") {
       return order.status === "Stock Ready";
     } else if (activeTab === "unable") {
@@ -138,11 +172,10 @@ export function JBOrder({
     switch (sortBy) {
       case "updatedDate":
         comparison =
-          new Date(b.updatedDate).getTime() - new Date(a.updatedDate).getTime();
+          (b.updatedDate || b.createdDate) - (a.updatedDate || a.createdDate);
         break;
       case "created":
-        comparison =
-          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        comparison = b.createdDate - a.createdDate;
         break;
       case "eta":
         comparison =
@@ -151,17 +184,21 @@ export function JBOrder({
       case "productName":
         comparison = (a.namaBarang || "").localeCompare(b.namaBarang || "");
         break;
+      case "pabrik":
+        const aPabrikName =
+          typeof a.pabrik === "string" ? a.pabrik : a.pabrik?.name || "";
+        const bPabrikName =
+          typeof b.pabrik === "string" ? b.pabrik : b.pabrik?.name || "";
+        comparison = aPabrikName.localeCompare(bPabrikName);
+        break;
       case "sales":
         comparison = (a.sales || "").localeCompare(b.sales || "");
         break;
       case "atasNama":
         comparison = (a.atasNama || "").localeCompare(b.atasNama || "");
         break;
-      case "pabrik":
-        comparison = (a.pabrik?.nama || "").localeCompare(b.pabrik?.nama || "");
-        break;
-      case "orderNo":
-        comparison = (a.PONumber || "").localeCompare(b.PONumber || "");
+      case "requestNo":
+        comparison = (a.requestNo || "").localeCompare(b.requestNo || "");
         break;
       default:
         return 0;
@@ -182,6 +219,7 @@ export function JBOrder({
         totalCount={
           newCount +
           viewedCount +
+          orderRevisedCount +
           inProductionCount +
           requestChangeCount +
           stockReadyCount +
@@ -217,6 +255,16 @@ export function JBOrder({
             Viewed ({viewedCount})
           </TabsTrigger>
           <TabsTrigger
+            value="order-revised"
+            className={
+              activeTab === "order-revised"
+                ? "text-amber-600 border-amber-600"
+                : ""
+            }
+          >
+            Revised - Internal Review ({orderRevisedCount})
+          </TabsTrigger>
+          <TabsTrigger
             value="in-production"
             className={
               activeTab === "in-production"
@@ -234,7 +282,7 @@ export function JBOrder({
                 : ""
             }
           >
-            Request Change ({requestChangeCount})
+            Change Requested ({requestChangeCount})
           </TabsTrigger>
           <TabsTrigger
             value="stock-ready"

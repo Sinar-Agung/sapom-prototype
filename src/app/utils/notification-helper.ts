@@ -1,8 +1,176 @@
+// Remove ETA reminder notification for a request and stockist
+export const removeETAReminderForStockist = (
+  requestId: string,
+  stockistUsername: string,
+) => {
+  let notifications = getAllNotifications();
+  notifications = notifications.filter(
+    (n) =>
+      !(
+        n.eventType === "request_eta_reminder" &&
+        n.entityId === requestId &&
+        n.specificTargets?.includes(stockistUsername)
+      ),
+  );
+  saveNotifications(notifications);
+};
+
+// Helper: Create or update expiring request notification
+export const upsertRequestExpiringNotification = (
+  request: Request,
+  userRole: "sales" | "stockist" | "jb" | "supplier",
+) => {
+  if (!request.waktuKirim) return;
+
+  const etaDate = new Date(request.waktuKirim);
+  const now = new Date();
+  const daysToETA = Math.ceil(
+    (etaDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  // Only notify if ETA is under 7 days and hasn't passed
+  if (daysToETA < 0 || daysToETA >= 7) {
+    // Remove any existing expiring notification if ETA is not within range
+    let notifications = getAllNotifications();
+    notifications = notifications.filter(
+      (n) => !(n.eventType === "request_expiring" && n.entityId === request.id),
+    );
+    saveNotifications(notifications);
+    return;
+  }
+
+  // Determine if this request should get an expiring notification based on status and role
+  let shouldNotify = false;
+  const targetAudience: NotificationTargetAudience[] = [];
+
+  // Stockist: see all expiring requests with status Open or Stockist Processing
+  if (
+    (request.status === "Open" || request.status === "Stockist Processing") &&
+    userRole === "stockist"
+  ) {
+    shouldNotify = true;
+    if (!targetAudience.includes("stockist")) targetAudience.push("stockist");
+  }
+
+  // JB: see all expiring requests with status Requested to JB (Assigned to JB)
+  if (request.status === "Requested to JB" && userRole === "jb") {
+    shouldNotify = true;
+    if (!targetAudience.includes("jb")) targetAudience.push("jb");
+  }
+
+  // Sales: see all expiring requests that are not Ordered yet
+  if (request.status !== "Ordered" && userRole === "sales") {
+    shouldNotify = true;
+    if (!targetAudience.includes("sales")) targetAudience.push("sales");
+  }
+
+  if (!shouldNotify) return;
+
+  // Remove any previous expiring notification for this request
+  let notifications = getAllNotifications();
+  notifications = notifications.filter(
+    (n) => !(n.eventType === "request_expiring" && n.entityId === request.id),
+  );
+
+  // Create new expiring notification
+  const notification: Notification = {
+    id: `NOTIF-EXPIRING-${request.id}`,
+    eventType: "request_expiring" as any,
+    timestamp: Date.now(),
+    triggeredBy: "system",
+    triggeredByRole: "jb", // System notifications use jb role
+    entityType: "request",
+    entityId: request.id,
+    entityNumber: request.requestNo || request.id,
+    targetAudience: ["sales", "stockist", "jb"], // All roles can see, filtering done in getNotificationsForUser
+    specificTargets: request.createdBy ? [request.createdBy] : undefined,
+    title: `⚠️ Request ${request.requestNo || request.id} Expiring Soon`,
+    message: `Request ${request.requestNo || request.id} is nearing its ETA deadline in ${daysToETA} day${daysToETA !== 1 ? "s" : ""} (${etaDate.toLocaleDateString("id-ID")})`,
+    changes: [{ field: "daysToETA", oldValue: null, newValue: daysToETA }],
+    originator: request.createdBy, // Add originator
+    readBy: [],
+  };
+
+  notifications.push(notification);
+  saveNotifications(notifications);
+};
+
+// Check all requests and create expiring notifications for relevant users
+export const checkAndNotifyExpiringRequests = (
+  username: string,
+  userRole: "sales" | "stockist" | "jb" | "supplier",
+) => {
+  console.log(`Checking expiring requests for ${username} (${userRole})`);
+  const requestsJson = localStorage.getItem("requests");
+  if (!requestsJson) return;
+
+  const requests = JSON.parse(requestsJson);
+  requests.forEach((req: Request) => {
+    upsertRequestExpiringNotification(req, userRole);
+  });
+};
+// Helper: Create or update ETA reminder notification for stockist
+export const upsertETAReminderForStockist = (
+  request: Request,
+  stockistUsername: string,
+) => {
+  if (!request.waktuKirim) return;
+  const etaDate = new Date(request.waktuKirim);
+  const now = new Date();
+  const daysToETA = Math.ceil(
+    (etaDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (daysToETA < 0 || daysToETA > 7) return; // Only remind within 7 days before ETA
+
+  // Only for Open or Stockist Processing
+  if (request.status !== "Open" && request.status !== "Stockist Processing")
+    return;
+
+  // Remove any previous ETA reminder for this request and stockist
+  let notifications = getAllNotifications();
+  notifications = notifications.filter(
+    (n) =>
+      !(
+        n.eventType === "request_eta_reminder" &&
+        n.entityId === request.id &&
+        n.specificTargets?.includes(stockistUsername)
+      ),
+  );
+
+  // Add new reminder
+  const reminder: Notification = {
+    id: `NOTIF-ETA-${request.id}-${stockistUsername}`,
+    eventType: "request_eta_reminder" as any,
+    timestamp: Date.now(),
+    triggeredBy: stockistUsername,
+    triggeredByRole: "stockist",
+    entityType: "request",
+    entityId: request.id,
+    entityNumber: request.requestNo || request.id,
+    targetAudience: ["stockist"],
+    specificTargets: [stockistUsername],
+    title: `Request ${request.requestNo || request.id} Nearing ETA`,
+    message: `Request ${request.requestNo || request.id} is nearing its ETA (${etaDate.toLocaleDateString("id-ID")}). Please verify or submit stock info.`,
+    changes: [{ field: "daysToETA", oldValue: null, newValue: daysToETA }],
+    originator: request.createdBy, // Add originator
+    readBy: [],
+  };
+  notifications.push(reminder);
+  saveNotifications(notifications);
+};
 /**
  * Notification helper utilities
  * Manages notification creation, storage, and retrieval
  */
 
+import {
+  ATAS_NAMA_OPTIONS,
+  JENIS_PRODUK_OPTIONS,
+  NAMA_BASIC_OPTIONS,
+  NAMA_PRODUK_OPTIONS,
+  PABRIK_OPTIONS,
+  getLabelFromValue,
+} from "@/app/data/order-data";
 import {
   Notification,
   NotificationChange,
@@ -11,7 +179,7 @@ import {
 } from "@/app/types/notification";
 import { Order } from "@/app/types/order";
 import { Request } from "@/app/types/request";
-import { getFullNameFromUsername } from "./user-data";
+import { findUserByUsername, getFullNameFromUsername } from "./user-data";
 
 const STORAGE_KEY = "notifications";
 
@@ -41,6 +209,11 @@ export const getNotificationsForUser = (
 
   const filtered = all
     .filter((notification) => {
+      // Filter out notifications that have been removed by this user
+      if (notification.removedBy?.includes(username)) {
+        return false;
+      }
+
       // Check if user is in specific targets
       if (notification.specificTargets?.includes(username)) {
         return true;
@@ -48,6 +221,60 @@ export const getNotificationsForUser = (
 
       // Check if user's role is in target audience
       if (notification.targetAudience.includes(userRole)) {
+        // Special filtering for request_expiring notifications
+        if (notification.eventType === "request_expiring") {
+          const request = requests.find(
+            (r: any) => r.id === notification.entityId,
+          );
+          if (request) {
+            // Stockist: only see Open or Stockist Processing
+            if (
+              userRole === "stockist" &&
+              request.status !== "Open" &&
+              request.status !== "Stockist Processing"
+            ) {
+              return false;
+            }
+            // JB: only see Requested to JB (Assigned to JB)
+            if (userRole === "jb" && request.status !== "Requested to JB") {
+              return false;
+            }
+            // Sales: only see requests not Ordered yet
+            if (userRole === "sales" && request.status === "Ordered") {
+              return false;
+            }
+          }
+        }
+
+        // Supplier-specific filtering for ALL order notifications
+        if (userRole === "supplier" && notification.entityType === "order") {
+          // Get the supplier user to check their supplierName
+          const supplierUser = findUserByUsername(username);
+          if (supplierUser && "supplierName" in supplierUser) {
+            console.log(
+              `Filtering order notification ${notification.id} for supplier ${username} (${supplierUser.supplierName}):`,
+              {
+                notificationAddressedTo: notification.addressedTo,
+                userSupplierName: supplierUser.supplierName,
+                matches: notification.addressedTo === supplierUser.supplierName,
+              },
+            );
+            // If notification has addressedTo, check if it matches
+            if (notification.addressedTo) {
+              if (notification.addressedTo !== supplierUser.supplierName) {
+                return false; // Different supplier, don't show
+              }
+            } else {
+              // No addressedTo - this shouldn't happen for new notifications
+              // For safety, don't show order notifications without proper addressedTo
+              console.warn(
+                `Order notification ${notification.id} missing addressedTo field`,
+              );
+              return false;
+            }
+          }
+        }
+
         return true;
       }
 
@@ -149,6 +376,24 @@ export const markAllAsReadForUser = (
   saveNotifications(updated);
 };
 
+// Remove notification from a user's view
+export const removeNotificationForUser = (
+  notificationId: string,
+  username: string,
+) => {
+  const notifications = getAllNotifications();
+  const updated = notifications.map((n) => {
+    if (n.id === notificationId && !n.removedBy?.includes(username)) {
+      return {
+        ...n,
+        removedBy: [...(n.removedBy || []), username],
+      };
+    }
+    return n;
+  });
+  saveNotifications(updated);
+};
+
 // Create a new notification
 export const createNotification = (
   eventType: NotificationEventType,
@@ -162,6 +407,9 @@ export const createNotification = (
   targetAudience: NotificationTargetAudience[],
   specificTargets?: string[],
   changes?: NotificationChange[],
+  metadata?: any,
+  addressedTo?: string,
+  originator?: string,
 ) => {
   const notification: Notification = {
     id: `NOTIF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -176,9 +424,20 @@ export const createNotification = (
     specificTargets,
     title,
     message,
+    metadata,
     changes,
+    addressedTo,
+    originator,
     readBy: [],
   };
+
+  console.log("📧 Creating notification:", {
+    id: notification.id,
+    eventType: notification.eventType,
+    entityType: notification.entityType,
+    addressedTo: notification.addressedTo,
+    originator: notification.originator,
+  });
 
   const notifications = getAllNotifications();
   notifications.push(notification);
@@ -190,7 +449,31 @@ export const createNotification = (
 // Helper: Create notification for request creation
 export const notifyRequestCreated = (request: Request, createdBy: string) => {
   const creatorName = getFullNameFromUsername(createdBy);
-  const itemCount = request.detailItems?.length || 0;
+
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
+  // Get Supplier/Pabrik name
+  const pabrikLabel =
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
 
   console.log(
     "Creating notification for request:",
@@ -199,6 +482,24 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
     creatorName,
   );
 
+  // Format ETA date
+  const formatDate = (isoString: string) => {
+    if (!isoString) return "-";
+    return new Date(isoString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // Title: Product Name in bold green + "for <Atas Nama>" (HTML formatted)
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
+  // Message: Supplier, ETA, and item count
+  const etaDate = formatDate(request.waktuKirim);
+  const itemCount = request.detailItems?.length || 0;
+  const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nItem count: ${itemCount}`;
+
   const notification = createNotification(
     "request_created",
     createdBy,
@@ -206,12 +507,23 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
     "request",
     request.id,
     request.requestNo || request.id,
-    "New Request Created",
-    `${creatorName} created a new request ${request.requestNo || request.id} with ${itemCount} item(s)`,
-    ["stockist", "jb"],
+    title,
+    message,
+    ["sales", "stockist", "jb"], // Include sales so they can see their own request creation
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    createdBy, // originator
   );
 
   console.log("Notification created:", notification.id);
+
+  // Check if this request is expiring and create expiring notification
+  upsertRequestExpiringNotification(request, "sales");
+  upsertRequestExpiringNotification(request, "stockist");
+  upsertRequestExpiringNotification(request, "jb");
+
   return notification;
 };
 
@@ -222,6 +534,7 @@ export const notifyRequestStatusChanged = (
   newStatus: string,
   changedBy: string,
   changedByRole: "sales" | "stockist" | "jb" | "supplier",
+  order?: Order, // Optional order parameter for when status becomes "Ordered"
 ) => {
   const changerName = getFullNameFromUsername(changedBy);
   const targets: NotificationTargetAudience[] = [];
@@ -253,6 +566,39 @@ export const notifyRequestStatusChanged = (
     targets.push("jb");
   }
 
+  // Special handling for status change to "Ordered"
+  if (newStatus === "Ordered" && order) {
+    const supplierName =
+      typeof order.pabrik === "string"
+        ? order.pabrik
+        : order.pabrik?.name || "Unknown Supplier";
+
+    // Only notify the sales user who created the request, and all JBs
+    const salesTargets = request.createdBy ? [request.createdBy] : [];
+
+    return createNotification(
+      "request_status_changed",
+      changedBy,
+      changedByRole,
+      "request",
+      request.id,
+      request.requestNo || request.id,
+      `Request ${request.requestNo || request.id} has been Ordered`,
+      `${changerName} has written an order for Request ${request.requestNo || request.id} to Supplier ${supplierName}`,
+      ["jb", "sales"],
+      salesTargets,
+      [{ field: "status", oldValue: "Assigned to JB", newValue: newStatus }],
+      {
+        supplierId:
+          typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id,
+        supplierName: supplierName,
+        requestId: request.id,
+      },
+      undefined,
+      request.createdBy,
+    );
+  }
+
   return createNotification(
     "request_status_changed",
     changedBy,
@@ -265,6 +611,9 @@ export const notifyRequestStatusChanged = (
     targets,
     specificTargets.length > 0 ? specificTargets : undefined,
     [{ field: "status", oldValue: oldStatus, newValue: newStatus }],
+    undefined,
+    undefined,
+    request.createdBy,
   );
 };
 
@@ -302,6 +651,9 @@ export const notifyRequestViewedByStockist = (
     ["sales", "stockist"],
     request.createdBy ? [request.createdBy] : undefined,
     changes,
+    undefined,
+    undefined,
+    request.createdBy,
   );
 };
 
@@ -325,16 +677,29 @@ export const notifyRequestReviewed = (
     `${stockistName} ${action} request ${request.requestNo || request.id}`,
     ["sales", "stockist"],
     request.createdBy ? [request.createdBy] : undefined,
+    undefined,
+    undefined,
+    undefined,
+    request.createdBy,
   );
 };
 
 // Helper: Create notification for order creation
 export const notifyOrderCreated = (order: Order, createdBy: string) => {
   const creatorName = getFullNameFromUsername(createdBy);
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
-  // Find supplier username from supplierId
-  // Note: This assumes supplier username can be derived from supplierId or is stored
-  const supplierTargets: string[] = [];
+  console.log("🏭 Creating order notification:", {
+    orderPONumber: order.PONumber,
+    supplierName: supplierName,
+    supplierId: supplierId,
+    pabrikType: typeof order.pabrik,
+  });
 
   return createNotification(
     "order_created",
@@ -344,9 +709,71 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
     order.id,
     order.PONumber,
     "New Order Created",
-    `${creatorName} created order ${order.PONumber} for ${order.pabrik.name}`,
-    ["supplier"],
-    supplierTargets,
+    `${creatorName} created order ${order.PONumber} for ${supplierName}`,
+    ["jb", "supplier"], // Only JB and supplier, not sales
+    undefined,
+    undefined,
+    {
+      supplierId: supplierId,
+      supplierName: supplierName,
+      requestId: order.requestId,
+    },
+    supplierName, // addressedTo
+    undefined, // originator (not applicable for orders)
+  );
+};
+
+// Helper: Create notification for order revision by JB
+export const notifyOrderRevised = (order: Order, revisedBy: string) => {
+  const reviserName = getFullNameFromUsername(revisedBy);
+
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNama = order.atasNama || "Unknown Customer";
+
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+
+  console.log("✏️ Creating order revision notification:", {
+    orderPONumber: order.PONumber,
+    revisedBy: revisedBy,
+    salesPerson: order.sales,
+    productName: productName,
+    atasNama: atasNama,
+  });
+
+  return createNotification(
+    "order_revised",
+    revisedBy,
+    "jb",
+    "order",
+    order.id,
+    order.PONumber,
+    "Revised - Internal Review",
+    `${reviserName} revised order ${order.PONumber} - ${productName} for ${atasNama}`,
+    ["sales"], // Only notify sales
+    order.sales ? [order.sales] : undefined, // Specific target: sales who created the original request
+    undefined,
+    {
+      supplierName: supplierName,
+      requestId: order.requestId,
+      productName: productName,
+      atasNama: atasNama,
+    },
+    atasNama, // addressedTo
+    order.sales, // originator: sales who created the original request
   );
 };
 
@@ -371,6 +798,34 @@ export const notifyOrderStatusChanged = (
     targets.push("supplier");
   }
 
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
+
+  // Customize message based on the new status
+  let title = `Order ${order.PONumber} Status Changed`;
+  let message = `${changerName} changed status from "${oldStatus}" to "${newStatus}"`;
+
+  if (changedByRole === "supplier") {
+    // Supplier actions with custom messages
+    if (newStatus === "Stock Ready") {
+      title = `Order ${order.PONumber} - Stock Ready`;
+      message = `${changerName} from ${supplierName} has marked the stock as ready for Order ${order.PONumber}`;
+    } else if (newStatus === "Unable to Fulfill") {
+      title = `Order ${order.PONumber} - Unable to Fulfill`;
+      message = `${changerName} from ${supplierName} has marked Order ${order.PONumber} as unable to fulfill`;
+    } else if (newStatus === "In Production") {
+      title = `Order ${order.PONumber} - Production Started`;
+      message = `${changerName} from ${supplierName} has started production for Order ${order.PONumber}`;
+    } else if (newStatus === "Change Requested") {
+      title = `Order ${order.PONumber} - Change Requested`;
+      message = `${changerName} from ${supplierName} has requested a change in the Order ${order.PONumber}`;
+    }
+  }
+
   return createNotification(
     "order_status_changed",
     changedBy,
@@ -378,11 +833,17 @@ export const notifyOrderStatusChanged = (
     "order",
     order.id,
     order.PONumber,
-    `Order ${order.PONumber} Status Changed`,
-    `${changerName} changed status from "${oldStatus}" to "${newStatus}"`,
+    title,
+    message,
     targets,
     undefined,
     [{ field: "status", oldValue: oldStatus, newValue: newStatus }],
+    {
+      supplierId: supplierId,
+      supplierName: supplierName,
+    },
+    supplierName, // addressedTo
+    undefined, // originator (not applicable for orders)
   );
 };
 
@@ -393,6 +854,12 @@ export const notifyOrderArrival = (
   pcsDelivered: number,
 ) => {
   const recorderName = getFullNameFromUsername(recordedBy);
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
   return createNotification(
     "order_arrival_recorded",
@@ -404,12 +871,26 @@ export const notifyOrderArrival = (
     `Arrival Recorded for ${order.PONumber}`,
     `${recorderName} recorded arrival of ${pcsDelivered} pieces for order ${order.PONumber}`,
     ["supplier"],
+    undefined,
+    undefined,
+    {
+      supplierId: supplierId,
+      supplierName: supplierName,
+    },
+    supplierName, // addressedTo
+    undefined, // originator (not applicable for orders)
   );
 };
 
 // Helper: Create notification for order closure
 export const notifyOrderClosed = (order: Order, closedBy: string) => {
   const closerName = getFullNameFromUsername(closedBy);
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
   return createNotification(
     "order_closed",
@@ -421,6 +902,14 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
     `Order ${order.PONumber} Closed`,
     `${closerName} closed and confirmed order ${order.PONumber}`,
     ["supplier"],
+    undefined,
+    undefined,
+    {
+      supplierId: supplierId,
+      supplierName: supplierName,
+    },
+    supplierName, // addressedTo
+    undefined, // originator (not applicable for orders)
   );
 };
 
@@ -432,6 +921,11 @@ export const notifyRequestUpdated = (
 ) => {
   const updaterName = getFullNameFromUsername(updatedBy);
   const changes: NotificationChange[] = [];
+
+  // Check if this request is expiring and create/update expiring notification
+  upsertRequestExpiringNotification(newRequest, "sales");
+  upsertRequestExpiringNotification(newRequest, "stockist");
+  upsertRequestExpiringNotification(newRequest, "jb");
 
   // Helper to get display value for entity references
   const getDisplayValue = (value: any): string => {
@@ -563,6 +1057,9 @@ export const notifyRequestUpdated = (
     ["stockist", "sales"],
     specificTargets,
     changes,
+    undefined,
+    undefined,
+    newRequest.createdBy,
   );
 };
 
@@ -583,5 +1080,10 @@ export const notifyRequestCancelled = (
     `Request ${request.requestNo || request.id} Cancelled`,
     `${cancellerName} cancelled request ${request.requestNo || request.id}`,
     ["stockist", "sales"],
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    request.createdBy,
   );
 };

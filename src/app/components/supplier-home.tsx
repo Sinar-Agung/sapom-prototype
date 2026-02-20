@@ -153,7 +153,7 @@ export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
                         ? "bg-blue-100 text-blue-800"
                         : order.status === "Viewed"
                           ? "bg-purple-100 text-purple-800"
-                          : order.status === "Request Change"
+                          : order.status === "Change Requested"
                             ? "bg-orange-100 text-orange-800"
                             : order.status === "Stock Ready"
                               ? "bg-green-100 text-green-800"

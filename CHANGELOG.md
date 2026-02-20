@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Order Status Refactoring**: Updated order status names throughout the application for improved clarity
+  - Renamed "Request Change" to "Change Requested" across all components
+  - Renamed "Order Revised" to "Revised - Internal Review" to reflect sales review workflow
+  - Updated status references in 10 files: order.ts, jb-order.tsx, sales-orders.tsx, order-card.tsx, order-details.tsx, supplier-orders.tsx, order-edit-form.tsx, notification-helper.ts, supplier-home.tsx, mock-data.ts
+  - Updated tab names, filters, counts, and color coding to match new status names
+- **Sales Order Review Workflow**: Implemented comprehensive review process for revised orders
+  - Added three new statuses: "Revised - Internal Review", "Revision Confirmed", "Rejected"
+  - Sales can now review revised orders with Confirm/Reject actions
+  - Added confirmation dialog with reason input (required for rejection, optional for confirmation)
+  - New tabs in Sales Orders page: "Revised - Internal Review", "Revision Confirmed", "Rejected"
+  - Sales users can only see orders where their username matches the order's sales attribute
+  - Clicking on orders navigates to detailed Order Details page for review
+
 ### Added
 
 - **Mock Notification Data**: Comprehensive mock notifications for testing the notification system

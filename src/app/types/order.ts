@@ -12,7 +12,10 @@ import { DetailBarangItem, EntityReference } from "./request";
 export type OrderStatus =
   | "New" // Order created by JB, not yet viewed by supplier
   | "Viewed" // Supplier has viewed the order details
-  | "Request Change" // Supplier needs changes/clarification
+  | "Revised - Internal Review" // JB has revised the order, awaiting sales review
+  | "Revision Confirmed" // Sales confirmed the revision
+  | "Rejected" // Sales rejected the revision
+  | "Change Requested" // Supplier needs changes/clarification
   | "In Production" // Supplier has started production
   | "Stock Ready" // Order is ready for pickup/delivery
   | "Partially Delivered" // Order has partial deliveries
@@ -85,6 +88,10 @@ export interface Order {
   requestNo?: string;
   requestId?: string;
 
+  // Customer and sales information (from request)
+  sales?: string; // Sales person username (from request createdBy)
+  atasNama?: string; // Customer name (from request namaPelanggan)
+
   // Timestamps and user tracking
   createdDate: number;
   createdBy: string;
@@ -102,6 +109,7 @@ export interface Order {
   jenisProduk: string;
   namaProduk: string;
   namaBasic: string;
+  namaBarang?: string; // Display name of the product (computed)
 
   // Delivery and expectations
   waktuKirim: string;
@@ -112,6 +120,7 @@ export interface Order {
 
   // Media
   photoId?: string;
+  fotoBarangBase64?: string; // Legacy base64 image support
 
   // Status tracking
   status: OrderStatus;

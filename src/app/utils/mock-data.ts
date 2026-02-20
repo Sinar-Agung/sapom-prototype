@@ -1646,7 +1646,7 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-003",
-      status: "Request Change",
+      status: "Change Requested",
       updatedDate: 1771346400025,
       updatedBy: "le",
     },

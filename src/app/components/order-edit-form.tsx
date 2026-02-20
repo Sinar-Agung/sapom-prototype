@@ -1,6 +1,5 @@
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
-import { Combobox } from "@/app/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,6 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import {
   CUSTOMER_EXPECTATION_OPTIONS,
   JENIS_PRODUK_OPTIONS,
@@ -26,6 +24,7 @@ import {
 } from "@/app/data/order-data";
 import { Order, OrderRevision } from "@/app/types/order";
 import { getImage, storeImage } from "@/app/utils/image-storage";
+import { notifyOrderRevised } from "@/app/utils/notification-helper";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -416,11 +415,16 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
       updatedDate: Date.now(),
       updatedBy: currentUser,
       revisionHistory: [...(existingOrder.revisionHistory || []), revision],
-      status: "Viewed", // Change status back to Viewed after update
+      status: "Revised - Internal Review", // Change status to Revised - Internal Review after update
     };
 
     orders[orderIndex] = updatedOrder;
     localStorage.setItem("orders", JSON.stringify(orders));
+
+    // Notify the sales person who created the original request
+    if (updatedOrder.sales) {
+      notifyOrderRevised(updatedOrder, currentUser);
+    }
 
     toast.success("Order updated successfully");
     onSave();
@@ -505,89 +509,47 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
         <Card className="p-4">
           <h2 className="font-semibold text-lg mb-4">Product Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-x-4 gap-y-3">
-            {/* Kategori Barang */}
-            <Label className="text-xs md:pt-2">Kategori Barang</Label>
-            <RadioGroup
-              value={formData.kategoriBarang}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, kategoriBarang: value }))
-              }
-              className="flex items-center space-x-3"
-            >
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem
-                  value="basic"
-                  id="basic-edit"
-                  className="h-3 w-3"
-                />
-                <Label htmlFor="basic-edit" className="font-normal text-xs">
-                  Barang Basic
-                </Label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem
-                  value="model"
-                  id="model-edit"
-                  className="h-3 w-3"
-                />
-                <Label htmlFor="model-edit" className="font-normal text-xs">
-                  Barang Model
-                </Label>
-              </div>
-            </RadioGroup>
+            {/* Kategori Barang - Read Only */}
+            <Label className="text-gray-600 font-bold text-base">
+              Kategori Barang
+            </Label>
+            <p className="font-medium mt-1">
+              {formData.kategoriBarang === "basic"
+                ? "Barang Basic"
+                : "Barang Model"}
+            </p>
 
-            {/* Jenis Produk */}
-            <Label htmlFor="jenisProduk" className="text-xs md:pt-2">
+            {/* Jenis Produk - Read Only */}
+            <Label className="text-gray-600 font-bold text-base">
               Jenis Produk
             </Label>
-            <Combobox
-              value={formData.jenisProduk}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, jenisProduk: value }))
-              }
-              options={JENIS_PRODUK_OPTIONS}
-              placeholder="Pilih jenis..."
-              searchPlaceholder="Cari jenis produk..."
-              emptyMessage="Jenis tidak ditemukan."
-              allowCustomValue={false}
-            />
+            <p className="font-medium mt-1">
+              {getLabelFromValue(JENIS_PRODUK_OPTIONS, formData.jenisProduk) ||
+                "-"}
+            </p>
 
-            {/* Conditional: Nama Basic (only for Barang Basic) OR Nama Model (for Barang Model) */}
+            {/* Nama Basic or Nama Model - Read Only */}
             {formData.kategoriBarang === "basic" ? (
               <>
-                <Label htmlFor="namaBasic" className="text-xs md:pt-2">
+                <Label className="text-gray-600 font-bold text-base">
                   Nama Basic
                 </Label>
-                <Combobox
-                  value={formData.namaBasic}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, namaBasic: value }))
-                  }
-                  options={NAMA_BASIC_OPTIONS}
-                  placeholder="Pilih atau ketik nama basic..."
-                  searchPlaceholder="Cari nama basic..."
-                  emptyMessage="Nama basic tidak ditemukan."
-                />
+                <p className="font-medium mt-1">
+                  {getLabelFromValue(NAMA_BASIC_OPTIONS, formData.namaBasic) ||
+                    "-"}
+                </p>
               </>
             ) : (
               <>
-                <Label htmlFor="namaProduk" className="text-xs md:pt-2">
+                <Label className="text-gray-600 font-bold text-base">
                   Nama Model
                 </Label>
-                <Combobox
-                  value={formData.namaProduk}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, namaProduk: value }))
-                  }
-                  options={NAMA_PRODUK_OPTIONS.filter((option) =>
-                    option.value
-                      .toLowerCase()
-                      .startsWith(formData.jenisProduk.toLowerCase()),
-                  )}
-                  placeholder="Pilih atau ketik nama model..."
-                  searchPlaceholder="Cari model..."
-                  emptyMessage="Model tidak ditemukan."
-                />
+                <p className="font-medium mt-1">
+                  {getLabelFromValue(
+                    NAMA_PRODUK_OPTIONS,
+                    formData.namaProduk,
+                  ) || "-"}
+                </p>
               </>
             )}
 

@@ -6,6 +6,7 @@ import {
 } from "@/app/data/order-data";
 import { Order, OrderStatus } from "@/app/types/order";
 import { getImage } from "@/app/utils/image-storage";
+import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -163,10 +164,22 @@ export function OrderCard({
 
   const pabrikLabel: string = order.pabrik?.name || "Unknown Pabrik";
 
+  // Check if order has been updated
+  const isUpdated =
+    order.updatedBy &&
+    order.updatedDate &&
+    (order.updatedBy !== order.createdBy ||
+      order.updatedDate !== order.createdDate);
+
   return (
     <Card className="p-3 sm:p-4 relative">
-      {/* Top Right - Status (Desktop only) */}
-      <div className="hidden sm:block absolute top-4 right-4">
+      {/* Top Right - Status and Updated Badge (Desktop only) */}
+      <div className="hidden sm:flex absolute top-4 right-4 gap-2">
+        {isUpdated && (
+          <span className="text-xs px-3 py-1 rounded-full font-medium bg-blue-100 text-blue-700 border border-blue-300">
+            Updated
+          </span>
+        )}
         <span
           className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
         >
@@ -175,16 +188,19 @@ export function OrderCard({
       </div>
 
       <div className="flex gap-2 sm:gap-4">
-        {/* Left Side - Updated Date and Image */}
+        {/* Left Side - Dates and Image */}
         <div className="flex flex-col w-20 sm:w-36 md:w-44 lg:w-48 shrink-0">
-          {/* Updated Date at top */}
+          {/* Dates at top */}
           <div className="mb-1 sm:mb-2">
+            {/* Updated Date (or Created Date if not updated) */}
             <div className="text-[9px] sm:text-xs text-gray-500 mb-0.5">
-              Updated
+              {isUpdated ? "Updated" : "Created"}
             </div>
-            <div className="text-[11px] sm:text-sm font-semibold">
+            <div
+              className={`text-[11px] sm:text-sm font-semibold mb-1 ${isUpdated ? "text-blue-700" : ""}`}
+            >
               {formatTimestampWithTime(
-                order.updatedDate || order.createdDate,
+                isUpdated ? order.updatedDate! : order.createdDate,
               ) || "-"}
             </div>
           </div>
@@ -216,6 +232,12 @@ export function OrderCard({
               >
                 {order.kategoriBarang === "basic" ? "Basic" : "Model"}
               </span>
+              {/* Updated badge - Mobile only */}
+              {isUpdated && (
+                <span className="sm:hidden text-[9px] px-1.5 py-0.5 rounded font-medium bg-blue-100 text-blue-700 border border-blue-300">
+                  Updated
+                </span>
+              )}
               {/* Status pill - Mobile only */}
               <span
                 className={`sm:hidden text-[9px] px-1.5 py-0.5 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
@@ -255,6 +277,22 @@ export function OrderCard({
             </p>
           )}
 
+          {/* Sales Name */}
+          {order.sales && (
+            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
+              <span className="text-gray-500">Sales: </span>
+              {getFullNameFromUsername(order.sales)}
+            </p>
+          )}
+
+          {/* Atas Nama */}
+          {order.atasNama && (
+            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
+              <span className="text-gray-500">Atas Nama: </span>
+              {order.atasNama}
+            </p>
+          )}
+
           {/* Pabrik with color badge */}
           <div className="mb-0.5 sm:mb-1">
             <span className="text-[11px] sm:text-sm text-gray-500 hidden sm:inline">
@@ -276,7 +314,7 @@ export function OrderCard({
           {/* Action Buttons */}
           {(onToggleExpand || onSeeDetail || onUpdateOrder) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
-              {/* Update Order Button - Only for Request Change status */}
+              {/* Update Order Button - Only for Change Requested status */}
               {onUpdateOrder && (
                 <Button
                   size="sm"

@@ -57,11 +57,24 @@ export function SupplierOrders({
   initialTab = "new",
 }: SupplierOrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = sessionStorage.getItem("supplierOrderActiveTab");
+    return saved || initialTab;
+  });
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<string>("updatedDate");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [orderNoFilter, setOrderNoFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>(() => {
+    return sessionStorage.getItem("supplierOrderSortBy") || "updatedDate";
+  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+    return (
+      (sessionStorage.getItem("supplierOrderSortDirection") as
+        | "asc"
+        | "desc") || "desc"
+    );
+  });
+  const [orderNoFilter, setOrderNoFilter] = useState<string>(() => {
+    return sessionStorage.getItem("supplierOrderFilter") || "";
+  });
 
   const currentUser =
     sessionStorage.getItem("username") ||
@@ -95,6 +108,23 @@ export function SupplierOrders({
     }
     return "";
   };
+
+  // Persist filter/sort state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("supplierOrderActiveTab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem("supplierOrderSortBy", sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem("supplierOrderSortDirection", sortDirection);
+  }, [sortDirection]);
+
+  useEffect(() => {
+    sessionStorage.setItem("supplierOrderFilter", orderNoFilter);
+  }, [orderNoFilter]);
 
   useEffect(() => {
     loadOrders();
@@ -211,7 +241,7 @@ export function SupplierOrders({
     (order: Order) => order.status === "In Production",
   ).length;
   const filteredRequestChangeCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Request Change",
+    (order: Order) => order.status === "Change Requested",
   ).length;
   const filteredStockReadyCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Stock Ready",
@@ -229,7 +259,7 @@ export function SupplierOrders({
     } else if (activeTab === "in-production") {
       return order.status === "In Production";
     } else if (activeTab === "request-change") {
-      return order.status === "Request Change";
+      return order.status === "Change Requested";
     } else if (activeTab === "stock-ready") {
       return order.status === "Stock Ready";
     } else if (activeTab === "unable") {
@@ -288,7 +318,7 @@ export function SupplierOrders({
   ).length;
   const requestChangeCount = orders.filter(
     (order) =>
-      order.pabrik?.id === supplierId && order.status === "Request Change",
+      order.pabrik?.id === supplierId && order.status === "Change Requested",
   ).length;
   const stockReadyCount = orders.filter(
     (order) =>
@@ -336,7 +366,7 @@ export function SupplierOrders({
         return "bg-blue-100 text-blue-800";
       case "Viewed":
         return "bg-purple-100 text-purple-800";
-      case "Request Change":
+      case "Change Requested":
         return "bg-orange-100 text-orange-800";
       case "Stock Ready":
         return "bg-green-100 text-green-800";
@@ -467,7 +497,7 @@ export function SupplierOrders({
                 : ""
             }
           >
-            Request Change ({filteredRequestChangeCount})
+            Change Requested ({filteredRequestChangeCount})
           </TabsTrigger>
           <TabsTrigger
             value="stock-ready"
