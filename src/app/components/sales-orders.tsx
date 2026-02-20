@@ -35,7 +35,7 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
 
 export function SalesOrders({
   onSeeDetail,
-  initialTab = "revised-internal-review",
+  initialTab = "all",
 }: SalesOrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState(() => {
@@ -116,26 +116,36 @@ export function SalesOrders({
   });
 
   // Calculate filtered counts for each tab based on orderNo filter
-  const revisedInternalReviewCount = orderNoFiltered.filter(
-    (order) => order.status === "Revised - Internal Review",
-  ).length;
-  const revisionConfirmedCount = orderNoFiltered.filter(
-    (order) => order.status === "Revision Confirmed",
-  ).length;
-  const rejectedCount = orderNoFiltered.filter(
-    (order) => order.status === "Rejected",
-  ).length;
+  const allCount = orderNoFiltered.length;
   const newCount = orderNoFiltered.filter(
     (order) => order.status === "New",
   ).length;
   const viewedCount = orderNoFiltered.filter(
     (order) => order.status === "Viewed",
   ).length;
-  const inProductionCount = orderNoFiltered.filter(
-    (order) => order.status === "In Production",
+  const changeRequestedCount = orderNoFiltered.filter(
+    (order) => order.status === "Change Requested",
+  ).length;
+  const revisedInternalReviewCount = orderNoFiltered.filter(
+    (order) => order.status === "Revised - Internal Review",
+  ).length;
+  const orderRevisedCount = orderNoFiltered.filter(
+    (order) => order.status === "Order Revised",
   ).length;
   const stockReadyCount = orderNoFiltered.filter(
     (order) => order.status === "Stock Ready",
+  ).length;
+  const inProductionCount = orderNoFiltered.filter(
+    (order) => order.status === "In Production",
+  ).length;
+  const unableFulfillCount = orderNoFiltered.filter(
+    (order) => order.status === "Unable to Fulfill",
+  ).length;
+  const cancelledCount = orderNoFiltered.filter(
+    (order) => order.status === "Cancelled",
+  ).length;
+  const rejectedCount = orderNoFiltered.filter(
+    (order) => order.status === "Rejected",
   ).length;
   const confirmedByJBCount = orderNoFiltered.filter(
     (order) => order.status === "Confirmed by JB",
@@ -143,20 +153,28 @@ export function SalesOrders({
 
   // Filter orders based on active tab from orderNoFiltered
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
-    if (activeTab === "revised-internal-review") {
-      return order.status === "Revised - Internal Review";
-    } else if (activeTab === "revision-confirmed") {
-      return order.status === "Revision Confirmed";
-    } else if (activeTab === "rejected") {
-      return order.status === "Rejected";
+    if (activeTab === "all") {
+      return true;
     } else if (activeTab === "new") {
       return order.status === "New";
     } else if (activeTab === "viewed") {
       return order.status === "Viewed";
-    } else if (activeTab === "in-production") {
-      return order.status === "In Production";
+    } else if (activeTab === "change-requested") {
+      return order.status === "Change Requested";
+    } else if (activeTab === "revised-internal-review") {
+      return order.status === "Revised - Internal Review";
+    } else if (activeTab === "order-revised") {
+      return order.status === "Order Revised";
     } else if (activeTab === "stock-ready") {
       return order.status === "Stock Ready";
+    } else if (activeTab === "in-production") {
+      return order.status === "In Production";
+    } else if (activeTab === "unable-fulfill") {
+      return order.status === "Unable to Fulfill";
+    } else if (activeTab === "cancelled") {
+      return order.status === "Cancelled";
+    } else if (activeTab === "rejected") {
+      return order.status === "Rejected";
     } else if (activeTab === "confirmed") {
       return order.status === "Confirmed by JB";
     }
@@ -219,7 +237,7 @@ export function SalesOrders({
     if (!selectedOrder || !actionType) return;
 
     if (actionType === "reject" && !actionReason.trim()) {
-      toast.error("Please provide a reason for rejection");
+      toast.error("Please provide a reason for cancellation");
       return;
     }
 
@@ -230,7 +248,7 @@ export function SalesOrders({
 
       if (orderIndex !== -1) {
         const newStatus =
-          actionType === "confirm" ? "Revision Confirmed" : "Rejected";
+          actionType === "confirm" ? "Order Revised" : "Rejected";
 
         allOrders[orderIndex] = {
           ...allOrders[orderIndex],
@@ -244,7 +262,7 @@ export function SalesOrders({
 
         toast.success(
           actionType === "confirm"
-            ? "Order revision confirmed"
+            ? "Order revision approved"
             : "Order rejected",
         );
       }
@@ -269,16 +287,7 @@ export function SalesOrders({
       {/* Filter and Sort Controls */}
       <FilterSortControls
         type="order"
-        totalCount={
-          revisedInternalReviewCount +
-          revisionConfirmedCount +
-          rejectedCount +
-          newCount +
-          viewedCount +
-          inProductionCount +
-          stockReadyCount +
-          confirmedByJBCount
-        }
+        totalCount={allCount}
         filterValue={orderNoFilter}
         onFilterChange={setOrderNoFilter}
         sortBy={sortBy}
@@ -292,32 +301,12 @@ export function SalesOrders({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
           <TabsTrigger
-            value="revised-internal-review"
+            value="all"
             className={
-              activeTab === "revised-internal-review"
-                ? "text-amber-600 border-amber-600"
-                : ""
+              activeTab === "all" ? "text-gray-900 border-gray-900" : ""
             }
           >
-            Revised - Internal Review ({revisedInternalReviewCount})
-          </TabsTrigger>
-          <TabsTrigger
-            value="revision-confirmed"
-            className={
-              activeTab === "revision-confirmed"
-                ? "text-green-600 border-green-600"
-                : ""
-            }
-          >
-            Revision Confirmed ({revisionConfirmedCount})
-          </TabsTrigger>
-          <TabsTrigger
-            value="rejected"
-            className={
-              activeTab === "rejected" ? "text-red-600 border-red-600" : ""
-            }
-          >
-            Rejected ({rejectedCount})
+            All ({allCount})
           </TabsTrigger>
           <TabsTrigger
             value="new"
@@ -336,14 +325,34 @@ export function SalesOrders({
             Viewed ({viewedCount})
           </TabsTrigger>
           <TabsTrigger
-            value="in-production"
+            value="change-requested"
             className={
-              activeTab === "in-production"
-                ? "text-blue-600 border-blue-600"
+              activeTab === "change-requested"
+                ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
-            In Production ({inProductionCount})
+            Change Requested ({changeRequestedCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="revised-internal-review"
+            className={
+              activeTab === "revised-internal-review"
+                ? "text-amber-600 border-amber-600"
+                : ""
+            }
+          >
+            Revised - Internal Review ({revisedInternalReviewCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="order-revised"
+            className={
+              activeTab === "order-revised"
+                ? "text-green-600 border-green-600"
+                : ""
+            }
+          >
+            Order Revised ({orderRevisedCount})
           </TabsTrigger>
           <TabsTrigger
             value="stock-ready"
@@ -356,12 +365,32 @@ export function SalesOrders({
             Stock Ready ({stockReadyCount})
           </TabsTrigger>
           <TabsTrigger
-            value="confirmed"
+            value="in-production"
             className={
-              activeTab === "confirmed" ? "text-green-600 border-green-600" : ""
+              activeTab === "in-production"
+                ? "text-blue-600 border-blue-600"
+                : ""
             }
           >
-            Confirmed ({confirmedByJBCount})
+            In Production ({inProductionCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="unable-fulfill"
+            className={
+              activeTab === "unable-fulfill"
+                ? "text-red-600 border-red-600"
+                : ""
+            }
+          >
+            Unable to Fulfill ({unableFulfillCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="cancelled"
+            className={
+              activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
+            }
+          >
+            Cancelled ({cancelledCount})
           </TabsTrigger>
         </TabsList>
 
@@ -384,14 +413,14 @@ export function SalesOrders({
                     className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
                   >
                     <X className="w-4 h-4 mr-2" />
-                    Reject
+                    Cancel Order
                   </Button>
                   <Button
                     onClick={() => handleConfirmClick(order)}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <Check className="w-4 h-4 mr-2" />
-                    Confirm
+                    Approve
                   </Button>
                 </div>
               </Card>
@@ -415,8 +444,8 @@ export function SalesOrders({
           )}
         </TabsContent>
 
-        {/* Revision Confirmed Tab */}
-        <TabsContent value="revision-confirmed" className="space-y-4 mt-4">
+        {/* Order Revised Tab */}
+        <TabsContent value="order-revised" className="space-y-4 mt-4">
           {filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
               <OrderCard
@@ -435,10 +464,41 @@ export function SalesOrders({
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    No Confirmed Revisions
+                    No Revised Orders
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    Orders you've confirmed will appear here
+                    Orders you've approved will appear here
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* All Tab */}
+        <TabsContent value="all" className="space-y-4 mt-4">
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onToggleExpand={toggleExpand}
+                isExpanded={expandedOrderId === order.id}
+                onSeeDetail={onSeeDetail}
+              />
+            ))
+          ) : (
+            <Card className="p-8">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="rounded-full bg-gray-100 p-4">
+                  <Package className="w-8 h-8 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    No Orders
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    All orders from your requests will appear here
                   </p>
                 </div>
               </div>
@@ -538,6 +598,37 @@ export function SalesOrders({
           )}
         </TabsContent>
 
+        {/* Change Requested Tab */}
+        <TabsContent value="change-requested" className="space-y-4 mt-4">
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onToggleExpand={toggleExpand}
+                isExpanded={expandedOrderId === order.id}
+                onSeeDetail={onSeeDetail}
+              />
+            ))
+          ) : (
+            <Card className="p-8">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="rounded-full bg-orange-100 p-4">
+                  <AlertCircle className="w-8 h-8 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    No Change Requests
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Orders with requested changes will appear here
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
         <TabsContent value="in-production" className="space-y-4 mt-4">
           {filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
@@ -598,6 +689,68 @@ export function SalesOrders({
           )}
         </TabsContent>
 
+        {/* Unable to Fulfill Tab */}
+        <TabsContent value="unable-fulfill" className="space-y-4 mt-4">
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onToggleExpand={toggleExpand}
+                isExpanded={expandedOrderId === order.id}
+                onSeeDetail={onSeeDetail}
+              />
+            ))
+          ) : (
+            <Card className="p-8">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="rounded-full bg-red-100 p-4">
+                  <X className="w-8 h-8 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    No Unfulfillable Orders
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Orders that cannot be fulfilled will appear here
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Cancelled Tab */}
+        <TabsContent value="cancelled" className="space-y-4 mt-4">
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onToggleExpand={toggleExpand}
+                isExpanded={expandedOrderId === order.id}
+                onSeeDetail={onSeeDetail}
+              />
+            ))
+          ) : (
+            <Card className="p-8">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="rounded-full bg-gray-100 p-4">
+                  <X className="w-8 h-8 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    No Cancelled Orders
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Cancelled orders will appear here
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
         <TabsContent value="confirmed" className="space-y-4 mt-4">
           {filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
@@ -635,23 +788,23 @@ export function SalesOrders({
           <DialogHeader>
             <DialogTitle>
               {actionType === "confirm"
-                ? "Confirm Order Revision"
-                : "Reject Order Revision"}
+                ? "Approve Order Revision"
+                : "Cancel Order"}
             </DialogTitle>
             <DialogDescription>
               {actionType === "confirm"
-                ? "Are you sure you want to confirm this order revision?"
-                : "Please provide a reason for rejecting this order revision."}
+                ? "Are you sure you want to approve this order revision?"
+                : "Please provide a reason for cancelling this order."}
             </DialogDescription>
           </DialogHeader>
           {actionType === "reject" && (
             <div className="space-y-2">
-              <Label htmlFor="reason">Reason for Rejection *</Label>
+              <Label htmlFor="reason">Reason for Cancellation *</Label>
               <Textarea
                 id="reason"
                 value={actionReason}
                 onChange={(e) => setActionReason(e.target.value)}
-                placeholder="Enter the reason for rejection..."
+                placeholder="Enter the reason for cancelling this order..."
                 className="min-h-[100px]"
               />
             </div>
@@ -685,7 +838,7 @@ export function SalesOrders({
                   : "bg-green-600 hover:bg-green-700"
               }
             >
-              {actionType === "confirm" ? "Confirm" : "Reject"}
+              {actionType === "confirm" ? "Approve" : "Cancel Order"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -26,7 +26,7 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
 export function JBOrder({
   onSeeDetail,
   onUpdateOrder,
-  initialTab = "new",
+  initialTab = "all",
 }: JBOrderProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState(() => {
@@ -119,26 +119,33 @@ export function JBOrder({
   });
 
   // Calculate filtered counts for each tab based on orderNo filter
+  const allCount = orderNoFiltered.length;
   const newCount = orderNoFiltered.filter(
     (order) => order.status === "New",
   ).length;
   const viewedCount = orderNoFiltered.filter(
     (order) => order.status === "Viewed",
   ).length;
-  const orderRevisedCount = orderNoFiltered.filter(
+  const changeRequestedCount = orderNoFiltered.filter(
+    (order) => order.status === "Change Requested",
+  ).length;
+  const revisedInternalReviewCount = orderNoFiltered.filter(
     (order) => order.status === "Revised - Internal Review",
   ).length;
-  const inProductionCount = orderNoFiltered.filter(
-    (order) => order.status === "In Production",
-  ).length;
-  const requestChangeCount = orderNoFiltered.filter(
-    (order) => order.status === "Change Requested",
+  const orderRevisedCount = orderNoFiltered.filter(
+    (order) => order.status === "Order Revised",
   ).length;
   const stockReadyCount = orderNoFiltered.filter(
     (order) => order.status === "Stock Ready",
   ).length;
+  const inProductionCount = orderNoFiltered.filter(
+    (order) => order.status === "In Production",
+  ).length;
   const unableCount = orderNoFiltered.filter(
     (order) => order.status === "Unable to Fulfill",
+  ).length;
+  const cancelledCount = orderNoFiltered.filter(
+    (order) => order.status === "Cancelled",
   ).length;
   const confirmedByJBCount = orderNoFiltered.filter(
     (order) => order.status === "Confirmed by JB",
@@ -146,20 +153,26 @@ export function JBOrder({
 
   // Filter orders based on active tab from orderNoFiltered
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
-    if (activeTab === "new") {
+    if (activeTab === "all") {
+      return true;
+    } else if (activeTab === "new") {
       return order.status === "New";
     } else if (activeTab === "viewed") {
       return order.status === "Viewed";
-    } else if (activeTab === "order-revised") {
-      return order.status === "Revised - Internal Review";
-    } else if (activeTab === "in-production") {
-      return order.status === "In Production";
-    } else if (activeTab === "request-change") {
+    } else if (activeTab === "change-requested") {
       return order.status === "Change Requested";
+    } else if (activeTab === "revised-internal-review") {
+      return order.status === "Revised - Internal Review";
+    } else if (activeTab === "order-revised") {
+      return order.status === "Order Revised";
     } else if (activeTab === "stock-ready") {
       return order.status === "Stock Ready";
+    } else if (activeTab === "in-production") {
+      return order.status === "In Production";
     } else if (activeTab === "unable") {
       return order.status === "Unable to Fulfill";
+    } else if (activeTab === "cancelled") {
+      return order.status === "Cancelled";
     } else if (activeTab === "confirmed") {
       return order.status === "Confirmed by JB";
     }
@@ -216,16 +229,7 @@ export function JBOrder({
       {/* Filter and Sort Controls */}
       <FilterSortControls
         type="order"
-        totalCount={
-          newCount +
-          viewedCount +
-          orderRevisedCount +
-          inProductionCount +
-          requestChangeCount +
-          stockReadyCount +
-          unableCount +
-          confirmedByJBCount
-        }
+        totalCount={allCount}
         filterValue={orderNoFilter}
         onFilterChange={setOrderNoFilter}
         sortBy={sortBy}
@@ -238,6 +242,14 @@ export function JBOrder({
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
+          <TabsTrigger
+            value="all"
+            className={
+              activeTab === "all" ? "text-gray-900 border-gray-900" : ""
+            }
+          >
+            All ({allCount})
+          </TabsTrigger>
           <TabsTrigger
             value="new"
             className={
@@ -255,34 +267,34 @@ export function JBOrder({
             Viewed ({viewedCount})
           </TabsTrigger>
           <TabsTrigger
-            value="order-revised"
+            value="change-requested"
             className={
-              activeTab === "order-revised"
-                ? "text-amber-600 border-amber-600"
-                : ""
-            }
-          >
-            Revised - Internal Review ({orderRevisedCount})
-          </TabsTrigger>
-          <TabsTrigger
-            value="in-production"
-            className={
-              activeTab === "in-production"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            In Production ({inProductionCount})
-          </TabsTrigger>
-          <TabsTrigger
-            value="request-change"
-            className={
-              activeTab === "request-change"
+              activeTab === "change-requested"
                 ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
-            Change Requested ({requestChangeCount})
+            Change Requested ({changeRequestedCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="revised-internal-review"
+            className={
+              activeTab === "revised-internal-review"
+                ? "text-amber-600 border-amber-600"
+                : ""
+            }
+          >
+            Revised - Internal Review ({revisedInternalReviewCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="order-revised"
+            className={
+              activeTab === "order-revised"
+                ? "text-green-600 border-green-600"
+                : ""
+            }
+          >
+            Order Revised ({orderRevisedCount})
           </TabsTrigger>
           <TabsTrigger
             value="stock-ready"
@@ -295,6 +307,16 @@ export function JBOrder({
             Stock Ready ({stockReadyCount})
           </TabsTrigger>
           <TabsTrigger
+            value="in-production"
+            className={
+              activeTab === "in-production"
+                ? "text-blue-600 border-blue-600"
+                : ""
+            }
+          >
+            In Production ({inProductionCount})
+          </TabsTrigger>
+          <TabsTrigger
             value="unable"
             className={
               activeTab === "unable" ? "text-red-600 border-red-600" : ""
@@ -303,12 +325,12 @@ export function JBOrder({
             Unable to Fulfill ({unableCount})
           </TabsTrigger>
           <TabsTrigger
-            value="confirmed"
+            value="cancelled"
             className={
-              activeTab === "confirmed" ? "text-teal-600 border-teal-600" : ""
+              activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
             }
           >
-            Confirmed by JB ({confirmedByJBCount})
+            Cancelled ({cancelledCount})
           </TabsTrigger>
         </TabsList>
 

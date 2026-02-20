@@ -11,7 +11,6 @@ interface MyOrdersProps {
   onDuplicateOrder?: (order: Request) => void;
   userRole?: "sales" | "stockist" | "jb";
   onVerifyStock?: (order: Request, currentTab: string) => void;
-  onReviewRequest?: (order: Request, currentTab: string) => void;
   onSeeDetail?: (order: Request, currentTab: string) => void;
   initialTab?: string;
 }
@@ -42,16 +41,30 @@ export function MyOrders({
   onDuplicateOrder,
   userRole = "sales",
   onVerifyStock,
-  onReviewRequest,
   onSeeDetail,
   initialTab,
 }: MyOrdersProps) {
   const [orders, setOrders] = useState<Request[]>([]);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(initialTab || "open");
-  const [sortBy, setSortBy] = useState<MySortOption>("updatedDate");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [requestNoFilter, setRequestNoFilter] = useState<string>("");
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = sessionStorage.getItem("myRequestActiveTab");
+    return saved || initialTab || "open";
+  });
+  const [sortBy, setSortBy] = useState<MySortOption>(() => {
+    return (
+      (sessionStorage.getItem("myRequestSortBy") as MySortOption) ||
+      "updatedDate"
+    );
+  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+    return (
+      (sessionStorage.getItem("myRequestSortDirection") as "asc" | "desc") ||
+      "desc"
+    );
+  });
+  const [requestNoFilter, setRequestNoFilter] = useState<string>(() => {
+    return sessionStorage.getItem("myRequestFilter") || "";
+  });
   const [displayedCount, setDisplayedCount] = useState(20);
   const observerTarget = useRef<HTMLDivElement>(null);
   const currentUser =
@@ -139,6 +152,23 @@ export function MyOrders({
     // Otherwise it's a custom numeric value
     return { value: ukuran, showUnit: true };
   };
+
+  // Persist filter/sort state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("myRequestActiveTab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem("myRequestSortBy", sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem("myRequestSortDirection", sortDirection);
+  }, [sortDirection]);
+
+  useEffect(() => {
+    sessionStorage.setItem("myRequestFilter", requestNoFilter);
+  }, [requestNoFilter]);
 
   useEffect(() => {
     loadOrders();
@@ -450,7 +480,6 @@ export function MyOrders({
         onEditOrder={onEditOrder}
         onDuplicateOrder={onDuplicateOrder}
         onCancelOrder={cancelOrder}
-        onReviewRequest={onReviewRequest}
         onVerifyStock={onVerifyStock}
         onSeeDetail={onSeeDetail}
       />

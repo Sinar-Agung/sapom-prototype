@@ -9,20 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Order Status Refactoring**: Updated order status names and workflow throughout the application
+  - Renamed "Revision Confirmed" to "Order Revised" across all components
+  - "Order Revised" now represents sales-approved revisions (previously "Revision Confirmed")
+  - Updated status references in order.ts, sales-orders.tsx, jb-order.tsx, supplier-orders.tsx
+- **Tab Organization**: Restructured order tabs for better workflow visibility
+  - Added "All" tab at the beginning of all order pages (JB, Sales, Supplier)
+  - Reordered tabs to follow logical workflow: All → New → Viewed → Change Requested → Revised - Internal Review → Order Revised → Stock Ready → In Production → Unable to Fulfill → Cancelled
+  - Updated default active tab to "All" for all order pages
+  - All tab displays all orders regardless of status
+- **Sales Order Workflow**: Updated action terminology and behavior
+  - Changed action buttons from "Confirm/Reject" to "Approve/Cancel Order"
+  - Updated dialog titles and messages to match new terminology
+  - "Approve" action changes order status to "Order Revised"
+  - "Cancel Order" action adds order to "Rejected" status with required reason
+  - Sales can only view orders from their own requests (matching sales attribute)
+  - Sales can view order details page with Approve/Cancel Order action buttons
+
+### Added
+
 - **Order Status Refactoring**: Updated order status names throughout the application for improved clarity
   - Renamed "Request Change" to "Change Requested" across all components
   - Renamed "Order Revised" to "Revised - Internal Review" to reflect sales review workflow
   - Updated status references in 10 files: order.ts, jb-order.tsx, sales-orders.tsx, order-card.tsx, order-details.tsx, supplier-orders.tsx, order-edit-form.tsx, notification-helper.ts, supplier-home.tsx, mock-data.ts
   - Updated tab names, filters, counts, and color coding to match new status names
 - **Sales Order Review Workflow**: Implemented comprehensive review process for revised orders
-  - Added three new statuses: "Revised - Internal Review", "Revision Confirmed", "Rejected"
-  - Sales can now review revised orders with Confirm/Reject actions
-  - Added confirmation dialog with reason input (required for rejection, optional for confirmation)
-  - New tabs in Sales Orders page: "Revised - Internal Review", "Revision Confirmed", "Rejected"
+  - Added three new statuses: "Revised - Internal Review", "Order Revised", "Rejected"
+  - Sales can now review revised orders with Approve/Cancel Order actions
+  - Added confirmation dialog with reason input (required for cancellation, optional for approval)
+  - New tabs in Sales Orders page: "All", "Revised - Internal Review", "Order Revised", "Rejected"
   - Sales users can only see orders where their username matches the order's sales attribute
   - Clicking on orders navigates to detailed Order Details page for review
-
-### Added
 
 - **Mock Notification Data**: Comprehensive mock notifications for testing the notification system
   - Added 50 total mock notifications (28 request-type, 22 order-type)

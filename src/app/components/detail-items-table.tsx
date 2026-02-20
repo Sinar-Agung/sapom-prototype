@@ -59,7 +59,7 @@ export function DetailItemsTable({ order, userRole }: DetailItemsTableProps) {
   return (
     <div className="mt-4 pt-4 border-t space-y-3 bg-white p-3 sm:p-4 rounded-lg border">
       {/* Additional Info */}
-      <div className="grid grid-cols-2 gap-3 text-xs">
+      <div className="grid grid-cols-2 gap-3 text-sm">
         {order.customerExpectation && (
           <div>
             <span className="text-gray-500">Customer Expectation:</span>
@@ -79,9 +79,9 @@ export function DetailItemsTable({ order, userRole }: DetailItemsTableProps) {
 
       {/* Detail Items Table */}
       <div className="mt-4">
-        <h4 className="text-xs font-semibold mb-2">Detail Barang</h4>
+        <h4 className="text-sm font-semibold mb-2">Detail Barang</h4>
         <div className="max-h-[300px] overflow-auto">
-          <table className="w-full border-collapse border text-xs">
+          <table className="w-full border-collapse border text-sm">
             <thead className="bg-gray-100 sticky top-0 z-10">
               <tr>
                 <th className="border p-2 text-left bg-gray-100">#</th>

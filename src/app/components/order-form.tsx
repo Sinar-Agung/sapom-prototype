@@ -15,8 +15,9 @@ import {
   notifyRequestUpdated,
 } from "@/app/utils/notification-helper";
 import { generateRequestNo } from "@/app/utils/request-number";
-import { RotateCcw } from "lucide-react";
+import { ArrowLeft, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { DetailItemInput } from "./order-form/detail-item-input";
 import {
   DetailItemsDisplay,
@@ -37,6 +38,7 @@ interface OrderFormProps {
   mode?: "new" | "edit" | "duplicate";
   onSaveComplete?: () => void;
   onNavigateToMyRequests?: () => void;
+  onCancel?: () => void;
   formTitle?: string;
 }
 
@@ -47,7 +49,8 @@ export function OrderForm(props: OrderFormProps) {
     mode = "new",
     onSaveComplete,
     onNavigateToMyRequests,
-    formTitle = "Form Input Pesanan (Salesman E / I)",
+    onCancel,
+    formTitle = "Create Request",
   } = props;
 
   const [formData, setFormData] = useState({
@@ -95,7 +98,7 @@ export function OrderForm(props: OrderFormProps) {
 
   // State for confirmation dialog
   const [showResetDialog, setShowResetDialog] = useState(false);
-  const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
+  const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
   const [lastSavedOrderId, setLastSavedOrderId] = useState<string | null>(null);
   const [pendingChange, setPendingChange] = useState<{
     field: "kategoriBarang" | "jenisProduk";
@@ -110,6 +113,15 @@ export function OrderForm(props: OrderFormProps) {
 
   // Ref for scrollable table container
   const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  // Track initial state for change detection when editing
+  const initialStateRef = useRef<{
+    formData: typeof formData;
+    detailItems: DetailBarangItem[];
+  } | null>(null);
+
+  // State for cancel confirmation dialog
+  const [showCancelConfirmDialog, setShowCancelConfirmDialog] = useState(false);
 
   const handleAddDetail = () => {
     // Validation
@@ -508,7 +520,7 @@ export function OrderForm(props: OrderFormProps) {
 
   // Disable all detail input controls when dialogs are open or when form is not ready
   const isDetailInputDisabled =
-    !canShowDetailInput || showResetDialog || showNewOrderDialog;
+    !canShowDetailInput || showResetDialog || showSaveConfirmDialog;
 
   // Check if Simpan Pesanan button should be disabled
   const isSimpanDisabled =
@@ -889,7 +901,11 @@ export function OrderForm(props: OrderFormProps) {
   }, [editingDetailId]);
 
   // Save order to session storage
-  const handleSaveOrder = async () => {
+  const handleShowSaveConfirmation = () => {
+    setShowSaveConfirmDialog(true);
+  };
+
+  const handleSaveOrder = async (action: "save" | "saveAndAddMore") => {
     // Convert image to base64 if it's a Model with uploaded photo
     let fotoBarangBase64 = "";
     if (formData.kategoriBarang === "model" && formData.fotoBarang) {
@@ -990,8 +1006,35 @@ export function OrderForm(props: OrderFormProps) {
       notifyRequestCreated(savedOrder, currentUser);
     }
 
-    // Show dialog asking if user wants to create new order with same values
-    setShowNewOrderDialog(true);
+    // Show success toast
+    toast.success("Request saved");
+
+    // Handle different actions
+    if (action === "save") {
+      // Navigate to My Requests page
+      if (lastSavedOrderId && mode !== "edit") {
+        sessionStorage.setItem("highlightOrderId", lastSavedOrderId);
+      }
+      if (onNavigateToMyRequests) {
+        onNavigateToMyRequests();
+      }
+    } else if (action === "saveAndAddMore") {
+      // Keep on page, scroll to top, clear Atas Nama, focus on it
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setFormData((prev) => ({
+        ...prev,
+        namaPelanggan: { id: "", name: "" },
+      }));
+      // Focus on Atas Nama field after a short delay
+      setTimeout(() => {
+        const atasNamaElement = document.querySelector(
+          '[id*="namaPelanggan"]',
+        ) as HTMLElement;
+        if (atasNamaElement) {
+          atasNamaElement.focus();
+        }
+      }, 300);
+    }
 
     // Call onSaveComplete if provided
     if (onSaveComplete) {
@@ -999,31 +1042,10 @@ export function OrderForm(props: OrderFormProps) {
     }
   };
 
-  // Handle adding another order
-  const handleAddAnother = () => {
-    // Keep all current values including detail items
-    // Only reset the editing state
-    setEditingDetailId(null);
-    setShowNewOrderDialog(false);
-  };
-
-  // Handle viewing My Requests
-  const handleViewMyRequests = () => {
-    // Store the last saved order ID in sessionStorage for highlighting
-    if (lastSavedOrderId) {
-      sessionStorage.setItem("highlightOrderId", lastSavedOrderId);
-    }
-    setShowNewOrderDialog(false);
-    // Navigate to My Requests page
-    if (onNavigateToMyRequests) {
-      onNavigateToMyRequests();
-    }
-  };
-
   // Initialize form with initial data if provided
   useEffect(() => {
     if (initialData && mode !== "new") {
-      setFormData({
+      const initialFormData = {
         pabrik: initialData.pabrik,
         kategoriBarang: initialData.kategoriBarang,
         jenisProduk: initialData.jenisProduk,
@@ -1035,27 +1057,116 @@ export function OrderForm(props: OrderFormProps) {
           ? new Date(initialData.waktuKirim)
           : undefined,
         customerExpectation: initialData.customerExpectation,
-      });
+      };
+      setFormData(initialFormData);
       setDetailItems(initialData.detailItems);
+
+      // Store initial state for change detection
+      initialStateRef.current = {
+        formData: initialFormData,
+        detailItems: initialData.detailItems,
+      };
     }
   }, [initialData, mode]);
+
+  // Function to detect if there are actual changes from initial state
+  const hasFormChanges = (): boolean => {
+    if (!initialStateRef.current) return false;
+
+    const initial = initialStateRef.current;
+
+    // Check form data changes
+    const formDataChanged =
+      formData.pabrik.id !== initial.formData.pabrik.id ||
+      formData.pabrik.name !== initial.formData.pabrik.name ||
+      formData.kategoriBarang !== initial.formData.kategoriBarang ||
+      formData.jenisProduk !== initial.formData.jenisProduk ||
+      formData.namaProduk !== initial.formData.namaProduk ||
+      formData.namaBasic !== initial.formData.namaBasic ||
+      formData.namaPelanggan.id !== initial.formData.namaPelanggan.id ||
+      formData.namaPelanggan.name !== initial.formData.namaPelanggan.name ||
+      formData.waktuKirim?.getTime() !==
+        initial.formData.waktuKirim?.getTime() ||
+      formData.customerExpectation !== initial.formData.customerExpectation;
+
+    if (formDataChanged) return true;
+
+    // Check detail items changes
+    if (detailItems.length !== initial.detailItems.length) return true;
+
+    // Deep comparison of detail items
+    for (let i = 0; i < detailItems.length; i++) {
+      const current = detailItems[i];
+      const initialItem = initial.detailItems.find(
+        (item) => item.id === current.id,
+      );
+
+      if (!initialItem) return true; // New item added
+
+      if (
+        current.kadar !== initialItem.kadar ||
+        current.warna !== initialItem.warna ||
+        current.ukuran !== initialItem.ukuran ||
+        current.berat !== initialItem.berat ||
+        current.pcs !== initialItem.pcs ||
+        current.notes !== initialItem.notes
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  // Handle cancel with change detection
+  const handleCancelClick = () => {
+    if (mode === "edit" && hasFormChanges()) {
+      setShowCancelConfirmDialog(true);
+    } else {
+      // No changes, proceed with cancel directly
+      if (onCancel) onCancel();
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelConfirmDialog(false);
+    if (onCancel) onCancel();
+  };
+
+  const handleCancelCancelDialog = () => {
+    setShowCancelConfirmDialog(false);
+  };
 
   return (
     <div className="space-y-4 p-2 sm:p-0">
       <Card className="p-3 sm:p-4">
-        {/* Header with Title and Reset Button */}
+        {/* Header with Title and Action Buttons */}
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h1 className="text-lg sm:text-xl">{formTitle}</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 sm:h-8 flex items-center gap-1.5"
-            onClick={handleResetForm}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset Form</span>
-            <span className="sm:hidden">Reset</span>
-          </Button>
+          <div className="flex items-center gap-3">
+            {onCancel && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancelClick}
+                className="h-9 px-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <h1 className="text-lg sm:text-xl">{formTitle}</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 sm:h-8 flex items-center gap-1.5"
+              onClick={handleResetForm}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Reset Form</span>
+              <span className="sm:hidden">Reset</span>
+            </Button>
+          </div>
         </div>
 
         {/* Header Section */}
@@ -1124,60 +1235,106 @@ export function OrderForm(props: OrderFormProps) {
           />
         </div>
 
-        {/* Submit Button */}
-        <div className="mt-6 flex justify-end">
+        {/* Submit Buttons */}
+        <div className="mt-6 flex justify-end gap-2">
+          {onCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 sm:h-8 w-full sm:w-auto"
+              onClick={handleCancelClick}
+            >
+              Cancel
+            </Button>
+          )}
           <Button
             size="sm"
             className="h-9 sm:h-8 w-full sm:w-auto"
             disabled={isSimpanDisabled}
-            onClick={handleSaveOrder}
+            onClick={handleShowSaveConfirmation}
           >
-            Simpan Pesanan
+            Save Request
           </Button>
         </div>
       </Card>
 
-      {/* Confirmation Dialog */}
+      {/* Reset Confirmation Dialog */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Peringatan</AlertDialogTitle>
+            <AlertDialogTitle>Warning</AlertDialogTitle>
             <AlertDialogDescription>
-              Mengubah kategori barang atau jenis produk akan menghapus semua
-              detail barang yang telah ditambahkan. Apakah Anda yakin ingin
-              melanjutkan?
+              Changing product category or product type will delete all added
+              detail items. Are you sure you want to continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelChange}>
-              Batal
+              Cancel
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmChange}>
-              Ya, Lanjutkan
+              Yes, Continue
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* New Order Confirmation Dialog */}
+      {/* Save Confirmation Dialog */}
       <AlertDialog
-        open={showNewOrderDialog}
-        onOpenChange={setShowNewOrderDialog}
+        open={showSaveConfirmDialog}
+        onOpenChange={setShowSaveConfirmDialog}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Pesanan Tersimpan</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Save</AlertDialogTitle>
             <AlertDialogDescription>
-              Pesanan Anda telah berhasil disimpan. Apa yang ingin Anda lakukan
-              selanjutnya?
+              Are you sure the request is correct?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={() => setShowSaveConfirmDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSaveConfirmDialog(false);
+                handleSaveOrder("save");
+              }}
+            >
+              Save
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSaveConfirmDialog(false);
+                handleSaveOrder("saveAndAddMore");
+              }}
+            >
+              Save & Add More
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog
+        open={showCancelConfirmDialog}
+        onOpenChange={setShowCancelConfirmDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to cancel? All
+              changes will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleViewMyRequests}>
-              View My Requests
+            <AlertDialogCancel onClick={handleCancelCancelDialog}>
+              Stay
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleAddAnother}>
-              Add Another
+            <AlertDialogAction onClick={handleConfirmCancel}>
+              Discard Changes
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -23,11 +23,40 @@ const REQUEST_SORT_OPTIONS: SortOption[] = [
 
 export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   const [orders, setOrders] = useState<Request[]>([]);
-  const [activeTab, setActiveTab] = useState(initialTab || "assigned");
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = sessionStorage.getItem("jbRequestActiveTab");
+    return saved || initialTab || "assigned";
+  });
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<string>("updatedDate");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [requestNoFilter, setRequestNoFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>(() => {
+    return sessionStorage.getItem("jbRequestSortBy") || "updatedDate";
+  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+    return (
+      (sessionStorage.getItem("jbRequestSortDirection") as "asc" | "desc") ||
+      "desc"
+    );
+  });
+  const [requestNoFilter, setRequestNoFilter] = useState<string>(() => {
+    return sessionStorage.getItem("jbRequestFilter") || "";
+  });
+
+  // Persist filter/sort state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("jbRequestActiveTab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem("jbRequestSortBy", sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem("jbRequestSortDirection", sortDirection);
+  }, [sortDirection]);
+
+  useEffect(() => {
+    sessionStorage.setItem("jbRequestFilter", requestNoFilter);
+  }, [requestNoFilter]);
 
   useEffect(() => {
     loadOrders();

@@ -13,6 +13,7 @@ import { getImage } from "@/app/utils/image-storage";
 import {
   notifyRequestStatusChanged,
   notifyRequestViewedByStockist,
+  removeETAReminderForStockist,
 } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
@@ -78,8 +79,10 @@ const WARNA_COLORS: Record<string, string> = {
 interface VerifyStockProps {
   order: Request;
   onBack: () => void;
-  mode?: "verify" | "review" | "detail";
+  mode?: "verify" | "detail";
   isJBWaiting?: boolean;
+  onEditRequest?: () => void;
+  onDuplicateRequest?: () => void;
 }
 
 export function VerifyStock({
@@ -87,6 +90,8 @@ export function VerifyStock({
   onBack,
   mode = "verify",
   isJBWaiting = false,
+  onEditRequest,
+  onDuplicateRequest,
 }: VerifyStockProps) {
   const [detailItems, setDetailItems] = useState<DetailBarangItem[]>([]);
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
@@ -347,6 +352,9 @@ export function VerifyStock({
         orders[orderIndex].updatedBy = currentUser;
         localStorage.setItem("requests", JSON.stringify(orders));
 
+        // Remove ETA reminder for this request and stockist
+        removeETAReminderForStockist(order.id, currentUser);
+
         // Create notification for status change
         notifyRequestStatusChanged(
           orders[orderIndex],
@@ -423,7 +431,8 @@ export function VerifyStock({
 
     // Check if any available pcs don't match
     const someDoNotMatch = detailItems.some(
-      (item) => !item.availablePcs || item.availablePcs !== item.pcs,
+      (item: DetailBarangItem) =>
+        !item.availablePcs || item.availablePcs !== item.pcs,
     );
 
     let newStatus: string;
@@ -488,13 +497,11 @@ export function VerifyStock({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-xl font-semibold">
-          {mode === "review"
-            ? "Review Request"
-            : mode === "detail"
-              ? isJBWaiting
-                ? "Order Detail"
-                : "Request Detail"
-              : "Verify Stock"}
+          {mode === "detail"
+            ? isJBWaiting
+              ? "Order Detail"
+              : "Request Detail"
+            : "Verify Stock"}
         </h1>
       </div>
 
@@ -712,7 +719,7 @@ export function VerifyStock({
                       </td>
                     )}
                     <td className="px-3 py-2 border">
-                      {mode === "review" || mode === "detail" ? (
+                      {mode === "detail" ? (
                         <span className="font-medium">
                           {item.availablePcs || "-"}
                         </span>
@@ -803,7 +810,7 @@ export function VerifyStock({
                     <label className="text-gray-500 text-xs block mb-1">
                       Available Pcs:
                     </label>
-                    {mode === "review" || mode === "detail" ? (
+                    {mode === "detail" ? (
                       <span className="font-medium">
                         {item.availablePcs || "-"}
                       </span>
@@ -824,7 +831,7 @@ export function VerifyStock({
         })}
       </div>
 
-      {/* Action Buttons - Only show in verify mode */}
+      {/* Action Buttons */}
       {mode === "verify" && (
         <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
           <Button
@@ -842,6 +849,29 @@ export function VerifyStock({
             <CheckCircle className="h-4 w-4 mr-2" />
             Ready Stock
           </Button>
+        </div>
+      )}
+
+      {/* Sales Action Buttons - Only show in detail mode */}
+      {mode === "detail" && (
+        <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
+          {onEditRequest && currentOrder.status === "Open" && (
+            <Button
+              variant="outline"
+              onClick={onEditRequest}
+              className="flex-1 sm:flex-none"
+            >
+              Edit Request
+            </Button>
+          )}
+          {onDuplicateRequest && (
+            <Button
+              onClick={onDuplicateRequest}
+              className="flex-1 sm:flex-none"
+            >
+              Duplicate
+            </Button>
+          )}
         </div>
       )}
 

@@ -54,7 +54,7 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
 
 export function SupplierOrders({
   onSeeDetail,
-  initialTab = "new",
+  initialTab = "all",
 }: SupplierOrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState(() => {
@@ -231,39 +231,57 @@ export function SupplierOrders({
   });
 
   // Calculate filtered counts for each tab based on orderNo filter
+  const allCount = orderNoFiltered.length;
   const filteredNewCount = orderNoFiltered.filter(
     (order: Order) => order.status === "New",
   ).length;
   const filteredViewedCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Viewed",
   ).length;
-  const filteredInProductionCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "In Production",
-  ).length;
-  const filteredRequestChangeCount = orderNoFiltered.filter(
+  const filteredChangeRequestedCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Change Requested",
+  ).length;
+  const filteredRevisedInternalReviewCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Revised - Internal Review",
+  ).length;
+  const filteredOrderRevisedCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Order Revised",
   ).length;
   const filteredStockReadyCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Stock Ready",
   ).length;
+  const filteredInProductionCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "In Production",
+  ).length;
   const filteredUnableCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Unable to Fulfill",
+  ).length;
+  const filteredCancelledCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Cancelled",
   ).length;
 
   // Filter by active tab
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
-    if (activeTab === "new") {
+    if (activeTab === "all") {
+      return true;
+    } else if (activeTab === "new") {
       return order.status === "New";
     } else if (activeTab === "viewed") {
       return order.status === "Viewed";
-    } else if (activeTab === "in-production") {
-      return order.status === "In Production";
-    } else if (activeTab === "request-change") {
+    } else if (activeTab === "change-requested") {
       return order.status === "Change Requested";
+    } else if (activeTab === "revised-internal-review") {
+      return order.status === "Revised - Internal Review";
+    } else if (activeTab === "order-revised") {
+      return order.status === "Order Revised";
     } else if (activeTab === "stock-ready") {
       return order.status === "Stock Ready";
+    } else if (activeTab === "in-production") {
+      return order.status === "In Production";
     } else if (activeTab === "unable") {
       return order.status === "Unable to Fulfill";
+    } else if (activeTab === "cancelled") {
+      return order.status === "Cancelled";
     }
     return false;
   });
@@ -443,14 +461,7 @@ export function SupplierOrders({
       {/* Filter and Sort Controls */}
       <FilterSortControls
         type="order"
-        totalCount={
-          newCount +
-          viewedCount +
-          inProductionCount +
-          requestChangeCount +
-          stockReadyCount +
-          unableCount
-        }
+        totalCount={allCount}
         filterValue={orderNoFilter}
         onFilterChange={setOrderNoFilter}
         sortBy={sortBy}
@@ -463,6 +474,14 @@ export function SupplierOrders({
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
+          <TabsTrigger
+            value="all"
+            className={
+              activeTab === "all" ? "text-gray-900 border-gray-900" : ""
+            }
+          >
+            All ({allCount})
+          </TabsTrigger>
           <TabsTrigger
             value="new"
             className={
@@ -480,24 +499,34 @@ export function SupplierOrders({
             Viewed ({filteredViewedCount})
           </TabsTrigger>
           <TabsTrigger
-            value="in-production"
+            value="change-requested"
             className={
-              activeTab === "in-production"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            In Production ({filteredInProductionCount})
-          </TabsTrigger>
-          <TabsTrigger
-            value="request-change"
-            className={
-              activeTab === "request-change"
+              activeTab === "change-requested"
                 ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
-            Change Requested ({filteredRequestChangeCount})
+            Change Requested ({filteredChangeRequestedCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="revised-internal-review"
+            className={
+              activeTab === "revised-internal-review"
+                ? "text-amber-600 border-amber-600"
+                : ""
+            }
+          >
+            Revised - Internal Review ({filteredRevisedInternalReviewCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="order-revised"
+            className={
+              activeTab === "order-revised"
+                ? "text-green-600 border-green-600"
+                : ""
+            }
+          >
+            Order Revised ({filteredOrderRevisedCount})
           </TabsTrigger>
           <TabsTrigger
             value="stock-ready"
@@ -510,12 +539,30 @@ export function SupplierOrders({
             Stock Ready ({filteredStockReadyCount})
           </TabsTrigger>
           <TabsTrigger
+            value="in-production"
+            className={
+              activeTab === "in-production"
+                ? "text-blue-600 border-blue-600"
+                : ""
+            }
+          >
+            In Production ({filteredInProductionCount})
+          </TabsTrigger>
+          <TabsTrigger
             value="unable"
             className={
               activeTab === "unable" ? "text-red-600 border-red-600" : ""
             }
           >
-            Unable ({filteredUnableCount})
+            Unable to Fulfill ({filteredUnableCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="cancelled"
+            className={
+              activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
+            }
+          >
+            Cancelled ({filteredCancelledCount})
           </TabsTrigger>
         </TabsList>
 

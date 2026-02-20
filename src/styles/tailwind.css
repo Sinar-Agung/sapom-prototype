@@ -3,6 +3,16 @@
 
 @import "tw-animate-css";
 
+@keyframes pulse-scale {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -10,5 +20,8 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+  .animate-pulse-scale {
+    animation: pulse-scale 2s ease-in-out infinite;
   }
 }

@@ -13,7 +13,7 @@ export type OrderStatus =
   | "New" // Order created by JB, not yet viewed by supplier
   | "Viewed" // Supplier has viewed the order details
   | "Revised - Internal Review" // JB has revised the order, awaiting sales review
-  | "Revision Confirmed" // Sales confirmed the revision
+  | "Order Revised" // Sales approved the revision
   | "Rejected" // Sales rejected the revision
   | "Change Requested" // Supplier needs changes/clarification
   | "In Production" // Supplier has started production

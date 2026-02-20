@@ -16,7 +16,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ClipboardCheck, Copy, Edit, Eye, Trash2 } from "lucide-react";
+import { CheckCircle, Copy, Edit, Eye, Trash2 } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -44,7 +44,6 @@ interface RequestCardProps {
   onEditOrder?: (order: Request) => void;
   onDuplicateOrder?: (order: Request) => void;
   onCancelOrder?: (orderId: string) => void;
-  onReviewRequest?: (order: Request, tab: string) => void;
   onVerifyStock?: (order: Request, tab: string) => void;
   onSeeDetail?: (order: Request, tab: string) => void;
 }
@@ -59,7 +58,6 @@ export function RequestCard({
   onEditOrder,
   onDuplicateOrder,
   onCancelOrder,
-  onReviewRequest,
   onVerifyStock,
   onSeeDetail,
 }: RequestCardProps) {
@@ -278,7 +276,6 @@ export function RequestCard({
             onEditOrder ||
             onDuplicateOrder ||
             onCancelOrder ||
-            onReviewRequest ||
             onVerifyStock ||
             onSeeDetail) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
@@ -346,16 +343,16 @@ export function RequestCard({
                       <span className="hidden sm:inline">Duplicate</span>
                     </Button>
                   )}
-                  {/* Review Request button only in Cancelled tab */}
-                  {activeTab === "cancelled" && onReviewRequest && (
+                  {/* View Detail button in Cancelled tab */}
+                  {activeTab === "cancelled" && onSeeDetail && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onReviewRequest(order, activeTab)}
-                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      onClick={() => onSeeDetail(order, activeTab)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                     >
-                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Review Request</span>
+                      <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">View Detail</span>
                     </Button>
                   )}
                 </>
@@ -373,7 +370,7 @@ export function RequestCard({
                     onClick={() => onVerifyStock(order, activeTab)}
                     className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                   >
-                    <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                    <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
                     <span className="hidden sm:inline">Verify Stock</span>
                   </Button>
                 )}
@@ -391,7 +388,7 @@ export function RequestCard({
                     onClick={() => onSeeDetail(order, activeTab)}
                     className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
                   >
-                    <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                    <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
                     <span className="hidden sm:inline">
                       {userRole === "jb" && activeTab === "assigned"
                         ? "Write Order"

@@ -544,7 +544,11 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         // Generate PO Number: SA{BranchCode}{SupplierInitials}{YYYYMMDD}{SequentialNumber}
         const user = findUserByUsername(currentUser);
         const branchCode = user?.branchCode || "A"; // A=JKT, B=BDG, C=SBY
-        const supplierInitials = order.pabrik.name
+        const pabrikName =
+          typeof order.pabrik === "string"
+            ? order.pabrik
+            : order.pabrik?.name || "";
+        const supplierInitials = pabrikName
           .split(" ")
           .map((word) => word[0])
           .join("")
@@ -564,6 +568,25 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
         const PONumber = `SA${branchCode}${supplierInitials}${dateStr}${sequentialNumber}`;
 
+        // Compute product display name
+        const productDisplayName =
+          order.kategoriBarang === "basic"
+            ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+            : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+
+        // Get sales and atas nama from the order (which is a request)
+        const salesUsername = order.createdBy || "";
+        const atasNamaValue =
+          typeof order.namaPelanggan === "string"
+            ? order.namaPelanggan
+            : order.namaPelanggan?.name || "";
+
+        // Convert pabrik to EntityReference if it's a string
+        const pabrikRef: typeof order.pabrik =
+          typeof order.pabrik === "string"
+            ? { id: order.pabrik, name: order.pabrik }
+            : order.pabrik;
+
         const newOrder: Order = {
           id: `order-${Date.now()}`,
           PONumber,
@@ -572,11 +595,14 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
           createdDate: Date.now(),
           createdBy: currentUser,
           jbId: currentUser,
-          pabrik: order.pabrik,
+          sales: salesUsername,
+          atasNama: atasNamaValue,
+          pabrik: pabrikRef as any,
           kategoriBarang: order.kategoriBarang,
           jenisProduk: order.jenisProduk,
           namaProduk: order.namaProduk,
           namaBasic: order.namaBasic,
+          namaBarang: productDisplayName,
           waktuKirim: eta,
           customerExpectation: order.customerExpectation,
           detailItems: orderDetailItems,
@@ -610,6 +636,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
               "Ordered",
               currentUser,
               "jb",
+              newOrder,
             );
           }
         }

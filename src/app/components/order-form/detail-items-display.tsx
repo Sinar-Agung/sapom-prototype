@@ -122,7 +122,7 @@ export function DetailItemsDisplay({
 
                   {/* Middle content */}
                   <div className="flex-1 px-3 py-3 flex flex-col gap-3">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                       <div>
                         <span className="font-medium text-gray-500">
                           Ukuran:
@@ -198,7 +198,7 @@ export function DetailItemsDisplay({
 
       {/* Desktop Table View */}
       <div className="hidden sm:block">
-        <table className="w-full border-collapse border text-xs">
+        <table className="w-full border-collapse border text-sm">
           <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
               <th className="border p-2 text-left bg-gray-100">#</th>

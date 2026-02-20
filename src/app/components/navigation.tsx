@@ -76,6 +76,7 @@ export function Navigation({
         { id: "home", label: "Home", icon: Home },
         { id: "tambah-pesanan", label: "New Request", icon: CirclePlus },
         { id: "my-orders", label: "My Requests", icon: List },
+        { id: "sales-orders", label: "Orders", icon: Package },
         { id: "notifications", label: "Notifications", icon: Bell },
         { id: "settings", label: "Settings", icon: Settings },
       ];

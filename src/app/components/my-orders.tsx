@@ -19,7 +19,6 @@ interface MyOrdersProps {
   onDuplicateOrder?: (order: Request) => void;
   userRole?: "sales" | "stockist" | "jb";
   onVerifyStock?: (order: Request, currentTab: string) => void;
-  onReviewRequest?: (order: Request, currentTab: string) => void;
   onSeeDetail?: (order: Request, currentTab: string) => void;
   initialTab?: string;
 }
@@ -39,7 +38,6 @@ export function MyOrders({
   onDuplicateOrder,
   userRole = "sales",
   onVerifyStock,
-  onReviewRequest,
   onSeeDetail,
   initialTab,
 }: MyOrdersProps) {
@@ -447,7 +445,6 @@ export function MyOrders({
         onEditOrder={onEditOrder}
         onDuplicateOrder={onDuplicateOrder}
         onCancelOrder={cancelOrder}
-        onReviewRequest={onReviewRequest}
         onVerifyStock={onVerifyStock}
         onSeeDetail={onSeeDetail}
       />

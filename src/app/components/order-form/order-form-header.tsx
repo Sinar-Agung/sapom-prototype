@@ -117,15 +117,15 @@ export function OrderFormHeader({
             });
           }}
           options={PABRIK_OPTIONS}
-          placeholder="Pilih pabrik..."
-          searchPlaceholder="Cari pabrik..."
-          emptyText="Pabrik tidak ditemukan."
+          placeholder="Select supplier..."
+          searchPlaceholder="Search supplier..."
+          emptyText="Supplier not found."
           allowCustomValue={false}
         />
 
-        {/* Atas Nama */}
+        {/* Customer Name */}
         <Label htmlFor="namaPelanggan" className="text-xs md:pt-2">
-          Atas Nama
+          Customer Name
         </Label>
         <Combobox
           value={formData.namaPelanggan.id || formData.namaPelanggan.name}
@@ -141,9 +141,9 @@ export function OrderFormHeader({
             });
           }}
           options={ATAS_NAMA_OPTIONS}
-          placeholder="Pilih atau ketik nama..."
-          searchPlaceholder="Cari nama..."
-          emptyText="Nama tidak ditemukan."
+          placeholder="Select or type name..."
+          searchPlaceholder="Search name..."
+          emptyText="Name not found."
           autoOpenOnFocus={false}
           allowCustomValue={true}
         />
@@ -163,22 +163,22 @@ export function OrderFormHeader({
             });
           }}
           options={CUSTOMER_EXPECTATION_OPTIONS}
-          placeholder="Pilih tindakan..."
-          searchPlaceholder="Cari tindakan..."
-          emptyText="Tindakan tidak ditemukan."
+          placeholder="Select action..."
+          searchPlaceholder="Search action..."
+          emptyText="Action not found."
           allowCustomValue={false}
         />
 
-        {/* Waktu Kirim (ETA) */}
+        {/* Delivery Time (ETA) */}
         <Label htmlFor="waktuKirim" className="text-xs md:pt-2">
-          Waktu Kirim (ETA)
+          Delivery Time (ETA)
         </Label>
         <DatePicker
           value={formData.waktuKirim}
           onValueChange={(date) =>
             onFormDataChange({ ...formData, waktuKirim: date })
           }
-          placeholder="Pilih tanggal ETA..."
+          placeholder="Select ETA date..."
           className="w-full"
           minDate={(() => {
             const today = new Date();
@@ -188,8 +188,8 @@ export function OrderFormHeader({
           disabled={formData.customerExpectation === "ready-marketing"}
         />
 
-        {/* Kategori Barang */}
-        <Label className="text-xs md:pt-2">Kategori Barang</Label>
+        {/* Product Category */}
+        <Label className="text-xs md:pt-2">Product Category</Label>
         <RadioGroup
           value={formData.kategoriBarang}
           onValueChange={onKategoriBarangChange}
@@ -202,7 +202,7 @@ export function OrderFormHeader({
               className="h-3 w-3"
             />
             <Label htmlFor="basic-header" className="font-normal text-xs">
-              Barang Basic
+              Basic Product
             </Label>
           </div>
           <div className="flex items-center space-x-1">
@@ -212,22 +212,22 @@ export function OrderFormHeader({
               className="h-3 w-3"
             />
             <Label htmlFor="model-header" className="font-normal text-xs">
-              Barang Model
+              Model Product
             </Label>
           </div>
         </RadioGroup>
 
-        {/* Jenis Produk */}
+        {/* Product Type */}
         <Label htmlFor="jenisProduk" className="text-xs md:pt-2">
-          Jenis Produk
+          Product Type
         </Label>
         <Combobox
           value={formData.jenisProduk}
           onValueChange={onJenisProdukChange}
           options={JENIS_PRODUK_OPTIONS}
-          placeholder="Pilih jenis..."
-          searchPlaceholder="Cari jenis produk..."
-          emptyText="Jenis tidak ditemukan."
+          placeholder="Select type..."
+          searchPlaceholder="Search product type..."
+          emptyText="Type not found."
           allowCustomValue={false}
         />
 
@@ -235,7 +235,7 @@ export function OrderFormHeader({
         {formData.kategoriBarang === "basic" ? (
           <>
             <Label htmlFor="namaBasic" className="text-xs md:pt-2">
-              Nama Basic
+              Basic Name
             </Label>
             <Combobox
               value={formData.namaBasic}
@@ -246,15 +246,15 @@ export function OrderFormHeader({
                 })
               }
               options={NAMA_BASIC_OPTIONS}
-              placeholder="Pilih atau ketik nama basic..."
-              searchPlaceholder="Cari nama basic..."
-              emptyText="Nama basic tidak ditemukan."
+              placeholder="Select or type basic name..."
+              searchPlaceholder="Search basic name..."
+              emptyText="Basic name not found."
             />
           </>
         ) : (
           <>
             <Label htmlFor="namaProdukHeader" className="text-xs md:pt-2">
-              Nama Model
+              Model Name
             </Label>
             <Combobox
               value={formData.namaProduk}
@@ -265,9 +265,9 @@ export function OrderFormHeader({
                 })
               }
               options={filteredNamaProdukOptions}
-              placeholder="Pilih atau ketik nama model..."
-              searchPlaceholder="Cari model..."
-              emptyText="Model tidak ditemukan."
+              placeholder="Select or type model name..."
+              searchPlaceholder="Search model..."
+              emptyText="Model not found."
             />
           </>
         )}
@@ -275,7 +275,7 @@ export function OrderFormHeader({
         {/* Conditional: Foto Barang - Show preview for Basic, show uploader+preview for Model */}
         {formData.kategoriBarang === "basic" && formData.namaBasic ? (
           <>
-            <Label className="text-xs md:pt-2">Foto Barang</Label>
+            <Label className="text-xs md:pt-2">Product Photo</Label>
             <div className="border rounded-md p-2 bg-gray-50">
               <img
                 src={NAMA_BASIC_IMAGES[formData.namaBasic]}
@@ -287,7 +287,7 @@ export function OrderFormHeader({
         ) : formData.kategoriBarang === "model" ? (
           <>
             <Label htmlFor="fotoBarang" className="text-xs md:pt-2">
-              Foto Barang <span className="text-red-500">*</span>
+              Product Photo <span className="text-red-500">*</span>
             </Label>
             <div className="space-y-2">
               <Input

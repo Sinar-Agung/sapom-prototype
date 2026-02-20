@@ -14,6 +14,7 @@ import { OrderDetails } from "./components/order-details";
 import { OrderEditForm } from "./components/order-edit-form";
 import { OrderForm } from "./components/order-form";
 import { Register } from "./components/register";
+import { SalesOrders } from "./components/sales-orders";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
 import { SupplierHome } from "./components/supplier-home";
@@ -89,7 +90,7 @@ export default function App() {
   const [verifyingOrder, setVerifyingOrder] = useState<any>(null);
   const [viewingOrder, setViewingOrder] = useState<any>(null);
   const [editingOrderForUpdate, setEditingOrderForUpdate] = useState<any>(null);
-  const [verifyMode, setVerifyMode] = useState<"verify" | "review">("verify");
+  const [verifyMode, setVerifyMode] = useState<"verify" | "detail">("verify");
   const [myOrdersTab, setMyOrdersTab] = useState<string>("open");
   const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("new");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
@@ -185,20 +186,6 @@ export default function App() {
     setVerifyMode("verify");
     setCurrentPage("verify-stock");
     console.log("   ✅ Page set to verify-stock, mode: verify");
-  };
-
-  const handleReviewRequest = (order: any, currentTab: string) => {
-    console.log(
-      "📋 handleReviewRequest called with:",
-      order?.requestNo || order?.id,
-      "tab:",
-      currentTab,
-    );
-    setMyOrdersTab(currentTab); // Save the current tab
-    setVerifyingOrder(order);
-    setVerifyMode("review");
-    setCurrentPage("verify-stock");
-    console.log("   ✅ Page set to verify-stock, mode: review");
   };
 
   const handleSeeDetail = (order: any, currentTab: string) => {
@@ -298,7 +285,7 @@ export default function App() {
     // Navigate based on user role
     if (userRole === "stockist") {
       // For stockist: if status is Open or Stockist Processing, go to verify-stock in verify mode
-      // Otherwise, go to review mode (for already processed requests)
+      // Otherwise, go to detail mode (read-only)
       const isVerifyMode =
         request.status === "Open" || request.status === "Stockist Processing";
 
@@ -306,17 +293,29 @@ export default function App() {
         console.log("→ Opening in Verify Stock mode (can edit/verify)");
         handleVerifyStock(request, "open");
       } else {
-        console.log("→ Opening in Review mode (read-only)");
-        handleReviewRequest(request, "open");
+        console.log("→ Opening in Detail mode (read-only)");
+        handleSeeDetail(request, "open");
       }
     } else if (userRole === "jb") {
       // JB sees request details
       console.log("→ Opening request detail for JB");
       handleSeeDetail(request, "assigned");
+    } else if (userRole === "sales") {
+      // Sales: if request is Open and belongs to them, go to edit page
+      // Otherwise, go to detail page
+      if (request.status === "Open" && request.createdBy === currentUser) {
+        console.log(
+          "→ Opening in Edit mode (request is Open and belongs to user)",
+        );
+        handleEditOrder(request);
+      } else {
+        console.log("→ Opening request detail for Sales");
+        handleSeeDetail(request, "open");
+      }
     } else {
-      // Default to review mode
-      console.log("→ Opening in Review mode (default)");
-      handleReviewRequest(request, "open");
+      // Default: go to detail page
+      console.log("→ Opening request detail (default)");
+      handleSeeDetail(request, "open");
     }
   };
 
@@ -380,9 +379,26 @@ export default function App() {
   };
 
   const getFormTitle = () => {
-    if (formMode === "edit") return "Edit Pesanan";
-    if (formMode === "duplicate") return "Buat Pesanan Baru";
-    return "Form Input Pesanan (Salesman E / I)";
+    if (formMode === "edit") return "Edit Request";
+    if (formMode === "duplicate") return "Create New Request";
+    return "Create Request";
+  };
+
+  const handleCancelEdit = () => {
+    // Go back to my-orders page with the saved tab
+    setCurrentPage("my-orders");
+    setHasFormChanges(false);
+  };
+
+  const handleCancelCreate = () => {
+    // If there are unsaved changes, show confirmation dialog
+    if (hasFormChanges) {
+      setPendingNavigation("home");
+      setShowNavigationWarning(true);
+    } else {
+      // No changes, go back to home page directly
+      setCurrentPage("home");
+    }
   };
 
   // Authentication handlers
@@ -489,6 +505,9 @@ export default function App() {
             mode={formMode}
             onSaveComplete={handleSaveComplete}
             onNavigateToMyRequests={handleNavigateToMyRequests}
+            onCancel={
+              formMode === "edit" ? handleCancelEdit : handleCancelCreate
+            }
             formTitle={getFormTitle()}
           />
         );
@@ -499,11 +518,12 @@ export default function App() {
             onDuplicateOrder={handleDuplicateOrder}
             userRole={userRole}
             onVerifyStock={handleVerifyStock}
-            onReviewRequest={handleReviewRequest}
             onSeeDetail={handleSeeDetail}
             initialTab={myOrdersTab}
           />
         );
+      case "sales-orders":
+        return <SalesOrders onSeeDetail={handleSeeOrderDetail} />;
       case "home":
         if (userRole === "stockist") {
           return (
@@ -587,6 +607,20 @@ export default function App() {
             onBack={handleBackFromVerify}
             mode={verifyMode}
             isJBWaiting={userRole === "jb" && jbRequestsTab === "waiting"}
+            onEditRequest={
+              // Only show edit button for sales when request is Open and belongs to them
+              userRole === "sales" &&
+              verifyingOrder?.status === "Open" &&
+              verifyingOrder?.createdBy === currentUser
+                ? () => handleEditOrder(verifyingOrder)
+                : undefined
+            }
+            onDuplicateRequest={
+              // Only show duplicate button for sales
+              userRole === "sales"
+                ? () => handleDuplicateOrder(verifyingOrder)
+                : undefined
+            }
           />
         );
       case "write-order":
