@@ -46,6 +46,11 @@ SUPPLIER USERS (10):
  */
 export type BranchCode = "JKT" | "BDG" | "SBY";
 
+/**
+ * Language preference type - represents the user's preferred UI language
+ */
+export type LanguageCode = "en" | "id";
+
 export interface SalesUser {
   username: string;
   password: string;
@@ -55,6 +60,7 @@ export interface SalesUser {
   email: string;
   phone: string;
   branchCode: BranchCode;
+  language?: LanguageCode; // User's preferred language (default: 'en')
 }
 
 export interface StockistUser {
@@ -67,6 +73,7 @@ export interface StockistUser {
   email: string;
   phone: string;
   branchCode: BranchCode;
+  language?: LanguageCode; // User's preferred language (default: 'en')
 }
 
 export interface JBUser {
@@ -78,6 +85,7 @@ export interface JBUser {
   email: string;
   phone: string;
   branchCode: BranchCode;
+  language?: LanguageCode; // User's preferred language (default: 'en')
 }
 
 export interface SupplierUser {
@@ -90,6 +98,7 @@ export interface SupplierUser {
   email: string;
   phone: string;
   branchCode: null; // Suppliers don't have branch codes
+  language?: LanguageCode; // User's preferred language (default: 'en')
 }
 
 export type User = SalesUser | StockistUser | JBUser | SupplierUser;

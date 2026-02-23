@@ -235,7 +235,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
 
   const handleAddDetail = () => {
     if (formData.kategoriBarang === "basic" && !detailInput.berat.trim()) {
-      toast.error("Berat is mandatory for Barang Basic");
+      toast.error("Weight is mandatory for Basic Products");
       return;
     }
 
@@ -479,7 +479,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
             </div>
             <div>
               <Label className="text-gray-600 font-bold text-base">
-                Atas Nama
+                Customer Name
               </Label>
               <p className="font-medium mt-1">{order.pabrik.name}</p>
             </div>
@@ -496,7 +496,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
             </div>
             <div>
               <Label className="text-gray-600 font-bold text-base">
-                Waktu Kirim (ETA)
+                Delivery Time (ETA)
               </Label>
               <p className="font-medium mt-1">
                 {new Date(order.waktuKirim).toLocaleDateString("id-ID")}
@@ -509,30 +509,30 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
         <Card className="p-4">
           <h2 className="font-semibold text-lg mb-4">Product Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-x-4 gap-y-3">
-            {/* Kategori Barang - Read Only */}
+            {/* Product Category - Read Only */}
             <Label className="text-gray-600 font-bold text-base">
-              Kategori Barang
+              Product Category
             </Label>
             <p className="font-medium mt-1">
               {formData.kategoriBarang === "basic"
-                ? "Barang Basic"
-                : "Barang Model"}
+                ? "Basic Product"
+                : "Model Product"}
             </p>
 
-            {/* Jenis Produk - Read Only */}
+            {/* Product Type - Read Only */}
             <Label className="text-gray-600 font-bold text-base">
-              Jenis Produk
+              Product Type
             </Label>
             <p className="font-medium mt-1">
               {getLabelFromValue(JENIS_PRODUK_OPTIONS, formData.jenisProduk) ||
                 "-"}
             </p>
 
-            {/* Nama Basic or Nama Model - Read Only */}
+            {/* Basic Name or Model Name- Read Only */}
             {formData.kategoriBarang === "basic" ? (
               <>
                 <Label className="text-gray-600 font-bold text-base">
-                  Nama Basic
+                  Basic Name
                 </Label>
                 <p className="font-medium mt-1">
                   {getLabelFromValue(NAMA_BASIC_OPTIONS, formData.namaBasic) ||
@@ -542,7 +542,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
             ) : (
               <>
                 <Label className="text-gray-600 font-bold text-base">
-                  Nama Model
+                  Model Name
                 </Label>
                 <p className="font-medium mt-1">
                   {getLabelFromValue(
@@ -553,10 +553,10 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
               </>
             )}
 
-            {/* Conditional: Foto Barang - Show preview for Basic, show uploader+preview for Model */}
+            {/* Conditional: Product Photo - Show preview for Basic, show uploader+preview for Model */}
             {formData.kategoriBarang === "basic" && formData.namaBasic ? (
               <>
-                <Label className="text-xs md:pt-2">Foto Barang</Label>
+                <Label className="text-xs md:pt-2">Product Photo</Label>
                 <div className="border rounded-md p-2 bg-gray-50 relative">
                   <img
                     src={
@@ -687,7 +687,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
 
         {/* Detail Items */}
         <Card className="p-4">
-          <h2 className="font-semibold mb-4">Detail Barang</h2>
+          <h2 className="font-semibold mb-4">Product Details</h2>
 
           <DetailItemInput
             kategoriBarang={formData.kategoriBarang}

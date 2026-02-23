@@ -1,6 +1,7 @@
-import { Card } from "./ui/card";
-import { Button } from "./ui/button";
-import { LogOut, User } from "lucide-react";
+import { Languages, LogOut, User } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { LanguageCode } from "../utils/user-data";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,14 +12,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import { useState } from "react";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 interface SettingsProps {
   onLogout: () => void;
   username?: string;
+  onLanguageChange?: (language: LanguageCode) => void;
+  currentLanguage?: LanguageCode;
 }
 
-export function Settings({ onLogout, username }: SettingsProps) {
+export function Settings({
+  onLogout,
+  username,
+  onLanguageChange,
+  currentLanguage,
+}: SettingsProps) {
+  const { t, i18n } = useTranslation();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleLogoutClick = () => {
@@ -30,9 +47,18 @@ export function Settings({ onLogout, username }: SettingsProps) {
     onLogout();
   };
 
+  const handleLanguageChange = (value: string) => {
+    const language = value as LanguageCode;
+    i18n.changeLanguage(language);
+    localStorage.setItem("userLanguage", language);
+    if (onLanguageChange) {
+      onLanguageChange(language);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold mb-4">Settings</h1>
+      <h1 className="text-xl font-semibold mb-4">{t("settings.title")}</h1>
 
       {/* User Profile Card */}
       <Card className="p-6">
@@ -42,23 +68,51 @@ export function Settings({ onLogout, username }: SettingsProps) {
           </div>
           <div>
             <h2 className="text-lg font-semibold">{username || "User"}</h2>
-            <p className="text-sm text-gray-500">Account Settings</p>
+            <p className="text-sm text-gray-500">
+              {t("settings.accountSettings")}
+            </p>
           </div>
         </div>
 
         <div className="space-y-3">
           {/* Account Information */}
           <div className="border-t pt-4">
-            <h3 className="font-medium mb-3">Account Information</h3>
+            <h3 className="font-medium mb-3">
+              {t("settings.accountInformation")}
+            </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Username:</span>
+                <span className="text-gray-600">{t("settings.username")}:</span>
                 <span className="font-medium">{username || "N/A"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Status:</span>
-                <span className="text-green-600 font-medium">Active</span>
+                <span className="text-gray-600">{t("settings.status")}:</span>
+                <span className="text-green-600 font-medium">
+                  {t("settings.active")}
+                </span>
               </div>
+            </div>
+          </div>
+
+          {/* Language Preference */}
+          <div className="border-t pt-4">
+            <h3 className="font-medium mb-3">
+              {t("settings.languagePreference")}
+            </h3>
+            <div className="flex items-center gap-3">
+              <Languages className="w-5 h-5 text-gray-600" />
+              <Select
+                value={currentLanguage || i18n.language}
+                onValueChange={handleLanguageChange}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t("settings.selectLanguage")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">{t("language.english")}</SelectItem>
+                  <SelectItem value="id">{t("language.indonesian")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -70,7 +124,7 @@ export function Settings({ onLogout, username }: SettingsProps) {
               onClick={handleLogoutClick}
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              {t("auth.logout")}
             </Button>
           </div>
         </div>
@@ -78,14 +132,14 @@ export function Settings({ onLogout, username }: SettingsProps) {
 
       {/* App Information */}
       <Card className="p-6">
-        <h3 className="font-medium mb-3">App Information</h3>
+        <h3 className="font-medium mb-3">{t("settings.appInformation")}</h3>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">App Name:</span>
+            <span className="text-gray-600">{t("settings.appName")}:</span>
             <span className="font-medium">SAPOM</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Version:</span>
+            <span className="text-gray-600">{t("settings.version")}:</span>
             <span className="font-medium">1.0.0</span>
           </div>
         </div>
@@ -95,18 +149,18 @@ export function Settings({ onLogout, username }: SettingsProps) {
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+            <AlertDialogTitle>{t("auth.confirmLogout")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to logout? Any unsaved changes will be lost.
+              {t("auth.confirmLogoutMessage")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmLogout}
               className="bg-red-600 hover:bg-red-700"
             >
-              Logout
+              {t("auth.logout")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

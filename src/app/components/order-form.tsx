@@ -36,7 +36,7 @@ interface OrderFormProps {
   onFormChange?: (hasChanges: boolean) => void;
   initialData?: any;
   mode?: "new" | "edit" | "duplicate";
-  onSaveComplete?: () => void;
+  onSaveComplete?: (action: "save" | "saveAndAddMore") => void;
   onNavigateToMyRequests?: () => void;
   onCancel?: () => void;
   formTitle?: string;
@@ -126,7 +126,7 @@ export function OrderForm(props: OrderFormProps) {
   const handleAddDetail = () => {
     // Validation
     if (formData.kategoriBarang === "basic" && !detailInput.berat.trim()) {
-      alert("Berat is mandatory for Barang Basic");
+      alert("Weight is mandatory for Basic Products");
       return;
     }
 
@@ -1019,26 +1019,13 @@ export function OrderForm(props: OrderFormProps) {
         onNavigateToMyRequests();
       }
     } else if (action === "saveAndAddMore") {
-      // Keep on page, scroll to top, clear Atas Nama, focus on it
+      // Keep on page with all values intact, just scroll to top
       window.scrollTo({ top: 0, behavior: "smooth" });
-      setFormData((prev) => ({
-        ...prev,
-        namaPelanggan: { id: "", name: "" },
-      }));
-      // Focus on Atas Nama field after a short delay
-      setTimeout(() => {
-        const atasNamaElement = document.querySelector(
-          '[id*="namaPelanggan"]',
-        ) as HTMLElement;
-        if (atasNamaElement) {
-          atasNamaElement.focus();
-        }
-      }, 300);
     }
 
     // Call onSaveComplete if provided
     if (onSaveComplete) {
-      onSaveComplete();
+      onSaveComplete(action);
     }
   };
 
@@ -1187,13 +1174,14 @@ export function OrderForm(props: OrderFormProps) {
             <div className="absolute inset-0 bg-gray-400/30 backdrop-blur-[2px] z-20 flex items-center justify-center rounded-md">
               <div className="bg-white/90 px-6 py-4 rounded-lg shadow-lg text-center max-w-md">
                 <p className="text-sm font-medium text-gray-700 mb-2">
-                  Lengkapi data header terlebih dahulu
+                  Please complete the header data first
                 </p>
                 <p className="text-xs text-gray-600">
-                  Isi: Pabrik, Waktu Kirim, Kategori Barang, Jenis Produk,
+                  Fill in: Supplier, Delivery Time, Product Category, Product
+                  Type,
                   {formData.kategoriBarang === "basic"
-                    ? " Nama Basic"
-                    : " Foto Barang"}
+                    ? " Basic Name"
+                    : " Product Photo"}
                 </p>
               </div>
             </div>

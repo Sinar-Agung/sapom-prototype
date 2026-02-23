@@ -125,6 +125,9 @@ export interface Order {
   // Status tracking
   status: OrderStatus;
 
+  // View tracking
+  viewedBy?: string[]; // Array of usernames who have viewed this order
+
   // Revision history
   revisionHistory?: OrderRevision[];
 }

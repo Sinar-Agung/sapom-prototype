@@ -231,14 +231,14 @@ export function OrderArrivalComponent({
             </div>
 
             <div>
-              <span className="text-sm text-gray-600">Kategori Barang</span>
+              <span className="text-sm text-gray-600">Product Category</span>
               <p className="font-medium">
                 {order.kategoriBarang === "basic" ? "Basic" : "Model"}
               </p>
             </div>
 
             <div>
-              <span className="text-sm text-gray-600">Jenis Produk</span>
+              <span className="text-sm text-gray-600">Product Type</span>
               <p className="font-medium">
                 {getLabelFromValue(JENIS_PRODUK_OPTIONS, order.jenisProduk)}
               </p>
@@ -255,7 +255,7 @@ export function OrderArrivalComponent({
 
             {order.kategoriBarang === "basic" && (
               <div>
-                <span className="text-sm text-gray-600">Nama Basic</span>
+                <span className="text-sm text-gray-600">Basic Name</span>
                 <p className="font-medium">
                   {getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)}
                 </p>
@@ -266,7 +266,7 @@ export function OrderArrivalComponent({
           {/* Right Column */}
           <div className="space-y-4">
             <div>
-              <span className="text-sm text-gray-600">Waktu Kirim</span>
+              <span className="text-sm text-gray-600">Delivery Time</span>
               <p className="font-medium">
                 {new Date(order.waktuKirim).toLocaleString()}
               </p>

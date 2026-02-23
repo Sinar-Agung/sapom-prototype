@@ -66,11 +66,31 @@ export const upsertRequestExpiringNotification = (
 
   if (!shouldNotify) return;
 
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
   // Remove any previous expiring notification for this request
   let notifications = getAllNotifications();
   notifications = notifications.filter(
     (n) => !(n.eventType === "request_expiring" && n.entityId === request.id),
   );
+
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
 
   // Create new expiring notification
   const notification: Notification = {
@@ -84,7 +104,7 @@ export const upsertRequestExpiringNotification = (
     entityNumber: request.requestNo || request.id,
     targetAudience: ["sales", "stockist", "jb"], // All roles can see, filtering done in getNotificationsForUser
     specificTargets: request.createdBy ? [request.createdBy] : undefined,
-    title: `⚠️ Request ${request.requestNo || request.id} Expiring Soon`,
+    title: title,
     message: `Request ${request.requestNo || request.id} is nearing its ETA deadline in ${daysToETA} day${daysToETA !== 1 ? "s" : ""} (${etaDate.toLocaleDateString("id-ID")})`,
     changes: [{ field: "daysToETA", oldValue: null, newValue: daysToETA }],
     originator: request.createdBy, // Add originator
@@ -109,6 +129,83 @@ export const checkAndNotifyExpiringRequests = (
     upsertRequestExpiringNotification(req, userRole);
   });
 };
+
+// Check all requests and expire those that have passed their ETA
+export const checkAndExpireRequests = () => {
+  console.log("Checking for expired requests");
+  const requestsJson = localStorage.getItem("requests");
+  if (!requestsJson) return;
+
+  const requests: Request[] = JSON.parse(requestsJson);
+  const now = new Date();
+  let hasChanges = false;
+
+  requests.forEach((req: Request) => {
+    // Skip if no ETA or already in terminal state
+    if (
+      !req.waktuKirim ||
+      req.status === "Request Expired" ||
+      req.status === "Ordered" ||
+      req.status === "Cancelled"
+    ) {
+      return;
+    }
+
+    const etaDate = new Date(req.waktuKirim);
+    // Check if ETA has passed
+    if (etaDate < now) {
+      console.log(`Request ${req.requestNo || req.id} has expired`);
+      const oldStatus = req.status;
+      req.status = "Request Expired";
+      hasChanges = true;
+
+      // Get product name (Jenis Produk + Nama Basic/Nama Model)
+      const jenisProdukLabel = getLabelFromValue(
+        JENIS_PRODUK_OPTIONS,
+        req.jenisProduk,
+      );
+      const productNameLabel =
+        req.kategoriBarang === "basic"
+          ? getLabelFromValue(NAMA_BASIC_OPTIONS, req.namaBasic)
+          : getLabelFromValue(NAMA_PRODUK_OPTIONS, req.namaProduk);
+      const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+      // Get Atas Nama
+      const atasNamaLabel =
+        typeof req.namaPelanggan === "string"
+          ? getLabelFromValue(ATAS_NAMA_OPTIONS, req.namaPelanggan)
+          : req.namaPelanggan?.name ||
+            getLabelFromValue(ATAS_NAMA_OPTIONS, req.namaPelanggan?.id || "");
+
+      const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
+      // Create notification for expired request
+      createNotification(
+        "request_expired",
+        "system",
+        "jb", // System notifications use jb role
+        "request",
+        req.id,
+        req.requestNo || req.id,
+        title,
+        `Request ${req.requestNo || req.id} has expired (ETA: ${etaDate.toLocaleDateString("id-ID")})`,
+        ["sales", "stockist", "jb"],
+        req.createdBy ? [req.createdBy] : undefined,
+        [{ field: "status", oldValue: oldStatus, newValue: "Request Expired" }],
+        undefined,
+        undefined,
+        req.createdBy,
+      );
+    }
+  });
+
+  // Save updated requests if any changes
+  if (hasChanges) {
+    localStorage.setItem("requests", JSON.stringify(requests));
+    console.log("Expired requests updated");
+  }
+};
+
 // Helper: Create or update ETA reminder notification for stockist
 export const upsertETAReminderForStockist = (
   request: Request,
@@ -495,10 +592,10 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
   // Title: Product Name in bold green + "for <Atas Nama>" (HTML formatted)
   const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
 
-  // Message: Supplier, ETA, and item count
+  // Message: Supplier, ETA, Sales, and item count
   const etaDate = formatDate(request.waktuKirim);
   const itemCount = request.detailItems?.length || 0;
-  const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nItem count: ${itemCount}`;
+  const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nSales: ${creatorName}\nItem count: ${itemCount}`;
 
   const notification = createNotification(
     "request_created",
@@ -540,6 +637,24 @@ export const notifyRequestStatusChanged = (
   const targets: NotificationTargetAudience[] = [];
   const specificTargets: string[] = [];
 
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
   // Notify the sales person who created it
   if (request.createdBy && request.createdBy !== changedBy) {
     specificTargets.push(request.createdBy);
@@ -576,6 +691,8 @@ export const notifyRequestStatusChanged = (
     // Only notify the sales user who created the request, and all JBs
     const salesTargets = request.createdBy ? [request.createdBy] : [];
 
+    const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
     return createNotification(
       "request_status_changed",
       changedBy,
@@ -583,7 +700,7 @@ export const notifyRequestStatusChanged = (
       "request",
       request.id,
       request.requestNo || request.id,
-      `Request ${request.requestNo || request.id} has been Ordered`,
+      title,
       `${changerName} has written an order for Request ${request.requestNo || request.id} to Supplier ${supplierName}`,
       ["jb", "sales"],
       salesTargets,
@@ -599,15 +716,58 @@ export const notifyRequestStatusChanged = (
     );
   }
 
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
+  // Determine event type based on new status
+  let eventType: NotificationEventType = "request_status_changed";
+  let message = `${changerName} changed status from "${oldStatus}" to "${newStatus}"`;
+
+  // For specific notification types, use standardized format
+  if (
+    newStatus === "Requested to JB" ||
+    newStatus === "Ready Stock Marketing" ||
+    newStatus === "Stock Unavailable"
+  ) {
+    // Get additional info for standardized message
+    const pabrikLabel =
+      typeof request.pabrik === "string"
+        ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+        : request.pabrik?.name ||
+          getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+
+    const formatDate = (isoString: string) => {
+      if (!isoString) return "-";
+      return new Date(isoString).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    };
+
+    const etaDate = formatDate(request.waktuKirim);
+    const itemCount = request.detailItems?.length || 0;
+    const salesName = getFullNameFromUsername(request.createdBy || "");
+
+    message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nSales: ${salesName}\nItem count: ${itemCount}`;
+
+    if (newStatus === "Requested to JB") {
+      eventType = "request_to_jb";
+    } else if (newStatus === "Ready Stock Marketing") {
+      eventType = "request_stock_ready";
+    } else if (newStatus === "Stock Unavailable") {
+      eventType = "request_stock_unavailable";
+    }
+  }
+
   return createNotification(
-    "request_status_changed",
+    eventType,
     changedBy,
     changedByRole,
     "request",
     request.id,
     request.requestNo || request.id,
-    `Request ${request.requestNo || request.id} Status Changed`,
-    `${changerName} changed status from "${oldStatus}" to "${newStatus}"`,
+    title,
+    message,
     targets,
     specificTargets.length > 0 ? specificTargets : undefined,
     [{ field: "status", oldValue: oldStatus, newValue: newStatus }],
@@ -624,8 +784,49 @@ export const notifyRequestViewedByStockist = (
   oldStatus?: string,
   newStatus?: string,
 ) => {
-  const stockistName = getFullNameFromUsername(stockistUsername);
   const requestNo = request.requestNo || request.id;
+
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
+  // Get additional info for message
+  const pabrikLabel =
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+
+  const formatDate = (isoString: string) => {
+    if (!isoString) return "-";
+    return new Date(isoString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const etaDate = formatDate(request.waktuKirim);
+  const itemCount = request.detailItems?.length || 0;
+  const salesName = getFullNameFromUsername(request.createdBy || "");
+
+  const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nSales: ${salesName}\nItem count: ${itemCount}`;
 
   // Create changes array if status change is provided
   const changes =
@@ -646,8 +847,8 @@ export const notifyRequestViewedByStockist = (
     "request",
     request.id,
     requestNo,
-    `Request ${requestNo} viewed`,
-    `${stockistName} viewed request ${requestNo}`,
+    title,
+    message,
     ["sales", "stockist"],
     request.createdBy ? [request.createdBy] : undefined,
     changes,
@@ -666,6 +867,26 @@ export const notifyRequestReviewed = (
   const stockistName = getFullNameFromUsername(stockistUsername);
   const action = approved ? "approved" : "rejected";
 
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
   return createNotification(
     approved ? "request_approved_by_stockist" : "request_rejected_by_stockist",
     stockistUsername,
@@ -673,7 +894,7 @@ export const notifyRequestReviewed = (
     "request",
     request.id,
     request.requestNo || request.id,
-    `Request ${request.requestNo || request.id} ${approved ? "Approved" : "Rejected"}`,
+    title,
     `${stockistName} ${action} request ${request.requestNo || request.id}`,
     ["sales", "stockist"],
     request.createdBy ? [request.createdBy] : undefined,
@@ -694,6 +915,22 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
   const supplierId =
     typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNama = order.atasNama || "Unknown Customer";
+
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+
   console.log("🏭 Creating order notification:", {
     orderPONumber: order.PONumber,
     supplierName: supplierName,
@@ -708,7 +945,7 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
     "order",
     order.id,
     order.PONumber,
-    "New Order Created",
+    title,
     `${creatorName} created order ${order.PONumber} for ${supplierName}`,
     ["jb", "supplier"], // Only JB and supplier, not sales
     undefined,
@@ -746,6 +983,8 @@ export const notifyOrderRevised = (order: Order, revisedBy: string) => {
       ? order.pabrik
       : order.pabrik?.name || "Unknown Supplier";
 
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+
   console.log("✏️ Creating order revision notification:", {
     orderPONumber: order.PONumber,
     revisedBy: revisedBy,
@@ -761,7 +1000,7 @@ export const notifyOrderRevised = (order: Order, revisedBy: string) => {
     "order",
     order.id,
     order.PONumber,
-    "Revised - Internal Review",
+    title,
     `${reviserName} revised order ${order.PONumber} - ${productName} for ${atasNama}`,
     ["sales"], // Only notify sales
     order.sales ? [order.sales] : undefined, // Specific target: sales who created the original request
@@ -788,6 +1027,30 @@ export const notifyOrderStatusChanged = (
   const changerName = getFullNameFromUsername(changedBy);
   const targets: NotificationTargetAudience[] = [];
 
+  // Helper to format dates
+  const formatDate = (isoString: string) => {
+    if (!isoString) return "";
+    return new Date(isoString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNama = order.atasNama || "Unknown Customer";
+
   // Notify JB when supplier changes status
   if (changedByRole === "supplier") {
     targets.push("jb");
@@ -805,23 +1068,54 @@ export const notifyOrderStatusChanged = (
   const supplierId =
     typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
-  // Customize message based on the new status
-  let title = `Order ${order.PONumber} Status Changed`;
+  // Special handling for "Change Requested" status
+  if (changedByRole === "supplier" && newStatus === "Change Requested") {
+    // Create special notification for Order Change Requested
+    const title = `<strong class="text-blue-600">Order Change Requested:</strong> <strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+
+    // Format the detailed body
+    const salesName = getFullNameFromUsername(order.sales || "Unknown");
+    const itemCount = order.detailItems?.length || 0;
+    const etaFormatted = order.waktuKirim
+      ? formatDate(order.waktuKirim)
+      : "N/A";
+
+    const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
+
+    return createNotification(
+      "order_change_requested",
+      changedBy,
+      changedByRole,
+      "order",
+      order.id,
+      order.PONumber,
+      title,
+      message,
+      targets,
+      undefined,
+      [{ field: "status", oldValue: oldStatus, newValue: newStatus }],
+      {
+        supplierId: supplierId,
+        supplierName: supplierName,
+      },
+      supplierName, // addressedTo
+      undefined, // originator (not applicable for orders)
+    );
+  }
+
+  // Use standard title format
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
   let message = `${changerName} changed status from "${oldStatus}" to "${newStatus}"`;
 
   if (changedByRole === "supplier") {
     // Supplier actions with custom messages
     if (newStatus === "Stock Ready") {
-      title = `Order ${order.PONumber} - Stock Ready`;
       message = `${changerName} from ${supplierName} has marked the stock as ready for Order ${order.PONumber}`;
     } else if (newStatus === "Unable to Fulfill") {
-      title = `Order ${order.PONumber} - Unable to Fulfill`;
       message = `${changerName} from ${supplierName} has marked Order ${order.PONumber} as unable to fulfill`;
     } else if (newStatus === "In Production") {
-      title = `Order ${order.PONumber} - Production Started`;
       message = `${changerName} from ${supplierName} has started production for Order ${order.PONumber}`;
     } else if (newStatus === "Change Requested") {
-      title = `Order ${order.PONumber} - Change Requested`;
       message = `${changerName} from ${supplierName} has requested a change in the Order ${order.PONumber}`;
     }
   }
@@ -861,6 +1155,22 @@ export const notifyOrderArrival = (
   const supplierId =
     typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNama = order.atasNama || "Unknown Customer";
+
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+
   return createNotification(
     "order_arrival_recorded",
     recordedBy,
@@ -868,7 +1178,7 @@ export const notifyOrderArrival = (
     "order",
     order.id,
     order.PONumber,
-    `Arrival Recorded for ${order.PONumber}`,
+    title,
     `${recorderName} recorded arrival of ${pcsDelivered} pieces for order ${order.PONumber}`,
     ["supplier"],
     undefined,
@@ -892,6 +1202,22 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
   const supplierId =
     typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNama = order.atasNama || "Unknown Customer";
+
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+
   return createNotification(
     "order_closed",
     closedBy,
@@ -899,7 +1225,7 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
     "order",
     order.id,
     order.PONumber,
-    `Order ${order.PONumber} Closed`,
+    title,
     `${closerName} closed and confirmed order ${order.PONumber}`,
     ["supplier"],
     undefined,
@@ -921,6 +1247,27 @@ export const notifyRequestUpdated = (
 ) => {
   const updaterName = getFullNameFromUsername(updatedBy);
   const changes: NotificationChange[] = [];
+
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    newRequest.jenisProduk,
+  );
+  const productNameLabel =
+    newRequest.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, newRequest.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, newRequest.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNamaLabel =
+    typeof newRequest.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, newRequest.namaPelanggan)
+      : newRequest.namaPelanggan?.name ||
+        getLabelFromValue(
+          ATAS_NAMA_OPTIONS,
+          newRequest.namaPelanggan?.id || "",
+        );
 
   // Check if this request is expiring and create/update expiring notification
   upsertRequestExpiringNotification(newRequest, "sales");
@@ -1042,6 +1389,8 @@ export const notifyRequestUpdated = (
     return null;
   }
 
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
   // Target both stockists and the sales user who made the update
   const specificTargets = [updatedBy];
 
@@ -1052,7 +1401,7 @@ export const notifyRequestUpdated = (
     "request",
     newRequest.id,
     newRequest.requestNo || newRequest.id,
-    `Request ${newRequest.requestNo || newRequest.id} Updated`,
+    title,
     `${updaterName} updated request ${newRequest.requestNo || newRequest.id} (${changes.length} change${changes.length > 1 ? "s" : ""})`,
     ["stockist", "sales"],
     specificTargets,
@@ -1070,6 +1419,26 @@ export const notifyRequestCancelled = (
 ) => {
   const cancellerName = getFullNameFromUsername(cancelledBy);
 
+  // Get product name (Jenis Produk + Nama Basic/Nama Model)
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  // Get Atas Nama
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
+  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+
   return createNotification(
     "request_cancelled",
     cancelledBy,
@@ -1077,7 +1446,7 @@ export const notifyRequestCancelled = (
     "request",
     request.id,
     request.requestNo || request.id,
-    `Request ${request.requestNo || request.id} Cancelled`,
+    title,
     `${cancellerName} cancelled request ${request.requestNo || request.id}`,
     ["stockist", "sales"],
     undefined,

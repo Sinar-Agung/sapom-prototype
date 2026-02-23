@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Internationalization (i18n) Support
+
+#### Core Infrastructure
+
+- **i18n Configuration** (`src/i18n.ts`)
+  - Integrated `i18next` and `react-i18next` libraries (v25.8.13 and v16.5.4)
+  - Implemented language detection and persistence via localStorage
+  - Configured English (en) and Indonesian (id) language support
+  - Added automatic language initialization on app startup
+
+- **Translation Files** (`src/locales/`)
+  - Created comprehensive English translation file (`en.json`) with 180+ translation keys
+  - Created comprehensive Indonesian translation file (`id.json`) with matching coverage
+  - Organized translations into logical sections: common, auth, navigation, settings, order, form, dialog, sortOptions, tabs, action, status, productType, color, size, customerExpectation
+
+#### User Type System
+
+- **User Data Types** (`src/app/utils/user-data.ts`)
+  - Added `LanguageCode` type definition ('en' | 'id')
+  - Extended all user interfaces (`SalesUser`, `StockistUser`, `JBUser`, `SupplierUser`) with optional `language` property
+
+#### Language Management
+
+- **Main Application** (`src/app/App.tsx`)
+  - Added language state management with localStorage persistence
+  - Implemented `handleLanguageChange` function for app-wide language updates
+  - Modified `handleLogin` to load user's saved language preference automatically
+  - Updated user profile storage to include language preference
+
+- **Settings Component** (`src/app/components/settings.tsx`)
+  - Added language preference selector with dropdown UI
+  - Integrated Languages icon from Lucide React
+  - Implemented real-time language switching without page reload
+  - Internationalized all settings page content
+
+#### Internationalized Components
+
+- **Navigation Component** - All menu labels translate dynamically based on user role
+- **Login Component** - Form labels, placeholders, error messages fully translated
+- **My Orders/Requests Component** - Page titles, tab labels, empty states, sort options
+- **Other Pages** - JB Requests, JB Orders, Sales Orders, Supplier Orders, Notifications
+- **Cards** - Request cards and Order cards with translated labels and actions
+- **Forms** - Order forms, edit forms, detail inputs with internationalized fields
+- **Dialogs** - Verify Stock, Write Order, Order Details with translated content
+
+#### Language Persistence Strategy
+
+- Language preference stored in three locations:
+  1. `localStorage` with key `userLanguage` (immediate access)
+  2. User profile object in session storage (session persistence)
+  3. User data structure (long-term storage)
+
+#### Supported Languages
+
+- **English (en)** - Default language
+- **Indonesian (id)** - Full translation coverage (180+ keys)
+
+#### Dependencies
+
+- Installed `i18next@25.8.13`
+- Installed `react-i18next@16.5.4`
+
 ### Changed
 
 - **Order Status Refactoring**: Updated order status names and workflow throughout the application

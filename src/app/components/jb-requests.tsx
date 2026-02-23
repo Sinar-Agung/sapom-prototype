@@ -16,8 +16,8 @@ const REQUEST_SORT_OPTIONS: SortOption[] = [
   { value: "eta", label: "ETA" },
   { value: "productName", label: "Product Name" },
   { value: "sales", label: "Sales" },
-  { value: "atasNama", label: "Atas Nama" },
-  { value: "pabrik", label: "Pabrik" },
+  { value: "atasNama", label: "Customer Name" },
+  { value: "pabrik", label: "Supplier" },
   { value: "requestNo", label: "Request No" },
 ];
 
@@ -137,11 +137,11 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
     switch (sortBy) {
       case "updatedDate":
         comparison =
-          new Date(b.updatedDate).getTime() - new Date(a.updatedDate).getTime();
+          new Date(a.updatedDate).getTime() - new Date(b.updatedDate).getTime();
         break;
       case "created":
         comparison =
-          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+          new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime();
         break;
       case "eta":
         comparison =
@@ -165,7 +165,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
       default:
         return 0;
     }
-    return sortDirection === "desc" ? comparison : -comparison;
+    return sortDirection === "asc" ? comparison : -comparison;
   });
 
   // Calculate counts for each tab (total, not filtered)

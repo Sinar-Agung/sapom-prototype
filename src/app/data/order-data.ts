@@ -267,21 +267,21 @@ export const PABRIK_OPTIONS = [
   { value: "ayu", label: "Ayu" },
 ];
 
-// Jenis Produk options
+// Product Type options
 export const JENIS_PRODUK_OPTIONS = [
-  { value: "cincin", label: "Cincin" },
-  { value: "kalung", label: "Kalung" },
-  { value: "gelang-rantai", label: "Gelang Rantai" },
-  { value: "gelang-kaku", label: "Gelang Kaku" },
-  { value: "anting", label: "Anting" },
-  { value: "giwang", label: "Giwang" },
-  { value: "liontin", label: "Liontin" },
-  { value: "extention", label: "Extention" },
+  { value: "cincin", label: "Ring" },
+  { value: "kalung", label: "Necklace" },
+  { value: "gelang-rantai", label: "Chain Bracelet" },
+  { value: "gelang-kaku", label: "Bangle" },
+  { value: "anting", label: "Earring" },
+  { value: "giwang", label: "Hoop Earring" },
+  { value: "liontin", label: "Pendant" },
+  { value: "extention", label: "Extension" },
   { value: "stopper", label: "Stopper" },
-  { value: "mainan", label: "Mainan" },
+  { value: "mainan", label: "Toy/Charm" },
 ];
 
-// Kadar options
+// Gold Purity options
 export const KADAR_OPTIONS = [
   { value: "6k", label: "6K" },
   { value: "8k", label: "8K" },
@@ -291,30 +291,30 @@ export const KADAR_OPTIONS = [
   { value: "24k", label: "24K" },
 ];
 
-// Warna options
+// Color options
 export const WARNA_OPTIONS = [
   { value: "rg", label: "RG - Rose Gold" },
-  { value: "ap", label: "AP - Alloy Putih" },
-  { value: "kn", label: "KN - Kuning" },
-  { value: "ks", label: "KS - Kuning Sepuh" },
+  { value: "ap", label: "AP - White Alloy" },
+  { value: "kn", label: "KN - Yellow" },
+  { value: "ks", label: "KS - Yellow Plated" },
   { value: "2w-ap-rg", label: "2W (AP & RG)" },
   { value: "2w-ap-kn", label: "2W (AP & KN)" },
 ];
 
-// Ukuran Kalung options
+// Necklace Size options
 export const UKURAN_KALUNG_OPTIONS = [
-  { value: "a", label: "A - Anak" },
+  { value: "a", label: "A - Child" },
   { value: "n", label: "N - Normal" },
-  { value: "p", label: "P - Panjang" },
-  { value: "t", label: "T - Tanggung" },
+  { value: "p", label: "P - Long" },
+  { value: "t", label: "T - Medium" },
   { value: "other", label: "Other" },
 ];
 
 // Customer Expectation options
 export const CUSTOMER_EXPECTATION_OPTIONS = [
   { value: "ready-marketing", label: "Ready Marketing" },
-  { value: "ready-pabrik", label: "Ready Pabrik (1-2 minggu)" },
-  { value: "order-pabrik", label: "Order Pabrik (2-4 minggu)" },
+  { value: "ready-pabrik", label: "Ready at Factory (1-2 weeks)" },
+  { value: "order-pabrik", label: "Order from Factory (2-4 weeks)" },
 ];
 
 // Helper function to get label from value

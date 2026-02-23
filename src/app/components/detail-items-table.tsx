@@ -79,7 +79,7 @@ export function DetailItemsTable({ order, userRole }: DetailItemsTableProps) {
 
       {/* Detail Items Table */}
       <div className="mt-4">
-        <h4 className="text-sm font-semibold mb-2">Detail Barang</h4>
+        <h4 className="text-sm font-semibold mb-2">Product Details</h4>
         <div className="max-h-[300px] overflow-auto">
           <table className="w-full border-collapse border text-sm">
             <thead className="bg-gray-100 sticky top-0 z-10">

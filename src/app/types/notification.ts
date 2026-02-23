@@ -9,6 +9,10 @@ export type NotificationEventType =
   | "request_updated"
   | "request_cancelled"
   | "request_status_changed"
+  | "request_to_jb" // Request changed to Requested to JB
+  | "request_stock_ready" // Request changed to Ready Stock Marketing
+  | "request_stock_unavailable" // Request changed to Stock Unavailable
+  | "request_expired" // Request ETA has passed
   | "request_viewed_by_stockist"
   | "request_approved_by_stockist"
   | "request_rejected_by_stockist"
@@ -20,6 +24,7 @@ export type NotificationEventType =
   | "order_updated"
   | "order_revised"
   | "order_status_changed"
+  | "order_change_requested" // Supplier requested change on order
   | "order_viewed_by_supplier"
   | "order_arrival_recorded"
   | "order_closed";

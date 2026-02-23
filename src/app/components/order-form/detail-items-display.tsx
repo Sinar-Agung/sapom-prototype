@@ -148,16 +148,8 @@ export function DetailItemsDisplay({
                           <span className="font-medium text-gray-500">
                             Notes:
                           </span>
-                          <span
-                            className="ml-1 cursor-pointer hover:text-gray-700 underline decoration-dotted"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const rect =
-                                e.currentTarget.getBoundingClientRect();
-                              onNotesClick(item.id, rect.left, rect.bottom + 5);
-                            }}
-                          >
-                            View notes
+                          <span className="ml-1 break-words whitespace-pre-wrap">
+                            {item.notes}
                           </span>
                         </div>
                       )}
@@ -220,7 +212,7 @@ export function DetailItemsDisplay({
                   colSpan={8}
                   className="border p-4 text-center text-gray-500"
                 >
-                  Belum ada data. Silakan tambahkan detail barang.
+                  No data yet. Please add product details.
                 </td>
               </tr>
             ) : (

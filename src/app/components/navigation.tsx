@@ -10,6 +10,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface NavigationProps {
   currentPage?: string;
@@ -22,6 +23,7 @@ export function Navigation({
   onNavigate,
   userRole = "sales",
 }: NavigationProps) {
+  const { t } = useTranslation();
   const [unreadCount, setUnreadCount] = useState(0);
   const currentUser =
     localStorage.getItem("username") ||
@@ -49,36 +51,56 @@ export function Navigation({
   const getNavItems = () => {
     if (userRole === "stockist") {
       return [
-        { id: "home", label: "Home", icon: Home },
-        { id: "my-orders", label: "Requests", icon: List },
-        { id: "notifications", label: "Notifications", icon: Bell },
-        { id: "settings", label: "Settings", icon: Settings },
+        { id: "home", label: t("navigation.home"), icon: Home },
+        { id: "my-orders", label: t("navigation.requests"), icon: List },
+        {
+          id: "notifications",
+          label: t("navigation.notifications"),
+          icon: Bell,
+        },
+        { id: "settings", label: t("navigation.settings"), icon: Settings },
       ];
     } else if (userRole === "jb") {
       return [
-        { id: "home", label: "Home", icon: Home },
-        { id: "jb-requests", label: "Requests", icon: List },
-        { id: "inbound", label: "Inbound", icon: Inbox },
-        { id: "jb-orders", label: "Orders", icon: Package },
-        { id: "notifications", label: "Notifications", icon: Bell },
-        { id: "settings", label: "Settings", icon: Settings },
+        { id: "home", label: t("navigation.home"), icon: Home },
+        { id: "jb-requests", label: t("navigation.requests"), icon: List },
+        { id: "inbound", label: t("navigation.inbound"), icon: Inbox },
+        { id: "jb-orders", label: t("navigation.orders"), icon: Package },
+        {
+          id: "notifications",
+          label: t("navigation.notifications"),
+          icon: Bell,
+        },
+        { id: "settings", label: t("navigation.settings"), icon: Settings },
       ];
     } else if (userRole === "supplier") {
       return [
-        { id: "home", label: "Home", icon: Home },
-        { id: "supplier-orders", label: "Orders", icon: Package },
-        { id: "notifications", label: "Notifications", icon: Bell },
-        { id: "settings", label: "Settings", icon: Settings },
+        { id: "home", label: t("navigation.home"), icon: Home },
+        { id: "supplier-orders", label: t("navigation.orders"), icon: Package },
+        {
+          id: "notifications",
+          label: t("navigation.notifications"),
+          icon: Bell,
+        },
+        { id: "settings", label: t("navigation.settings"), icon: Settings },
       ];
     } else {
       // Sales navigation items
       return [
-        { id: "home", label: "Home", icon: Home },
-        { id: "tambah-pesanan", label: "New Request", icon: CirclePlus },
-        { id: "my-orders", label: "My Requests", icon: List },
-        { id: "sales-orders", label: "Orders", icon: Package },
-        { id: "notifications", label: "Notifications", icon: Bell },
-        { id: "settings", label: "Settings", icon: Settings },
+        { id: "home", label: t("navigation.home"), icon: Home },
+        {
+          id: "tambah-pesanan",
+          label: t("navigation.newRequest"),
+          icon: CirclePlus,
+        },
+        { id: "my-orders", label: t("navigation.myRequests"), icon: List },
+        { id: "sales-orders", label: t("navigation.orders"), icon: Package },
+        {
+          id: "notifications",
+          label: t("navigation.notifications"),
+          icon: Bell,
+        },
+        { id: "settings", label: t("navigation.settings"), icon: Settings },
       ];
     }
   };

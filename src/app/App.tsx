@@ -1,6 +1,8 @@
 // ...existing code...
 import { Briefcase, Factory, Package, UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { AvailablePcsDemo } from "./components/available-pcs-demo";
 import { JBHome } from "./components/jb-home";
 import { JBInbound } from "./components/jb-inbound";
@@ -36,14 +38,21 @@ import {
   initializeMockData,
   initializeMockNotifications,
 } from "./utils/mock-data";
-import { checkAndNotifyExpiringRequests } from "./utils/notification-helper";
+import {
+  checkAndExpireRequests,
+  checkAndNotifyExpiringRequests,
+  notifyOrderStatusChanged,
+} from "./utils/notification-helper";
 import {
   authenticateUser,
   getUserRole,
   initializeUserData,
+  type LanguageCode,
 } from "./utils/user-data";
 
 export default function App() {
+  const { i18n } = useTranslation();
+
   // ...state declarations...
   // (First set of isAuthenticated, currentUser, userRole already declared above)
   // ...other state declarations...
@@ -70,6 +79,11 @@ export default function App() {
       sessionStorage.getItem("userRole") ||
       "sales") as "sales" | "stockist" | "jb" | "supplier";
   });
+  const [userLanguage, setUserLanguage] = useState<LanguageCode>(() => {
+    // Check for saved language preference
+    const savedLanguage = localStorage.getItem("userLanguage") as LanguageCode;
+    return savedLanguage || "en";
+  });
   const [authPage, setAuthPage] = useState<"login" | "register">("login");
   const [currentPage, setCurrentPage] = useState(() => {
     // Stockists, JB, and Suppliers should see home page by default, sales see form
@@ -89,9 +103,12 @@ export default function App() {
   const [formMode, setFormMode] = useState<"new" | "edit" | "duplicate">("new");
   const [verifyingOrder, setVerifyingOrder] = useState<any>(null);
   const [viewingOrder, setViewingOrder] = useState<any>(null);
+  const [isReviewMode, setIsReviewMode] = useState(false);
   const [editingOrderForUpdate, setEditingOrderForUpdate] = useState<any>(null);
   const [verifyMode, setVerifyMode] = useState<"verify" | "detail">("verify");
   const [myOrdersTab, setMyOrdersTab] = useState<string>("open");
+  const [myOrdersKey, setMyOrdersKey] = useState<number>(0); // Force remount when incremented
+  const [justCreatedRequest, setJustCreatedRequest] = useState(false); // Flag to force Open tab after creating request
   const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("new");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
   const [cameFromNotifications, setCameFromNotifications] = useState(false);
@@ -106,6 +123,7 @@ export default function App() {
   // Check for expiring requests when user is authenticated
   useEffect(() => {
     if (isAuthenticated && currentUser && userRole) {
+      checkAndExpireRequests(); // Check and expire requests first
       checkAndNotifyExpiringRequests(currentUser, userRole);
     }
   }, [isAuthenticated, currentUser, userRole]);
@@ -259,6 +277,31 @@ export default function App() {
     handleSeeOrderDetail(order);
   };
 
+  const handleNavigateToUpdateOrder = (orderId: string) => {
+    console.log(`📝 Navigating to update order ${orderId} (Role: ${userRole})`);
+
+    // Load the order from localStorage
+    const ordersJson = localStorage.getItem("orders");
+    if (!ordersJson) {
+      console.error("No orders found in localStorage");
+      return;
+    }
+
+    const orders = JSON.parse(ordersJson);
+    const order = orders.find((o: any) => o.id === orderId);
+
+    if (!order) {
+      console.error(`Order ${orderId} not found`);
+      return;
+    }
+
+    // Mark that we're navigating from notifications
+    setCameFromNotifications(true);
+
+    // Navigate to update order page
+    handleUpdateOrder(order);
+  };
+
   const handleNavigateToRequest = (requestId: string) => {
     // Mark that we're navigating from notifications
     setCameFromNotifications(true);
@@ -320,18 +363,139 @@ export default function App() {
   };
 
   const handleSeeOrderDetail = (order: any, currentTab?: string) => {
+    // Mark order as viewed by current user
+    const savedOrders = localStorage.getItem("orders");
+    if (savedOrders && currentUser) {
+      const allOrders = JSON.parse(savedOrders);
+      const orderIndex = allOrders.findIndex((o: any) => o.id === order.id);
+
+      if (orderIndex !== -1) {
+        // Initialize viewedBy array if it doesn't exist
+        if (!allOrders[orderIndex].viewedBy) {
+          allOrders[orderIndex].viewedBy = [];
+        }
+
+        // Add current user to viewedBy array if not already there
+        if (!allOrders[orderIndex].viewedBy.includes(currentUser)) {
+          allOrders[orderIndex].viewedBy.push(currentUser);
+          localStorage.setItem("orders", JSON.stringify(allOrders));
+
+          // Update the order object we're passing to the detail view
+          order.viewedBy = allOrders[orderIndex].viewedBy;
+        }
+      }
+    }
+
     setViewingOrder(order);
+    setIsReviewMode(false);
     if (currentTab) {
       setPreviousOrdersTab(currentTab);
     }
     setCurrentPage("order-details");
   };
 
+  const handleReviewRevision = (order: any, currentTab?: string) => {
+    // Mark order as viewed by current user
+    const savedOrders = localStorage.getItem("orders");
+    if (savedOrders && currentUser) {
+      const allOrders = JSON.parse(savedOrders);
+      const orderIndex = allOrders.findIndex((o: any) => o.id === order.id);
+
+      if (orderIndex !== -1) {
+        // Initialize viewedBy array if it doesn't exist
+        if (!allOrders[orderIndex].viewedBy) {
+          allOrders[orderIndex].viewedBy = [];
+        }
+
+        // Add current user to viewedBy array if not already there
+        if (!allOrders[orderIndex].viewedBy.includes(currentUser)) {
+          allOrders[orderIndex].viewedBy.push(currentUser);
+          localStorage.setItem("orders", JSON.stringify(allOrders));
+
+          // Update the order object we're passing to the detail view
+          order.viewedBy = allOrders[orderIndex].viewedBy;
+        }
+      }
+    }
+
+    setViewingOrder(order);
+    setIsReviewMode(true);
+    if (currentTab) {
+      setPreviousOrdersTab(currentTab);
+    }
+    setCurrentPage("order-details");
+  };
+
+  const handleApproveRevision = (orderId: string) => {
+    const savedOrders = localStorage.getItem("orders");
+    if (savedOrders) {
+      const allOrders = JSON.parse(savedOrders);
+      const orderIndex = allOrders.findIndex((o: any) => o.id === orderId);
+
+      if (orderIndex !== -1) {
+        const oldStatus = allOrders[orderIndex].status;
+        allOrders[orderIndex].status = "Order Revised";
+        allOrders[orderIndex].updatedDate = Date.now();
+        allOrders[orderIndex].updatedBy = currentUser;
+        localStorage.setItem("orders", JSON.stringify(allOrders));
+
+        // Create notification
+        notifyOrderStatusChanged(
+          allOrders[orderIndex],
+          oldStatus,
+          "Order Revised",
+          currentUser,
+          userRole,
+        );
+
+        // Show toast
+        toast.success("Order Revised successfully");
+
+        // Go back
+        handleBackFromOrderDetails();
+      }
+    }
+  };
+
+  const handleCancelOrderFromReview = (orderId: string) => {
+    const savedOrders = localStorage.getItem("orders");
+    if (savedOrders) {
+      const allOrders = JSON.parse(savedOrders);
+      const orderIndex = allOrders.findIndex((o: any) => o.id === orderId);
+
+      if (orderIndex !== -1) {
+        const oldStatus = allOrders[orderIndex].status;
+        allOrders[orderIndex].status = "Cancelled";
+        allOrders[orderIndex].updatedDate = Date.now();
+        allOrders[orderIndex].updatedBy = currentUser;
+        localStorage.setItem("orders", JSON.stringify(allOrders));
+
+        // Create notification
+        notifyOrderStatusChanged(
+          allOrders[orderIndex],
+          oldStatus,
+          "Cancelled",
+          currentUser,
+          userRole,
+        );
+
+        // Show toast
+        toast.success("Order cancelled successfully");
+
+        // Go back
+        handleBackFromOrderDetails();
+      }
+    }
+  };
+
   const handleBackFromOrderDetails = () => {
     setViewingOrder(null);
+    setIsReviewMode(false);
     // Navigate back to appropriate orders page based on user role
     if (userRole === "supplier") {
       setCurrentPage("supplier-orders");
+    } else if (userRole === "sales") {
+      setCurrentPage("sales-orders");
     } else {
       setCurrentPage("jb-orders");
     }
@@ -365,17 +529,33 @@ export default function App() {
     setCurrentPage("jb-requests");
   };
 
-  const handleSaveComplete = () => {
+  const handleSaveComplete = (action: "save" | "saveAndAddMore") => {
     // After saving, reset to new mode
     setEditingOrder(null);
     setFormMode("new");
     setHasFormChanges(false);
+
+    // Note: Navigation is handled by onNavigateToMyRequests for "save" action
+    // which is called by order-form.tsx before this callback
   };
 
   const handleNavigateToMyRequests = () => {
-    // Navigate to My Requests page
-    setCurrentPage("my-orders");
+    // Navigate to My Requests page and show Open tab
+    console.log("🔵 handleNavigateToMyRequests called");
+    console.log("   Current myOrdersTab:", myOrdersTab);
+    console.log("   Current currentPage:", currentPage);
+    // Clear sessionStorage and set flag to force Open tab
+    sessionStorage.removeItem("myRequestActiveTab");
+    setJustCreatedRequest(true); // Set flag to force Open tab
+    setMyOrdersTab("open");
+    console.log("   Set myOrdersTab to: open");
+    console.log("   Set justCreatedRequest to: true");
+    // Increment key to force MyOrders component to remount with fresh state
+    setMyOrdersKey((prev) => prev + 1);
     setHasFormChanges(false);
+    setCurrentPage("my-orders");
+    console.log("   ✅ Set currentPage to: my-orders");
+    console.log("   ✅ handleNavigateToMyRequests complete");
   };
 
   const getFormTitle = () => {
@@ -422,7 +602,15 @@ export default function App() {
     setCurrentUser(username);
     setUserRole(role);
 
+    // Load user's language preference
+    if (user.language) {
+      setUserLanguage(user.language);
+      i18n.changeLanguage(user.language);
+      localStorage.setItem("userLanguage", user.language);
+    }
+
     // Check for expiring requests immediately on login
+    checkAndExpireRequests(); // Check and expire requests first
     checkAndNotifyExpiringRequests(username, role);
 
     // Set default page based on role
@@ -480,6 +668,28 @@ export default function App() {
     setCurrentPage("tambah-pesanan");
   };
 
+  const handleLanguageChange = (language: LanguageCode) => {
+    setUserLanguage(language);
+    i18n.changeLanguage(language);
+    localStorage.setItem("userLanguage", language);
+
+    // Update user profile in storage
+    const userProfileStr =
+      localStorage.getItem("userProfile") ||
+      sessionStorage.getItem("userProfile");
+    if (userProfileStr) {
+      const userProfile = JSON.parse(userProfileStr);
+      userProfile.language = language;
+
+      const isRemembered = localStorage.getItem("isAuthenticated") === "true";
+      if (isRemembered) {
+        localStorage.setItem("userProfile", JSON.stringify(userProfile));
+      } else {
+        sessionStorage.setItem("userProfile", JSON.stringify(userProfile));
+      }
+    }
+  };
+
   // If not authenticated, show login/register page
   if (!isAuthenticated) {
     if (authPage === "register") {
@@ -512,18 +722,31 @@ export default function App() {
           />
         );
       case "my-orders":
+        console.log("🔷 Rendering MyOrders component");
+        console.log("   myOrdersKey:", myOrdersKey);
+        console.log("   myOrdersTab (initialTab prop):", myOrdersTab);
+        console.log("   justCreatedRequest:", justCreatedRequest);
         return (
           <MyOrders
+            key={myOrdersKey}
             onEditOrder={handleEditOrder}
             onDuplicateOrder={handleDuplicateOrder}
             userRole={userRole}
             onVerifyStock={handleVerifyStock}
             onSeeDetail={handleSeeDetail}
             initialTab={myOrdersTab}
+            justCreatedRequest={justCreatedRequest}
+            onClearJustCreated={() => setJustCreatedRequest(false)}
           />
         );
       case "sales-orders":
-        return <SalesOrders onSeeDetail={handleSeeOrderDetail} />;
+        return (
+          <SalesOrders
+            onSeeDetail={handleSeeOrderDetail}
+            onUpdateOrder={handleUpdateOrder}
+            onReviewRevision={handleReviewRevision}
+          />
+        );
       case "home":
         if (userRole === "stockist") {
           return (
@@ -592,12 +815,20 @@ export default function App() {
           />
         );
       case "settings":
-        return <Settings onLogout={handleLogout} username={currentUser} />;
+        return (
+          <Settings
+            onLogout={handleLogout}
+            username={currentUser}
+            currentLanguage={userLanguage}
+            onLanguageChange={handleLanguageChange}
+          />
+        );
       case "notifications":
         return (
           <Notifications
             onNavigateToRequest={handleNavigateToRequest}
             onNavigateToOrder={handleNavigateToOrder}
+            onNavigateToUpdateOrder={handleNavigateToUpdateOrder}
           />
         );
       case "verify-stock":
@@ -635,6 +866,9 @@ export default function App() {
           <OrderDetails
             order={viewingOrder}
             onBack={handleBackFromOrderDetails}
+            reviewMode={isReviewMode}
+            onApproveRevision={handleApproveRevision}
+            onCancelOrder={handleCancelOrderFromReview}
           />
         );
       default:
@@ -708,9 +942,10 @@ export default function App() {
           >
             <RoleIcon className={`w-5 h-5 ${roleConfig.color}`} />
             <span
-              className={`text-sm font-medium ${roleConfig.color} hidden sm:inline`}
+              className={`text-xs sm:text-sm font-medium ${roleConfig.color}`}
             >
-              {roleConfig.label} - {currentUser}
+              <span className="hidden sm:inline">{roleConfig.label} - </span>
+              {currentUser}
             </span>
           </div>
         </div>

@@ -1,17 +1,10 @@
-import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Request } from "../types/request";
 import { notifyRequestCancelled } from "../utils/notification-helper";
+import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { RequestCard } from "./request-card";
 import { Card } from "./ui/card";
-import { Input } from "./ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface MyOrdersProps {
@@ -21,17 +14,34 @@ interface MyOrdersProps {
   onVerifyStock?: (order: Request, currentTab: string) => void;
   onSeeDetail?: (order: Request, currentTab: string) => void;
   initialTab?: string;
+  justCreatedRequest?: boolean;
+  onClearJustCreated?: () => void;
 }
 
-type SortOption =
-  | "created"
-  | "eta"
-  | "sales"
-  | "pabrik"
-  | "jenis"
-  | "atasNama"
-  | "updatedDate"
-  | "updatedBy";
+const REQUEST_SORT_OPTIONS: SortOption[] = [
+  { value: "updatedDate", label: "Updated Date" },
+  { value: "created", label: "Created Date" },
+  { value: "eta", label: "ETA" },
+  { value: "productName", label: "Product Name" },
+  { value: "sales", label: "Sales" },
+  { value: "atasNama", label: "Customer Name" },
+  { value: "pabrik", label: "Supplier" },
+  { value: "requestNo", label: "Request No" },
+];
+
+function useRequestSortOptions() {
+  const { t } = useTranslation();
+  return [
+    { value: "updatedDate", label: t("sortOptions.updatedDate") },
+    { value: "created", label: t("sortOptions.created") },
+    { value: "eta", label: t("sortOptions.eta") },
+    { value: "productName", label: t("sortOptions.productName") },
+    { value: "sales", label: t("sortOptions.sales") },
+    { value: "atasNama", label: t("sortOptions.atasNama") },
+    { value: "pabrik", label: t("sortOptions.pabrik") },
+    { value: "requestNo", label: t("sortOptions.requestNo") },
+  ];
+}
 
 export function MyOrders({
   onEditOrder,
@@ -40,11 +50,40 @@ export function MyOrders({
   onVerifyStock,
   onSeeDetail,
   initialTab,
+  justCreatedRequest,
+  onClearJustCreated,
 }: MyOrdersProps) {
+  const { t } = useTranslation();
+  const sortOptions = useRequestSortOptions();
   const [orders, setOrders] = useState<Request[]>([]);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(initialTab || "open");
-  const [sortBy, setSortBy] = useState<SortOption>("updatedDate");
+  const [activeTab, setActiveTab] = useState(() => {
+    console.log("🟢 MyOrders useState initialization");
+    console.log("   justCreatedRequest:", justCreatedRequest);
+    console.log("   initialTab:", initialTab);
+
+    // If justCreatedRequest flag is set, force Open tab and ignore sessionStorage
+    if (justCreatedRequest) {
+      console.log("   ✅ justCreatedRequest is true, forcing 'open' tab");
+      sessionStorage.removeItem("myOrdersActiveTab");
+      return "open";
+    }
+
+    // If initialTab is provided, use it
+    if (initialTab) {
+      console.log("   Using initialTab:", initialTab);
+      return initialTab;
+    }
+
+    // Otherwise, try to restore from sessionStorage, or default to "open"
+    const saved = sessionStorage.getItem("myOrdersActiveTab");
+    console.log(
+      "   Restoring from sessionStorage:",
+      saved || "(none, defaulting to 'open')",
+    );
+    return saved || "open";
+  });
+  const [sortBy, setSortBy] = useState<string>("updatedDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [requestNoFilter, setRequestNoFilter] = useState<string>("");
   const [displayedCount, setDisplayedCount] = useState(20);
@@ -158,10 +197,56 @@ export function MyOrders({
     };
   }, []);
 
+  // Clear the justCreatedRequest flag after component mounts
+  useEffect(() => {
+    if (justCreatedRequest && onClearJustCreated) {
+      // Clear it on next tick to ensure the initial render uses the flag
+      setTimeout(() => onClearJustCreated(), 0);
+    }
+  }, [justCreatedRequest, onClearJustCreated]);
+
+  // Persist activeTab to sessionStorage, but not when we just created a request
+  useEffect(() => {
+    console.log("🟡 activeTab persistence useEffect triggered");
+    console.log("   justCreatedRequest:", justCreatedRequest);
+    console.log("   activeTab:", activeTab);
+
+    if (!justCreatedRequest) {
+      console.log("   💾 Saving to sessionStorage:", activeTab);
+      sessionStorage.setItem("myOrdersActiveTab", activeTab);
+    } else {
+      console.log("   ⏭️ Skipping save (justCreatedRequest is true)");
+    }
+  }, [activeTab, justCreatedRequest]);
+
   // Reload data when tab changes
   useEffect(() => {
     loadOrders();
   }, [activeTab]);
+
+  // Handler for tab changes with logging
+  const handleTabChange = (newTab: string) => {
+    console.log("🟣 Tab changed by user interaction");
+    console.log("   Previous tab:", activeTab);
+    console.log("   New tab:", newTab);
+    setActiveTab(newTab);
+  };
+
+  // Update activeTab when initialTab prop changes (e.g., after saving a new request)
+  // BUT skip this if we just created a request (the flag takes precedence)
+  useEffect(() => {
+    console.log("initialTab useEffect triggered");
+    console.log("   justCreatedRequest:", justCreatedRequest);
+    console.log("   initialTab:", initialTab);
+    console.log("   activeTab:", activeTab);
+
+    if (!justCreatedRequest && initialTab && initialTab !== activeTab) {
+      console.log("   Changing activeTab from", activeTab, "to", initialTab);
+      setActiveTab(initialTab);
+    } else {
+      console.log("   No change needed");
+    }
+  }, [initialTab, justCreatedRequest]);
 
   const loadOrders = () => {
     const savedOrders = localStorage.getItem("requests");
@@ -238,6 +323,7 @@ export function MyOrders({
   });
 
   // Calculate filtered counts for each tab based on requestNo filter
+  const allCount = requestNoFiltered.length;
   const openCount = requestNoFiltered.filter((order: Request) => {
     return order.status === "Open";
   }).length;
@@ -301,39 +387,39 @@ export function MyOrders({
     let comparison = 0;
     switch (sortBy) {
       case "created":
-        comparison = (b.timestamp || 0) - (a.timestamp || 0);
+        comparison = (a.timestamp || 0) - (b.timestamp || 0);
         break;
       case "updatedDate":
         comparison =
-          (b.updatedDate || b.timestamp || 0) -
-          (a.updatedDate || a.timestamp || 0);
+          (a.updatedDate || a.timestamp || 0) -
+          (b.updatedDate || b.timestamp || 0);
         break;
       case "eta":
         comparison =
           new Date(a.waktuKirim || 0).getTime() -
           new Date(b.waktuKirim || 0).getTime();
         break;
+      case "productName":
+        comparison = (a.namaBarang || "").localeCompare(b.namaBarang || "");
+        break;
       case "sales":
         comparison = (a.createdBy || "").localeCompare(b.createdBy || "");
-        break;
-      case "updatedBy":
-        comparison = (a.updatedBy || "").localeCompare(b.updatedBy || "");
-        break;
-      case "pabrik":
-        comparison = (a.pabrik?.name || "").localeCompare(b.pabrik?.name || "");
-        break;
-      case "jenis":
-        comparison = a.jenisProduk.localeCompare(b.jenisProduk);
         break;
       case "atasNama":
         comparison = (a.namaPelanggan?.name || "").localeCompare(
           b.namaPelanggan?.name || "",
         );
         break;
+      case "pabrik":
+        comparison = (a.pabrik?.name || "").localeCompare(b.pabrik?.name || "");
+        break;
+      case "requestNo":
+        comparison = (a.requestNo || "").localeCompare(b.requestNo || "");
+        break;
       default:
         return 0;
     }
-    return sortDirection === "desc" ? comparison : -comparison;
+    return sortDirection === "asc" ? comparison : -comparison;
   });
 
   // Get displayed orders for lazy loading
@@ -467,78 +553,43 @@ export function MyOrders({
       {/* Header */}
       <div className="flex-shrink-0 mb-4">
         <h1 className="text-xl font-semibold">
-          {userRole === "stockist" ? "Requests" : "My Requests"}
+          {userRole === "stockist"
+            ? t("navigation.requests")
+            : t("navigation.myRequests")}
         </h1>
       </div>
 
       {/* Total and Controls */}
-      <div className="flex-shrink-0 mb-4 flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          {totalVisibleRequests} request(s)
-        </p>
-        <div className="flex gap-6 items-center">
-          <div className="w-52 relative">
-            <Input
-              placeholder="Filter by Request No..."
-              value={requestNoFilter}
-              onChange={(e) => setRequestNoFilter(e.target.value)}
-              className="h-9 pr-8"
-            />
-            {requestNoFilter && (
-              <button
-                onClick={() => setRequestNoFilter("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600 whitespace-nowrap">
-              Sort by
-            </label>
-            <Select
-              value={sortBy}
-              onValueChange={(value: string) => setSortBy(value as SortOption)}
-            >
-              <SelectTrigger className="h-9 w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="updatedDate">Updated Date</SelectItem>
-                <SelectItem value="created">Created Date</SelectItem>
-                <SelectItem value="updatedBy">Updated By</SelectItem>
-                <SelectItem value="eta">ETA</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="pabrik">Pabrik</SelectItem>
-                <SelectItem value="jenis">Jenis Barang</SelectItem>
-                <SelectItem value="atasNama">Atas Nama</SelectItem>
-              </SelectContent>
-            </Select>
-            <button
-              onClick={() =>
-                setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-              }
-              className="h-9 w-9 flex items-center justify-center border rounded-md hover:bg-gray-100 transition-colors"
-              title={sortDirection === "asc" ? "Ascending" : "Descending"}
-            >
-              {sortDirection === "asc" ? (
-                <ArrowDown className="w-4 h-4" />
-              ) : (
-                <ArrowUp className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        </div>
+      <div className="flex-shrink-0 mb-4">
+        <FilterSortControls
+          type="request"
+          totalCount={totalVisibleRequests}
+          filterValue={requestNoFilter}
+          onFilterChange={setRequestNoFilter}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortDirection={sortDirection}
+          onSortDirectionChange={setSortDirection}
+          sortOptions={sortOptions}
+        />
       </div>
 
       {/* Tabs and Content */}
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="flex flex-col flex-1 min-h-0"
       >
         <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
+          <TabsTrigger
+            value="all"
+            onClick={handleTabClick}
+            className={
+              activeTab === "all" ? "text-gray-900 border-gray-900" : ""
+            }
+          >
+            {t("tabs.all")} ({allCount})
+          </TabsTrigger>
           <TabsTrigger
             value="open"
             onClick={handleTabClick}
@@ -546,7 +597,7 @@ export function MyOrders({
               activeTab === "open" ? "text-amber-600 border-amber-600" : ""
             }
           >
-            Open ({openCount})
+            {t("tabs.open")} ({openCount})
           </TabsTrigger>
           <TabsTrigger
             value="in-progress"
@@ -555,7 +606,7 @@ export function MyOrders({
               activeTab === "in-progress" ? "text-blue-600 border-blue-600" : ""
             }
           >
-            In Progress ({inProgressCount})
+            {t("tabs.inProgress")} ({inProgressCount})
           </TabsTrigger>
           <TabsTrigger
             value="assigned"
@@ -566,7 +617,7 @@ export function MyOrders({
                 : ""
             }
           >
-            Assigned ({assignedCount})
+            {t("tabs.assigned")} ({assignedCount})
           </TabsTrigger>
           <TabsTrigger
             value="done"
@@ -575,7 +626,7 @@ export function MyOrders({
               activeTab === "done" ? "text-green-600 border-green-600" : ""
             }
           >
-            Done ({doneCount})
+            {t("tabs.done")} ({doneCount})
           </TabsTrigger>
           <TabsTrigger
             value="cancelled"
@@ -584,16 +635,16 @@ export function MyOrders({
               activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
             }
           >
-            Cancelled ({cancelledCount})
+            {t("tabs.cancelled")} ({cancelledCount})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="open" className="flex-1 min-h-0 m-0">
+        <TabsContent value="all" className="flex-1 min-h-0 m-0">
           {filteredOrders.length === 0 ? (
             <Card className="p-8">
               <div className="text-center text-gray-500">
-                <p className="text-lg mb-2">No open requests</p>
-                <p className="text-sm">Open requests will appear here</p>
+                <p className="text-lg mb-2">{t("common.noData")}</p>
+                <p className="text-sm">{t("common.noDataMessage")}</p>
               </div>
             </Card>
           ) : (
@@ -603,7 +654,33 @@ export function MyOrders({
               </div>
               {displayedCount < sortedOrders.length && (
                 <div ref={observerTarget} className="flex justify-center py-4">
-                  <div className="text-sm text-gray-500">Loading more...</div>
+                  <div className="text-sm text-gray-500">
+                    {t("common.loadingMore")}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="open" className="flex-1 min-h-0 m-0">
+          {filteredOrders.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <p className="text-lg mb-2">{t("tabs.noOpenRequests")}</p>
+                <p className="text-sm">{t("tabs.noOpenRequestsMessage")}</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="space-y-3 pb-4">
+                {displayedOrders.map((order) => renderOrderCard(order))}
+              </div>
+              {displayedCount < sortedOrders.length && (
+                <div ref={observerTarget} className="flex justify-center py-4">
+                  <div className="text-sm text-gray-500">
+                    {t("common.loadingMore")}
+                  </div>
                 </div>
               )}
             </div>
@@ -614,8 +691,10 @@ export function MyOrders({
           {filteredOrders.length === 0 ? (
             <Card className="p-8">
               <div className="text-center text-gray-500">
-                <p className="text-lg mb-2">No requests in progress</p>
-                <p className="text-sm">In-progress requests will appear here</p>
+                <p className="text-lg mb-2">{t("tabs.noInProgressRequests")}</p>
+                <p className="text-sm">
+                  {t("tabs.noInProgressRequestsMessage")}
+                </p>
               </div>
             </Card>
           ) : (
@@ -625,7 +704,9 @@ export function MyOrders({
               </div>
               {displayedCount < sortedOrders.length && (
                 <div ref={observerTarget} className="flex justify-center py-4">
-                  <div className="text-sm text-gray-500">Loading more...</div>
+                  <div className="text-sm text-gray-500">
+                    {t("common.loadingMore")}
+                  </div>
                 </div>
               )}
             </div>
@@ -636,8 +717,10 @@ export function MyOrders({
           {filteredOrders.length === 0 ? (
             <Card className="p-8">
               <div className="text-center text-gray-500">
-                <p className="text-lg mb-2">No completed requests</p>
-                <p className="text-sm">Completed requests will appear here</p>
+                <p className="text-lg mb-2">{t("tabs.noCompletedRequests")}</p>
+                <p className="text-sm">
+                  {t("tabs.noCompletedRequestsMessage")}
+                </p>
               </div>
             </Card>
           ) : (
@@ -647,7 +730,9 @@ export function MyOrders({
               </div>
               {displayedCount < sortedOrders.length && (
                 <div ref={observerTarget} className="flex justify-center py-4">
-                  <div className="text-sm text-gray-500">Loading more...</div>
+                  <div className="text-sm text-gray-500">
+                    {t("common.loadingMore")}
+                  </div>
                 </div>
               )}
             </div>
@@ -658,8 +743,8 @@ export function MyOrders({
           {filteredOrders.length === 0 ? (
             <Card className="p-8">
               <div className="text-center text-gray-500">
-                <p className="text-lg mb-2">No assigned requests</p>
-                <p className="text-sm">Assigned requests will appear here</p>
+                <p className="text-lg mb-2">{t("tabs.noAssignedRequests")}</p>
+                <p className="text-sm">{t("tabs.noAssignedRequestsMessage")}</p>
               </div>
             </Card>
           ) : (
@@ -669,7 +754,9 @@ export function MyOrders({
               </div>
               {displayedCount < sortedOrders.length && (
                 <div ref={observerTarget} className="flex justify-center py-4">
-                  <div className="text-sm text-gray-500">Loading more...</div>
+                  <div className="text-sm text-gray-500">
+                    {t("common.loadingMore")}
+                  </div>
                 </div>
               )}
             </div>
@@ -680,8 +767,10 @@ export function MyOrders({
           {filteredOrders.length === 0 ? (
             <Card className="p-8">
               <div className="text-center text-gray-500">
-                <p className="text-lg mb-2">No cancelled requests</p>
-                <p className="text-sm">Cancelled requests will appear here</p>
+                <p className="text-lg mb-2">{t("tabs.noCancelledRequests")}</p>
+                <p className="text-sm">
+                  {t("tabs.noCancelledRequestsMessage")}
+                </p>
               </div>
             </Card>
           ) : (
@@ -691,7 +780,9 @@ export function MyOrders({
               </div>
               {displayedCount < sortedOrders.length && (
                 <div ref={observerTarget} className="flex justify-center py-4">
-                  <div className="text-sm text-gray-500">Loading more...</div>
+                  <div className="text-sm text-gray-500">
+                    {t("common.loadingMore")}
+                  </div>
                 </div>
               )}
             </div>

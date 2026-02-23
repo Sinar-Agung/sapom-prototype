@@ -1,40 +1,11 @@
-import {
-  getLabelFromValue,
-  JENIS_PRODUK_OPTIONS,
-  NAMA_BASIC_OPTIONS,
-  NAMA_PRODUK_OPTIONS,
-} from "@/app/data/order-data";
 import { Order } from "@/app/types/order";
-import { getImage } from "@/app/utils/image-storage";
 import { notifyOrderStatusChanged } from "@/app/utils/notification-helper";
-import casteli from "@/assets/images/casteli.png";
-import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
-import italyBambu from "@/assets/images/italy-bambu.png";
-import italyKaca from "@/assets/images/italy-kaca.png";
-import italySanta from "@/assets/images/italy-santa.png";
-import kalungFlexi from "@/assets/images/kalung-flexi.png";
-import milano from "@/assets/images/milano.png";
-import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
-import tambang from "@/assets/images/tambang.png";
 import { Package } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
-import { Button } from "./ui/button";
+import { OrderCard } from "./order-card";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-
-// Image mapping for Nama Basic
-const NAMA_BASIC_IMAGES: Record<string, string> = {
-  "italy-santa": italySanta,
-  "italy-kaca": italyKaca,
-  "italy-bambu": italyBambu,
-  "kalung-flexi": kalungFlexi,
-  "sunny-vanessa": sunnyVanessa,
-  "hollow-fancy-nori": hollowFancyNori,
-  milano: milano,
-  tambang: tambang,
-  casteli: casteli,
-};
 
 interface SupplierOrdersProps {
   onSeeDetail?: (order: Order, currentTab?: string) => void;
@@ -47,8 +18,8 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
   { value: "eta", label: "ETA" },
   { value: "productName", label: "Product Name" },
   { value: "sales", label: "Sales" },
-  { value: "atasNama", label: "Atas Nama" },
-  { value: "pabrik", label: "Pabrik" },
+  { value: "atasNama", label: "Customer Name" },
+  { value: "pabrik", label: "Supplier" },
   { value: "orderNo", label: "Order No" },
 ];
 
@@ -260,6 +231,52 @@ export function SupplierOrders({
     (order: Order) => order.status === "Cancelled",
   ).length;
 
+  // Calculate unseen counts (orders not viewed by current user)
+  const unseenAllCount = orderNoFiltered.filter(
+    (order: Order) => !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenNewCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "New" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenViewedCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Viewed" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenChangeRequestedCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Change Requested" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenRevisedInternalReviewCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Revised - Internal Review" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenOrderRevisedCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Order Revised" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenStockReadyCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Stock Ready" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenInProductionCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "In Production" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenUnableCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Unable to Fulfill" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenCancelledCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Cancelled" && !order.viewedBy?.includes(currentUser),
+  ).length;
+
   // Filter by active tab
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
     if (activeTab === "all") {
@@ -323,134 +340,6 @@ export function SupplierOrders({
     return sortDirection === "desc" ? comparison : -comparison;
   });
 
-  // Calculate counts for each tab (also filter by supplier ID)
-  const newCount = orders.filter(
-    (order) => order.pabrik?.id === supplierId && order.status === "New",
-  ).length;
-  const viewedCount = orders.filter(
-    (order) => order.pabrik?.id === supplierId && order.status === "Viewed",
-  ).length;
-  const inProductionCount = orders.filter(
-    (order) =>
-      order.pabrik?.id === supplierId && order.status === "In Production",
-  ).length;
-  const requestChangeCount = orders.filter(
-    (order) =>
-      order.pabrik?.id === supplierId && order.status === "Change Requested",
-  ).length;
-  const stockReadyCount = orders.filter(
-    (order) =>
-      order.pabrik?.id === supplierId && order.status === "Stock Ready",
-  ).length;
-  const unableCount = orders.filter(
-    (order) =>
-      order.pabrik?.id === supplierId && order.status === "Unable to Fulfill",
-  ).length;
-
-  const formatDate = (isoString: string) => {
-    if (!isoString) return "";
-    return new Date(isoString).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatTimestamp = (timestamp: number) => {
-    if (!timestamp) return "";
-    return new Date(timestamp).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const getOrderImage = (order: Order) => {
-    // Check for latest uploaded photo via photoId
-    if (order.photoId) {
-      const storedImage = getImage(order.photoId);
-      if (storedImage) return storedImage;
-    }
-    // Fallback to predefined Basic images
-    if (order.kategoriBarang === "basic" && order.namaBasic) {
-      return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
-    }
-    return italySanta;
-  };
-
-  const getStatusBadgeClasses = (status: string): string => {
-    switch (status) {
-      case "New":
-        return "bg-blue-100 text-blue-800";
-      case "Viewed":
-        return "bg-purple-100 text-purple-800";
-      case "Change Requested":
-        return "bg-orange-100 text-orange-800";
-      case "Stock Ready":
-        return "bg-green-100 text-green-800";
-      case "Unable to Fulfill":
-        return "bg-red-100 text-red-800";
-      case "Completed":
-        return "bg-gray-100 text-gray-800";
-      case "Cancelled":
-        return "bg-gray-300 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getKadarColor = (kadar: string) => {
-    const colors: Record<string, string> = {
-      "6k": "bg-green-500 text-white",
-      "8k": "bg-blue-500 text-white",
-      "9k": "bg-blue-700 text-white",
-      "16k": "bg-orange-500 text-white",
-      "17k": "bg-pink-500 text-white",
-      "24k": "bg-red-500 text-white",
-    };
-    return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
-  };
-
-  const getWarnaColor = (warna: string) => {
-    const colors: Record<string, string> = {
-      rg: "bg-rose-300 text-gray-800",
-      ap: "bg-gray-200 text-gray-800",
-      kn: "bg-yellow-400 text-gray-800",
-      ks: "bg-yellow-300 text-gray-800",
-      "2w-ap-rg": "bg-gradient-to-r from-gray-200 to-rose-300 text-gray-800",
-      "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
-    };
-    return colors[warna.toLowerCase()] || "bg-gray-300 text-gray-800";
-  };
-
-  const getWarnaLabel = (warna: string) => {
-    const labels: Record<string, string> = {
-      rg: "RG",
-      ap: "AP",
-      kn: "KN",
-      ks: "KS",
-      "2w-ap-rg": "2W (AP & RG)",
-      "2w-ap-kn": "2W (AP & KN)",
-    };
-    return labels[warna.toLowerCase()] || warna.toUpperCase();
-  };
-
-  const getUkuranDisplay = (ukuran: string) => {
-    // Check if ukuran is a number (which means it's in cm)
-    const numValue = parseFloat(ukuran);
-    if (!isNaN(numValue)) {
-      return ukuran + " cm";
-    }
-    // Check if it's a size code (a, n, p, t)
-    const ukuranLabels: Record<string, string> = {
-      a: "A - Anak",
-      n: "N - Normal",
-      p: "P - Panjang",
-      t: "T - Tanggung",
-    };
-    return ukuranLabels[ukuran.toLowerCase()] || ukuran;
-  };
-
   return (
     <div className="space-y-4 pb-20 md:pb-4">
       {/* Header */}
@@ -480,7 +369,14 @@ export function SupplierOrders({
               activeTab === "all" ? "text-gray-900 border-gray-900" : ""
             }
           >
-            All ({allCount})
+            <span className="flex items-center gap-1.5">
+              All ({allCount})
+              {unseenAllCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenAllCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="new"
@@ -488,7 +384,14 @@ export function SupplierOrders({
               activeTab === "new" ? "text-blue-600 border-blue-600" : ""
             }
           >
-            New ({filteredNewCount})
+            <span className="flex items-center gap-1.5">
+              New ({filteredNewCount})
+              {unseenNewCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenNewCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="viewed"
@@ -496,7 +399,14 @@ export function SupplierOrders({
               activeTab === "viewed" ? "text-purple-600 border-purple-600" : ""
             }
           >
-            Viewed ({filteredViewedCount})
+            <span className="flex items-center gap-1.5">
+              Viewed ({filteredViewedCount})
+              {unseenViewedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenViewedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="change-requested"
@@ -506,7 +416,14 @@ export function SupplierOrders({
                 : ""
             }
           >
-            Change Requested ({filteredChangeRequestedCount})
+            <span className="flex items-center gap-1.5">
+              Change Requested ({filteredChangeRequestedCount})
+              {unseenChangeRequestedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenChangeRequestedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="revised-internal-review"
@@ -516,7 +433,14 @@ export function SupplierOrders({
                 : ""
             }
           >
-            Revised - Internal Review ({filteredRevisedInternalReviewCount})
+            <span className="flex items-center gap-1.5">
+              Revised - Internal Review ({filteredRevisedInternalReviewCount})
+              {unseenRevisedInternalReviewCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenRevisedInternalReviewCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="order-revised"
@@ -526,7 +450,14 @@ export function SupplierOrders({
                 : ""
             }
           >
-            Order Revised ({filteredOrderRevisedCount})
+            <span className="flex items-center gap-1.5">
+              Order Revised ({filteredOrderRevisedCount})
+              {unseenOrderRevisedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenOrderRevisedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="stock-ready"
@@ -536,7 +467,14 @@ export function SupplierOrders({
                 : ""
             }
           >
-            Stock Ready ({filteredStockReadyCount})
+            <span className="flex items-center gap-1.5">
+              Stock Ready ({filteredStockReadyCount})
+              {unseenStockReadyCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenStockReadyCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="in-production"
@@ -546,7 +484,14 @@ export function SupplierOrders({
                 : ""
             }
           >
-            In Production ({filteredInProductionCount})
+            <span className="flex items-center gap-1.5">
+              In Production ({filteredInProductionCount})
+              {unseenInProductionCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenInProductionCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="unable"
@@ -554,7 +499,14 @@ export function SupplierOrders({
               activeTab === "unable" ? "text-red-600 border-red-600" : ""
             }
           >
-            Unable to Fulfill ({filteredUnableCount})
+            <span className="flex items-center gap-1.5">
+              Unable to Fulfill ({filteredUnableCount})
+              {unseenUnableCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenUnableCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="cancelled"
@@ -562,7 +514,14 @@ export function SupplierOrders({
               activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
             }
           >
-            Cancelled ({filteredCancelledCount})
+            <span className="flex items-center gap-1.5">
+              Cancelled ({filteredCancelledCount})
+              {unseenCancelledCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenCancelledCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -593,158 +552,22 @@ export function SupplierOrders({
           ) : (
             <div className="space-y-3">
               {filteredOrders.map((order) => {
-                const jenisProdukLabel = getLabelFromValue(
-                  JENIS_PRODUK_OPTIONS,
-                  order.jenisProduk,
-                );
-                const productNameLabel =
-                  order.kategoriBarang === "basic"
-                    ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
-                    : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
-
                 return (
-                  <Card key={order.id} className="p-4">
-                    <div className="flex gap-4">
-                      {/* Product Image */}
-                      <div className="w-24 h-24 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
-                        <img
-                          src={getOrderImage(order)}
-                          alt={productNameLabel}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-
-                      {/* Order Details */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 className="font-bold text-lg">
-                              {jenisProdukLabel} {productNameLabel}
-                            </h3>
-                            <p className="text-sm text-gray-600 font-mono font-semibold text-blue-700">
-                              {order.PONumber}
-                            </p>
-                          </div>
-                          <span
-                            className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
-                          >
-                            {order.status}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                          <div>
-                            <span className="text-gray-500">Created:</span>{" "}
-                            {formatTimestamp(order.createdDate)}
-                          </div>
-                          <div>
-                            <span className="text-gray-500">ETA:</span>{" "}
-                            {formatDate(order.waktuKirim) || "-"}
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Items:</span>{" "}
-                            {order.detailItems.length}
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toggleExpand(order.id)}
-                          >
-                            {expandedOrderId === order.id
-                              ? "Hide Items"
-                              : "Show Items"}
-                          </Button>
-                          {onSeeDetail && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                // Auto-update status to Viewed if order is New
-                                if (order.status === "New") {
-                                  handleUpdateStatus(order.id, "Viewed");
-                                }
-                                onSeeDetail(order, activeTab);
-                              }}
-                            >
-                              View Details
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Expandable Items Table */}
-                    {expandedOrderId === order.id && (
-                      <div className="mt-4 pt-4 border-t space-y-3 bg-white p-3 sm:p-4 rounded-lg border">
-                        <div className="mt-4">
-                          <h4 className="text-xs font-semibold mb-2">
-                            Detail Barang
-                          </h4>
-                          <div className="max-h-[300px] overflow-auto">
-                            <table className="w-full border-collapse border text-xs">
-                              <thead className="bg-gray-100 sticky top-0 z-10">
-                                <tr>
-                                  <th className="border p-2 text-left bg-gray-100">
-                                    #
-                                  </th>
-                                  <th className="border p-2 text-left bg-gray-100">
-                                    Kadar
-                                  </th>
-                                  <th className="border p-2 text-left bg-gray-100">
-                                    Warna
-                                  </th>
-                                  <th className="border p-2 text-left bg-gray-100">
-                                    Ukuran
-                                  </th>
-                                  <th className="border p-2 text-left bg-gray-100">
-                                    Berat
-                                  </th>
-                                  <th className="border p-2 text-left bg-gray-100">
-                                    Pcs
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {order.detailItems.map((item, index) => {
-                                  return (
-                                    <tr
-                                      key={item.id || index}
-                                      className="hover:bg-gray-50"
-                                    >
-                                      <td className="border p-2 text-center">
-                                        {index + 1}
-                                      </td>
-                                      <td
-                                        className={`border p-2 font-medium ${getKadarColor(item.kadar)}`}
-                                      >
-                                        {item.kadar.toUpperCase()}
-                                      </td>
-                                      <td
-                                        className={`border p-2 ${getWarnaColor(item.warna)}`}
-                                      >
-                                        {getWarnaLabel(item.warna)}
-                                      </td>
-                                      <td className="border p-2">
-                                        {getUkuranDisplay(item.ukuran)}
-                                      </td>
-                                      <td className="border p-2">
-                                        {item.berat || "-"}
-                                      </td>
-                                      <td className="border p-2">{item.pcs}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    isExpanded={expandedOrderId === order.id}
+                    onToggleExpand={() => toggleExpand(order.id)}
+                    onSeeDetail={(order) => {
+                      // Auto-update status to Viewed if order is New
+                      if (order.status === "New") {
+                        handleUpdateStatus(order.id, "Viewed");
+                      }
+                      onSeeDetail?.(order, activeTab);
+                    }}
+                    currentUser={currentUser}
+                    userRole="supplier"
+                  />
                 );
               })}
             </div>

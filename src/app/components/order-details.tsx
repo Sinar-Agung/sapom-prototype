@@ -22,6 +22,7 @@ import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
@@ -41,9 +42,18 @@ const NAMA_BASIC_IMAGES: Record<string, string> = {
 interface OrderDetailsProps {
   order: Order;
   onBack: () => void;
+  reviewMode?: boolean;
+  onApproveRevision?: (orderId: string) => void;
+  onCancelOrder?: (orderId: string) => void;
 }
 
-export function OrderDetails({ order, onBack }: OrderDetailsProps) {
+export function OrderDetails({
+  order,
+  onBack,
+  reviewMode = false,
+  onApproveRevision,
+  onCancelOrder,
+}: OrderDetailsProps) {
   const [relatedRequest, setRelatedRequest] = useState<Request | null>(null);
   const [isRequestDetailsOpen, setIsRequestDetailsOpen] = useState(false);
   const [isRevisionHistoryOpen, setIsRevisionHistoryOpen] = useState(false);
@@ -83,6 +93,19 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
         setCurrentOrder(allOrders[orderIndex]);
       }
     }
+  };
+
+  const handleUpdateStatusWithToast = (
+    orderId: string,
+    newStatus: string,
+    toastMessage: string,
+  ) => {
+    handleUpdateStatus(orderId, newStatus);
+    toast.success(toastMessage);
+    // Redirect back to previous page after a short delay
+    setTimeout(() => {
+      onBack();
+    }, 500);
   };
 
   useEffect(() => {
@@ -147,35 +170,6 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
     return italySanta;
   };
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case "New":
-        return "bg-blue-100 text-blue-800";
-      case "Viewed":
-        return "bg-purple-100 text-purple-800";
-      case "Change Requested":
-        return "bg-orange-100 text-orange-800";
-      case "Stock Ready":
-        return "bg-green-100 text-green-800";
-      case "Unable to Fulfill":
-        return "bg-red-100 text-red-800";
-      case "Viewed by Supplier":
-        return "bg-purple-100 text-purple-800";
-      case "Confirmed":
-        return "bg-green-100 text-green-800";
-      case "In Production":
-        return "bg-yellow-100 text-yellow-800";
-      case "Ready for Pickup":
-        return "bg-orange-100 text-orange-800";
-      case "Completed":
-        return "bg-gray-100 text-gray-800";
-      case "Cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
     order.jenisProduk,
@@ -185,7 +179,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
       ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
       : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
 
-  const pabrikLabel = order.pabrik?.name || "Unknown Pabrik";
+  const pabrikLabel = order.pabrik?.name || "Unknown Supplier";
 
   const getKadarColor = (kadar: string) => {
     const colors: Record<string, string> = {
@@ -252,13 +246,15 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-xl font-bold">Order Details</h1>
+          <h1 className="text-xl font-bold">
+            {reviewMode ? "Review Order Revision" : "Order Details"}
+          </h1>
           <p className="text-sm text-gray-600 font-mono font-semibold">
             {order.PONumber}
           </p>
         </div>
         <span
-          className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusColor(currentOrder.status)}`}
+          className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(currentOrder.status)}`}
         >
           {currentOrder.status}
         </span>
@@ -315,7 +311,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 {getFullNameFromUsername(order.jbId)}
               </p>
               <p>
-                <span className="text-gray-600">Pabrik:</span>{" "}
+                <span className="text-gray-600">Supplier:</span>{" "}
                 <span className="font-medium">{pabrikLabel}</span>
               </p>
               <p>
@@ -325,7 +321,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <p>
                 <span className="text-gray-600">Status:</span>{" "}
                 <span
-                  className={`inline-block text-xs ${getStatusColor(currentOrder.status)} px-2 py-1 rounded-full font-medium`}
+                  className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium`}
                 >
                   {currentOrder.status}
                 </span>
@@ -382,21 +378,35 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="flex gap-2 flex-wrap justify-end mt-6">
             <Button
               onClick={() =>
-                handleUpdateStatus(currentOrder.id, "In Production")
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "In Production",
+                  "You've marked the Order as In Production",
+                )
               }
               className="bg-yellow-500 hover:bg-yellow-600 text-white"
             >
               Start Production
             </Button>
             <Button
-              onClick={() => handleUpdateStatus(currentOrder.id, "Stock Ready")}
+              onClick={() =>
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Stock Ready",
+                  "You've marked the Order as Ready Stock",
+                )
+              }
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               Mark Stock Ready
             </Button>
             <Button
               onClick={() =>
-                handleUpdateStatus(currentOrder.id, "Change Requested")
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Change Requested",
+                  "You've requested a change for this Order",
+                )
               }
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
@@ -413,18 +423,40 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </div>
         )}
 
-      {/* Supplier Action Buttons - In Production */}
-      {userRole === "supplier" && currentOrder.status === "In Production" && (
+      {/* Supplier Action Buttons - Order Revised */}
+      {userRole === "supplier" && currentOrder.status === "Order Revised" && (
         <div className="flex gap-2 flex-wrap justify-end mt-6">
           <Button
-            onClick={() => handleUpdateStatus(currentOrder.id, "Stock Ready")}
+            onClick={() =>
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "In Production",
+                "You've marked the Order as In Production",
+              )
+            }
+            className="bg-yellow-500 hover:bg-yellow-600 text-white"
+          >
+            Start Production
+          </Button>
+          <Button
+            onClick={() =>
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "Stock Ready",
+                "You've marked the Order as Ready Stock",
+              )
+            }
             className="bg-green-600 hover:bg-green-700 text-white"
           >
             Mark Stock Ready
           </Button>
           <Button
             onClick={() =>
-              handleUpdateStatus(currentOrder.id, "Change Requested")
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "Change Requested",
+                "You've requested a change for this Order",
+              )
             }
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
@@ -696,10 +728,10 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           <div className="flex flex-col md:flex-row gap-4">
                             {/* Left side: Fields */}
                             <div className="flex-1 space-y-3">
-                              {/* Kategori Barang */}
+                              {/* Product Category */}
                               <div>
                                 <p className="font-medium text-gray-700 text-xs mb-1">
-                                  Kategori Barang
+                                  Product Category
                                 </p>
                                 <p className="text-gray-900">
                                   {getLabelFromValue(
@@ -714,10 +746,10 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 </p>
                               </div>
 
-                              {/* Jenis Produk */}
+                              {/* Product Type */}
                               <div>
                                 <p className="font-medium text-gray-700 text-xs mb-1">
-                                  Jenis Produk
+                                  Product Type
                                 </p>
                                 <p className="text-gray-900">
                                   {getLabelFromValue(
@@ -728,12 +760,12 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 </p>
                               </div>
 
-                              {/* Nama Basic */}
+                              {/* Basic Name */}
                               {(firstRevision?.previousValues.namaBasic ||
                                 currentOrder.namaBasic) && (
                                 <div>
                                   <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Nama Basic
+                                    Basic Name
                                   </p>
                                   <p className="text-gray-900">
                                     {getLabelFromValue(
@@ -768,7 +800,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                               currentOrder.photoId) && (
                               <div className="md:w-48">
                                 <p className="font-medium text-gray-700 text-xs mb-2">
-                                  Foto Barang
+                                  Product Photo
                                 </p>
                                 <img
                                   src={
@@ -795,7 +827,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                               detailItems.length > 0 && (
                                 <div className="mt-4">
                                   <p className="font-medium text-gray-700 text-xs mb-2">
-                                    Detail Barang ({detailItems.length} items)
+                                    Product Details ({detailItems.length} items)
                                   </p>
                                   <div className="overflow-x-auto">
                                     <table className="min-w-full text-xs border-collapse border">
@@ -906,11 +938,11 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           <div className="flex flex-col md:flex-row gap-4">
                             {/* Left side: Fields */}
                             <div className="flex-1 space-y-3">
-                              {/* Kategori Barang */}
+                              {/* Product Category */}
                               {revision.changes.kategoriBarang && (
                                 <div>
                                   <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Kategori Barang
+                                    Product Category
                                   </p>
                                   <p className="text-gray-900">
                                     {getLabelFromValue(
@@ -924,11 +956,11 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 </div>
                               )}
 
-                              {/* Jenis Produk */}
+                              {/* Product Type */}
                               {revision.changes.jenisProduk && (
                                 <div>
                                   <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Jenis Produk
+                                    Product Type
                                   </p>
                                   <p className="text-gray-900">
                                     {getLabelFromValue(
@@ -939,11 +971,11 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 </div>
                               )}
 
-                              {/* Nama Basic */}
+                              {/* Basic Name */}
                               {revision.changes.namaBasic && (
                                 <div>
                                   <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Nama Basic
+                                    Basic Name
                                   </p>
                                   <p className="text-gray-900">
                                     {getLabelFromValue(
@@ -974,7 +1006,7 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
                             {revision.changes.photoId && (
                               <div className="md:w-48">
                                 <p className="font-medium text-gray-700 text-xs mb-2">
-                                  Foto Barang
+                                  Product Photo
                                 </p>
                                 <img
                                   src={getImage(revision.changes.photoId) || ""}
@@ -1054,6 +1086,29 @@ export function OrderDetails({ order, onBack }: OrderDetailsProps) {
             )}
           </Card>
         )}
+
+      {/* Review Action Buttons - Only shown in review mode */}
+      {reviewMode && onApproveRevision && onCancelOrder && (
+        <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
+          <div className="bg-white/95 backdrop-blur-sm border-t shadow-lg p-4">
+            <div className="flex gap-3 justify-end max-w-7xl mx-auto">
+              <Button
+                variant="outline"
+                onClick={() => onCancelOrder(order.id)}
+                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+              >
+                Cancel Order
+              </Button>
+              <Button
+                onClick={() => onApproveRevision(order.id)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Approve Revision
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

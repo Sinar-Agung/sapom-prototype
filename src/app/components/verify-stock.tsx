@@ -104,6 +104,7 @@ export function VerifyStock({
   // Refs for debounce management
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savingAnimationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const savingToastRef = useRef<string | number | null>(null);
 
   // Save function to be reused
   const saveChanges = () => {
@@ -155,7 +156,7 @@ export function VerifyStock({
       return saved;
     }
 
-    // Debounced save with animation
+    // Debounced save with toast
     saveTimeoutRef.current = setTimeout(() => {
       const hasChanges = detailItems.some(
         (item) => item.availablePcs !== undefined,
@@ -163,11 +164,16 @@ export function VerifyStock({
 
       if (hasChanges && hasUnsavedChanges) {
         setIsSaving(true);
+        savingToastRef.current = toast.loading("Saving changes...");
 
         savingAnimationTimeoutRef.current = setTimeout(() => {
           const saved = saveChanges();
           if (saved) {
             setIsSaving(false);
+            if (savingToastRef.current !== null) {
+              toast.dismiss(savingToastRef.current);
+              savingToastRef.current = null;
+            }
             toast.success("Request updated");
           }
         }, 500);
@@ -505,29 +511,6 @@ export function VerifyStock({
         </h1>
       </div>
 
-      {/* Saving Indicator */}
-      {isSaving && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2 animate-pulse">
-          <div className="flex gap-1">
-            <div
-              className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-              style={{ animationDelay: "0ms" }}
-            ></div>
-            <div
-              className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-              style={{ animationDelay: "150ms" }}
-            ></div>
-            <div
-              className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-              style={{ animationDelay: "300ms" }}
-            ></div>
-          </div>
-          <span className="text-sm text-blue-700 font-medium">
-            Saving changes...
-          </span>
-        </div>
-      )}
-
       {/* Request Header */}
       <Card className="p-4">
         {/* Product Title and Badge - Full Width */}
@@ -576,12 +559,12 @@ export function VerifyStock({
             )}
             {order.namaPelanggan && (
               <div>
-                <span className="text-gray-500">Atas Nama: </span>
+                <span className="text-gray-500">Customer Name: </span>
                 <span className="font-medium">{atasNamaLabel}</span>
               </div>
             )}
             <div>
-              <span className="text-gray-500">Pabrik: </span>
+              <span className="text-gray-500">Supplier: </span>
               <span className="font-medium">{pabrikLabel}</span>
             </div>
             {order.customerExpectation && (
@@ -882,17 +865,17 @@ export function VerifyStock({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Ready Stock</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Ready Stock</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin semua barang tersedia di stock? Ini akan mengisi
-              semua "Available Pcs" sesuai dengan "Requested Pcs" dan mengubah
-              status menjadi "Ready Stock Marketing".
+              Are you sure all items are available in stock? This will fill all
+              "Available Pcs" according to "Requested Pcs" and change status to
+              "Ready Stock Marketing".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleReadyStock}>
-              Ya, Ready Stock
+              Yes, Ready Stock
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -905,16 +888,16 @@ export function VerifyStock({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Submit</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Submit</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin mengirim request ini ke JB (Jewelry
-              Buyer)? Status akan berubah menjadi "Requested to JB".
+              Are you sure you want to send this request to JB (Jewelry Buyer)?
+              Status will change to "Requested to JB".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleSendToJB}>
-              Ya, Submit
+              Yes, Submit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

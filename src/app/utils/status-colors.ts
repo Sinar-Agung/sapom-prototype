@@ -117,6 +117,68 @@ export const STATUS_COLORS: Record<string, StatusConfig> = {
     text: "text-white",
     label: "Cancelled",
   },
+
+  // Order-Specific Statuses
+  New: {
+    bg: "bg-blue-100",
+    text: "text-blue-800",
+    label: "New",
+  },
+  Viewed: {
+    bg: "bg-purple-100",
+    text: "text-purple-800",
+    label: "Viewed",
+  },
+  "Change Requested": {
+    bg: "bg-orange-100",
+    text: "text-orange-800",
+    label: "Change Requested",
+  },
+  "Revised - Internal Review": {
+    bg: "bg-amber-100",
+    text: "text-amber-800",
+    label: "Revised - Internal Review",
+  },
+  "Order Revised": {
+    bg: "bg-green-100",
+    text: "text-green-800",
+    label: "Order Revised",
+  },
+  Rejected: {
+    bg: "bg-red-100",
+    text: "text-red-800",
+    label: "Rejected",
+  },
+  "Partially Delivered": {
+    bg: "bg-yellow-100",
+    text: "text-yellow-800",
+    label: "Partially Delivered",
+  },
+  "Fully Delivered": {
+    bg: "bg-lime-100",
+    text: "text-lime-800",
+    label: "Fully Delivered",
+  },
+  Completed: {
+    bg: "bg-teal-100",
+    text: "text-teal-800",
+    label: "Completed",
+  },
+  "Viewed by Supplier": {
+    bg: "bg-purple-100",
+    text: "text-purple-800",
+    label: "Viewed by Supplier",
+  },
+  Confirmed: {
+    bg: "bg-green-100",
+    text: "text-green-800",
+    label: "Confirmed",
+  },
+  "Ready for Pickup": {
+    bg: "bg-orange-100",
+    text: "text-orange-800",
+    label: "Ready for Pickup",
+  },
 };
 
 // Helper function to get status configuration

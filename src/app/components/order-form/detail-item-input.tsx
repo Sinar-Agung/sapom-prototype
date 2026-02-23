@@ -79,8 +79,8 @@ export function DetailItemInput({
             }
             options={KADAR_OPTIONS}
             placeholder="Kadar"
-            searchPlaceholder="Cari kadar..."
-            emptyText="Kadar tidak ditemukan."
+            searchPlaceholder="Search purity..."
+            emptyText="Purity not found."
             allowCustomValue={false}
             className="w-full"
             disabled={isDisabled}
@@ -109,8 +109,8 @@ export function DetailItemInput({
             }
             options={WARNA_OPTIONS}
             placeholder="Warna"
-            searchPlaceholder="Cari warna..."
-            emptyText="Warna tidak ditemukan."
+            searchPlaceholder="Search color..."
+            emptyText="Color not found."
             allowCustomValue={false}
             className="w-full"
             disabled={isDisabled}
@@ -163,8 +163,8 @@ export function DetailItemInput({
                 }
                 options={UKURAN_KALUNG_OPTIONS}
                 placeholder="Ukuran"
-                searchPlaceholder="Cari ukuran..."
-                emptyText="Ukuran tidak ditemukan."
+                searchPlaceholder="Search size..."
+                emptyText="Size not found."
                 allowCustomValue={false}
                 className="w-full"
                 disabled={isDisabled}
@@ -315,6 +315,7 @@ export function DetailItemInput({
             type="text"
             className="h-9 sm:h-8 text-sm w-full"
             value={detailInput.notes}
+            maxLength={50}
             onChange={(e) =>
               onDetailInputChange({
                 ...detailInput,

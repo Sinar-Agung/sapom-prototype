@@ -98,6 +98,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savingAnimationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const savingToastRef = useRef<string | number | null>(null);
   const orderItemsRef = useRef<OrderItem[]>([]);
 
   useEffect(() => {
@@ -200,15 +201,20 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
       return saved;
     }
 
-    // Debounced save with animation
+    // Debounced save with toast
     saveTimeoutRef.current = setTimeout(() => {
       if (hasUnsavedChanges) {
         setIsSaving(true);
+        savingToastRef.current = toast.loading("Saving changes...");
 
         savingAnimationTimeoutRef.current = setTimeout(() => {
           const saved = saveChanges();
           if (saved) {
             setIsSaving(false);
+            if (savingToastRef.current !== null) {
+              toast.dismiss(savingToastRef.current);
+              savingToastRef.current = null;
+            }
             toast.success("Request updated");
           }
         }, 500);
@@ -381,13 +387,13 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     const pabrikLabel =
       typeof order.pabrik === "string"
         ? order.pabrik
-        : order.pabrik?.name || "Unknown Pabrik";
+        : order.pabrik?.name || "Unknown Supplier";
 
     // Build order message
     let message = `*ORDER TO SUPPLIER*\n\n`;
     message += `Request No: ${order.requestNo || "-"}\n`;
     message += `Product: ${jenisProdukLabel} ${productNameLabel}\n`;
-    message += `Pabrik: ${pabrikLabel}\n`;
+    message += `Supplier: ${pabrikLabel}\n`;
     message += `ETA: ${formatDate(order.waktuKirim) || "-"}\n\n`;
     message += `*DETAIL ITEMS:*\n`;
 
@@ -748,12 +754,12 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
             )}
             {atasNamaLabel && (
               <p className="text-sm text-gray-700 mb-1">
-                <span className="text-gray-500">Atas Nama: </span>
+                <span className="text-gray-500">Customer Name: </span>
                 {atasNamaLabel}
               </p>
             )}
             <div className="mb-1">
-              <span className="text-sm text-gray-500">Pabrik: </span>
+              <span className="text-sm text-gray-500">Supplier: </span>
               <span
                 className={`text-sm font-medium px-2 py-0.5 rounded ${getPabrikColor(pabrikLabel)}`}
               >
@@ -792,27 +798,6 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
       {/* Order Items Table */}
       <Card className="p-4">
-        {/* Saving Indicator */}
-        {isSaving && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center gap-2">
-            <div className="flex gap-1">
-              <span
-                className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
-                style={{ animationDelay: "150ms" }}
-              />
-              <span
-                className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"
-                style={{ animationDelay: "300ms" }}
-              />
-            </div>
-            <span className="text-sm text-blue-700">Saving changes...</span>
-          </div>
-        )}
-
         <h3 className="font-semibold mb-3">Order Items</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border text-xs">

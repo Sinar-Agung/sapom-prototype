@@ -13,6 +13,8 @@ interface MyOrdersProps {
   onVerifyStock?: (order: Request, currentTab: string) => void;
   onSeeDetail?: (order: Request, currentTab: string) => void;
   initialTab?: string;
+  justCreatedRequest?: boolean;
+  onClearJustCreated?: () => void;
 }
 
 type MySortOption =
@@ -28,12 +30,12 @@ type MySortOption =
 const REQUEST_SORT_OPTIONS: SortOption[] = [
   { value: "updatedDate", label: "Updated Date" },
   { value: "created", label: "Created Date" },
-  { value: "updatedBy", label: "Updated By" },
   { value: "eta", label: "ETA" },
+  { value: "productName", label: "Product Name" },
   { value: "sales", label: "Sales" },
-  { value: "pabrik", label: "Pabrik" },
-  { value: "jenis", label: "Jenis Barang" },
-  { value: "atasNama", label: "Atas Nama" },
+  { value: "atasNama", label: "Customer Name" },
+  { value: "pabrik", label: "Supplier" },
+  { value: "requestNo", label: "Request No" },
 ];
 
 export function MyOrders({
@@ -43,12 +45,31 @@ export function MyOrders({
   onVerifyStock,
   onSeeDetail,
   initialTab,
+  justCreatedRequest,
+  onClearJustCreated,
 }: MyOrdersProps) {
   const [orders, setOrders] = useState<Request[]>([]);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
+    console.log("🟢 MyOrders useState initialization");
+    console.log("   justCreatedRequest:", justCreatedRequest);
+    console.log("   initialTab:", initialTab);
+
+    if (justCreatedRequest) {
+      console.log("   ✅ justCreatedRequest is true, forcing 'open' tab");
+      sessionStorage.removeItem("myRequestActiveTab");
+      return "open";
+    }
+    if (initialTab) {
+      console.log("   Using initialTab:", initialTab);
+      return initialTab;
+    }
     const saved = sessionStorage.getItem("myRequestActiveTab");
-    return saved || initialTab || "open";
+    console.log(
+      "   Restoring from sessionStorage:",
+      saved || "(none, defaulting to 'open')",
+    );
+    return saved || "open";
   });
   const [sortBy, setSortBy] = useState<MySortOption>(() => {
     return (
@@ -153,10 +174,45 @@ export function MyOrders({
     return { value: ukuran, showUnit: true };
   };
 
-  // Persist filter/sort state to sessionStorage
+  // Clear the justCreatedRequest flag after component mounts
   useEffect(() => {
-    sessionStorage.setItem("myRequestActiveTab", activeTab);
-  }, [activeTab]);
+    if (justCreatedRequest && onClearJustCreated) {
+      // Clear it on next tick to ensure the initial render uses the flag
+      setTimeout(() => onClearJustCreated(), 0);
+    }
+  }, [justCreatedRequest, onClearJustCreated]);
+
+  // Persist activeTab to sessionStorage, but not when we just created a request
+  useEffect(() => {
+    console.log("🟡 activeTab persistence useEffect triggered");
+    console.log("   justCreatedRequest:", justCreatedRequest);
+    console.log("   activeTab:", activeTab);
+
+    if (!justCreatedRequest) {
+      console.log("   💾 Saving to sessionStorage:", activeTab);
+      sessionStorage.setItem("myRequestActiveTab", activeTab);
+    } else {
+      console.log("   ⏭️ Skipping save (justCreatedRequest is true)");
+    }
+  }, [activeTab, justCreatedRequest]);
+
+  // Update activeTab when initialTab prop changes (e.g., after saving a new request)
+  // BUT skip this if we just created a request (the flag takes precedence)
+  useEffect(() => {
+    console.log("🔴 initialTab useEffect triggered");
+    console.log("   justCreatedRequest:", justCreatedRequest);
+    console.log("   initialTab:", initialTab);
+    console.log("   activeTab:", activeTab);
+
+    if (!justCreatedRequest && initialTab && initialTab !== activeTab) {
+      console.log("   ⚠️ Changing activeTab from", activeTab, "to", initialTab);
+      setActiveTab(initialTab);
+    } else {
+      console.log("   No change needed");
+    }
+  }, [initialTab, justCreatedRequest]);
+
+  // Persist filter/sort state to sessionStorage
 
   useEffect(() => {
     sessionStorage.setItem("myRequestSortBy", sortBy);
@@ -169,6 +225,14 @@ export function MyOrders({
   useEffect(() => {
     sessionStorage.setItem("myRequestFilter", requestNoFilter);
   }, [requestNoFilter]);
+
+  // Handler for tab changes with logging
+  const handleTabChange = (newTab: string) => {
+    console.log("🟣 Tab changed by user interaction");
+    console.log("   Previous tab:", activeTab);
+    console.log("   New tab:", newTab);
+    setActiveTab(newTab);
+  };
 
   useEffect(() => {
     loadOrders();
@@ -246,7 +310,10 @@ export function MyOrders({
 
   // Filter orders based on active tab
   const filteredOrders = requestNoFiltered.filter((order: Request) => {
-    if (activeTab === "open") {
+    if (activeTab === "all") {
+      // Show all orders (already filtered by requestNo and user visibility)
+      return true;
+    } else if (activeTab === "open") {
       return order.status === "Open";
     } else if (activeTab === "in-progress") {
       // For stockist role, only show requests assigned to them
@@ -273,6 +340,7 @@ export function MyOrders({
   });
 
   // Calculate filtered counts for each tab based on requestNo filter
+  const allCount = requestNoFiltered.length;
   const openCount = requestNoFiltered.filter((order: Request) => {
     return order.status === "Open";
   }).length;
@@ -336,39 +404,39 @@ export function MyOrders({
     let comparison = 0;
     switch (sortBy) {
       case "created":
-        comparison = (b.timestamp || 0) - (a.timestamp || 0);
+        comparison = (a.timestamp || 0) - (b.timestamp || 0);
         break;
       case "updatedDate":
         comparison =
-          (b.updatedDate || b.timestamp || 0) -
-          (a.updatedDate || a.timestamp || 0);
+          (a.updatedDate || a.timestamp || 0) -
+          (b.updatedDate || b.timestamp || 0);
         break;
       case "eta":
         comparison =
           new Date(a.waktuKirim || 0).getTime() -
           new Date(b.waktuKirim || 0).getTime();
         break;
+      case "productName":
+        comparison = (a.namaBarang || "").localeCompare(b.namaBarang || "");
+        break;
       case "sales":
         comparison = (a.createdBy || "").localeCompare(b.createdBy || "");
-        break;
-      case "updatedBy":
-        comparison = (a.updatedBy || "").localeCompare(b.updatedBy || "");
-        break;
-      case "pabrik":
-        comparison = (a.pabrik?.name || "").localeCompare(b.pabrik?.name || "");
-        break;
-      case "jenis":
-        comparison = a.jenisProduk.localeCompare(b.jenisProduk);
         break;
       case "atasNama":
         comparison = (a.namaPelanggan?.name || "").localeCompare(
           b.namaPelanggan?.name || "",
         );
         break;
+      case "pabrik":
+        comparison = (a.pabrik?.name || "").localeCompare(b.pabrik?.name || "");
+        break;
+      case "requestNo":
+        comparison = (a.requestNo || "").localeCompare(b.requestNo || "");
+        break;
       default:
         return 0;
     }
-    return sortDirection === "desc" ? comparison : -comparison;
+    return sortDirection === "asc" ? comparison : -comparison;
   });
 
   // Get displayed orders for lazy loading
@@ -524,10 +592,19 @@ export function MyOrders({
       {/* Tabs and Content */}
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="flex flex-col flex-1 min-h-0"
       >
         <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
+          <TabsTrigger
+            value="all"
+            onClick={handleTabClick}
+            className={
+              activeTab === "all" ? "text-gray-900 border-gray-900" : ""
+            }
+          >
+            All ({allCount})
+          </TabsTrigger>
           <TabsTrigger
             value="open"
             onClick={handleTabClick}
@@ -576,6 +653,28 @@ export function MyOrders({
             Cancelled ({cancelledCount})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="all" className="flex-1 min-h-0 m-0">
+          {filteredOrders.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <p className="text-lg mb-2">No requests</p>
+                <p className="text-sm">All requests will appear here</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="space-y-3 pb-4">
+                {displayedOrders.map((order) => renderOrderCard(order))}
+              </div>
+              {displayedCount < sortedOrders.length && (
+                <div ref={observerTarget} className="flex justify-center py-4">
+                  <div className="text-sm text-gray-500">Loading more...</div>
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="open" className="flex-1 min-h-0 m-0">
           {filteredOrders.length === 0 ? (

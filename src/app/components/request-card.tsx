@@ -16,10 +16,19 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { CheckCircle, Copy, Edit, Eye, Trash2 } from "lucide-react";
+import {
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Edit,
+  Eye,
+  Trash2,
+} from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -135,7 +144,7 @@ export function RequestCard({
   const pabrikLabel: string =
     typeof order.pabrik === "string"
       ? order.pabrik
-      : order.pabrik?.name || "Unknown Pabrik";
+      : order.pabrik?.name || "Unknown Supplier";
 
   // Display atas nama directly from object with safety check - ensure string type
   const atasNamaLabel: string =
@@ -243,20 +252,20 @@ export function RequestCard({
             </p>
           )}
 
-          {/* Atas Nama */}
+          {/* Customer Name */}
           {order.namaPelanggan && order.namaPelanggan.name && (
             <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
               <span className="text-gray-500 hidden sm:inline">
-                Atas Nama:{" "}
+                Customer Name:{" "}
               </span>
               {atasNamaLabel}
             </p>
           )}
 
-          {/* Pabrik with color badge */}
+          {/* Supplier with color badge */}
           <div className="mb-0.5 sm:mb-1">
             <span className="text-[11px] sm:text-sm text-gray-500 hidden sm:inline">
-              Pabrik:{" "}
+              Supplier:{" "}
             </span>
             <span
               className={`text-[11px] sm:text-sm font-medium px-2 py-0.5 rounded ${getPabrikColor(pabrikLabel)}`}
@@ -281,24 +290,33 @@ export function RequestCard({
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
               {/* Show/Hide Items Button */}
               {onToggleExpand && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onToggleExpand}
-                  className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                >
-                  {isExpanded ? (
-                    <>
-                      <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Hide Items</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Show Items</span>
-                    </>
-                  )}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onToggleExpand}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Hide Items</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Show Items</span>
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {isExpanded ? "Hide detail items" : "Show detail items"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               )}
 
               {/* Sales actions */}
@@ -308,52 +326,80 @@ export function RequestCard({
                   {activeTab === "open" && (
                     <>
                       {onCancelOrder && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onCancelOrder(order.id)}
-                          className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                          <span className="hidden sm:inline">Cancel</span>
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onCancelOrder(order.id)}
+                              className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                              <span className="hidden sm:inline">Cancel</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Cancel this request</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {onEditOrder && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEditOrder(order)}
-                          className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                        >
-                          <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                          <span className="hidden sm:inline">Edit</span>
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onEditOrder(order)}
+                              className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                            >
+                              <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                              <span className="hidden sm:inline">Edit</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Edit this request</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </>
                   )}
                   {/* Duplicate button visible except in Cancelled tab */}
                   {activeTab !== "cancelled" && onDuplicateOrder && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onDuplicateOrder(order)}
-                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                    >
-                      <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Duplicate</span>
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onDuplicateOrder(order)}
+                          className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                        >
+                          <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Duplicate</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Duplicate this request</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   {/* View Detail button in Cancelled tab */}
                   {activeTab === "cancelled" && onSeeDetail && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onSeeDetail(order, activeTab)}
-                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    >
-                      <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">View Detail</span>
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onSeeDetail(order, activeTab)}
+                          className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">View Detail</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>View request details</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </>
               )}
@@ -364,15 +410,22 @@ export function RequestCard({
                 (order.status === "Open" ||
                   order.status === "Stockist Processing" ||
                   order.status === "In Progress") && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onVerifyStock(order, activeTab)}
-                    className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  >
-                    <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                    <span className="hidden sm:inline">Verify Stock</span>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onVerifyStock(order, activeTab)}
+                        className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Verify Stock</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Verify stock availability</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
 
               {/* See Detail button - show in done, cancelled, assigned tabs, and in-progress for sales */}
@@ -382,19 +435,30 @@ export function RequestCard({
                 (activeTab === "in-progress" && userRole === "sales") ||
                 activeTab === "waiting") &&
                 onSeeDetail && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onSeeDetail(order, activeTab)}
-                    className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                  >
-                    <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                    <span className="hidden sm:inline">
-                      {userRole === "jb" && activeTab === "assigned"
-                        ? "Write Order"
-                        : "See Details"}
-                    </span>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onSeeDetail(order, activeTab)}
+                        className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                      >
+                        <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                        <span className="hidden sm:inline">
+                          {userRole === "jb" && activeTab === "assigned"
+                            ? "Write Order"
+                            : "See Details"}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {userRole === "jb" && activeTab === "assigned"
+                          ? "Create order for this request"
+                          : "View request details"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
             </div>
           )}

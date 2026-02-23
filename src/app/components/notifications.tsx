@@ -36,11 +36,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 interface NotificationsProps {
   onNavigateToRequest?: (requestId: string) => void;
   onNavigateToOrder?: (orderId: string) => void;
+  onNavigateToUpdateOrder?: (orderId: string) => void;
 }
 
 export function Notifications({
   onNavigateToRequest,
   onNavigateToOrder,
+  onNavigateToUpdateOrder,
 }: NotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "expiring">(
@@ -136,6 +138,7 @@ export function Notifications({
     console.log("🔔 Notification clicked:", notification);
     console.log("   Entity Type:", notification.entityType);
     console.log("   Entity ID:", notification.entityId);
+    console.log("   Event Type:", notification.eventType);
     console.log("   Current User:", currentUser);
     console.log("   Account Type:", accountType);
 
@@ -153,12 +156,24 @@ export function Notifications({
         notification.entityId,
       );
       onNavigateToRequest(notification.entityId);
-    } else if (notification.entityType === "order" && onNavigateToOrder) {
-      console.log(
-        "   → Calling onNavigateToOrder with ID:",
-        notification.entityId,
-      );
-      onNavigateToOrder(notification.entityId);
+    } else if (notification.entityType === "order") {
+      // Special handling for order_change_requested - navigate to update page
+      if (
+        notification.eventType === "order_change_requested" &&
+        onNavigateToUpdateOrder
+      ) {
+        console.log(
+          "   → Calling onNavigateToUpdateOrder with ID:",
+          notification.entityId,
+        );
+        onNavigateToUpdateOrder(notification.entityId);
+      } else if (onNavigateToOrder) {
+        console.log(
+          "   → Calling onNavigateToOrder with ID:",
+          notification.entityId,
+        );
+        onNavigateToOrder(notification.entityId);
+      }
     } else {
       console.log(
         "   ⚠️ Not navigating - entityType:",
@@ -209,6 +224,9 @@ export function Notifications({
     if (eventType === "request_expiring") {
       return <AlertTriangle className="w-5 h-5 text-orange-600" />;
     }
+    if (eventType === "order_change_requested") {
+      return <Edit className="w-5 h-5 text-blue-600" />;
+    }
     if (eventType === "order_revised") {
       return <Edit className="w-5 h-5 text-amber-600" />;
     }
@@ -247,6 +265,8 @@ export function Notifications({
   const getEventTypePillColor = (eventType: string): string => {
     if (eventType === "request_expiring")
       return "bg-orange-100 text-orange-700";
+    if (eventType === "order_change_requested")
+      return "bg-blue-100 text-blue-700";
     if (eventType.includes("created")) return "bg-green-100 text-green-700";
     if (eventType.includes("updated")) return "bg-amber-100 text-amber-700";
     if (eventType.includes("cancelled")) return "bg-rose-100 text-rose-700";

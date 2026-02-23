@@ -4,8 +4,9 @@ import {
   NAMA_BASIC_OPTIONS,
   NAMA_PRODUK_OPTIONS,
 } from "@/app/data/order-data";
-import { Order, OrderStatus } from "@/app/types/order";
+import { Order } from "@/app/types/order";
 import { getImage } from "@/app/utils/image-storage";
+import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -16,10 +17,12 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ClipboardCheck, Eye } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardCheck } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
+import { NewBadge } from "./new-badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 // Helper function to get JB full name from username
 const getJBFullName = (username: string): string => {
@@ -56,6 +59,9 @@ interface OrderCardProps {
   onToggleExpand?: () => void;
   onSeeDetail?: (order: Order) => void;
   onUpdateOrder?: (order: Order) => void;
+  onReviewRevision?: (order: Order) => void;
+  currentUser?: string;
+  userRole?: "sales" | "jb" | "supplier" | "stockist";
 }
 
 export function OrderCard({
@@ -64,7 +70,12 @@ export function OrderCard({
   onToggleExpand,
   onSeeDetail,
   onUpdateOrder,
+  onReviewRevision,
+  currentUser,
+  userRole,
 }: OrderCardProps) {
+  // Check if current user has viewed this order
+  const isUnviewed = currentUser && !order.viewedBy?.includes(currentUser);
   const formatDate = (isoString: string) => {
     if (!isoString) return "";
     return new Date(isoString).toLocaleDateString("id-ID", {
@@ -132,27 +143,6 @@ export function OrderCard({
     return "bg-gray-100 text-gray-800";
   };
 
-  const getStatusBadgeClasses = (status: OrderStatus): string => {
-    switch (status) {
-      case "New":
-        return "bg-blue-100 text-blue-800";
-      case "Viewed by Supplier":
-        return "bg-purple-100 text-purple-800";
-      case "Confirmed":
-        return "bg-green-100 text-green-800";
-      case "In Production":
-        return "bg-yellow-100 text-yellow-800";
-      case "Ready for Pickup":
-        return "bg-orange-100 text-orange-800";
-      case "Completed":
-        return "bg-gray-100 text-gray-800";
-      case "Cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
     order.jenisProduk,
@@ -162,22 +152,18 @@ export function OrderCard({
       ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
       : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
 
-  const pabrikLabel: string = order.pabrik?.name || "Unknown Pabrik";
+  const pabrikLabel: string = order.pabrik?.name || "Unknown Supplier";
 
-  // Check if order has been updated
-  const isUpdated =
-    order.updatedBy &&
-    order.updatedDate &&
-    (order.updatedBy !== order.createdBy ||
-      order.updatedDate !== order.createdDate);
+  // Get revision count
+  const revisionCount = order.revisionHistory?.length || 0;
 
   return (
     <Card className="p-3 sm:p-4 relative">
-      {/* Top Right - Status and Updated Badge (Desktop only) */}
+      {/* Top Right - Status and Revision Badge (Desktop only) */}
       <div className="hidden sm:flex absolute top-4 right-4 gap-2">
-        {isUpdated && (
-          <span className="text-xs px-3 py-1 rounded-full font-medium bg-blue-100 text-blue-700 border border-blue-300">
-            Updated
+        {revisionCount > 0 && (
+          <span className="text-xs px-3 py-1 rounded-full font-medium bg-indigo-100 text-indigo-700 border border-indigo-300">
+            {revisionCount} {revisionCount === 1 ? "Revision" : "Revisions"}
           </span>
         )}
         <span
@@ -185,6 +171,9 @@ export function OrderCard({
         >
           {order.status}
         </span>
+        {isUnviewed && (
+          <NewBadge className="w-8 h-8 flex-shrink-0 animate-pulse-scale" />
+        )}
       </div>
 
       <div className="flex gap-2 sm:gap-4">
@@ -192,15 +181,13 @@ export function OrderCard({
         <div className="flex flex-col w-20 sm:w-36 md:w-44 lg:w-48 shrink-0">
           {/* Dates at top */}
           <div className="mb-1 sm:mb-2">
-            {/* Updated Date (or Created Date if not updated) */}
+            {/* Updated Date */}
             <div className="text-[9px] sm:text-xs text-gray-500 mb-0.5">
-              {isUpdated ? "Updated" : "Created"}
+              Updated
             </div>
-            <div
-              className={`text-[11px] sm:text-sm font-semibold mb-1 ${isUpdated ? "text-blue-700" : ""}`}
-            >
+            <div className="text-[11px] sm:text-sm font-semibold mb-1">
               {formatTimestampWithTime(
-                isUpdated ? order.updatedDate! : order.createdDate,
+                order.updatedDate || order.createdDate,
               ) || "-"}
             </div>
           </div>
@@ -232,10 +219,10 @@ export function OrderCard({
               >
                 {order.kategoriBarang === "basic" ? "Basic" : "Model"}
               </span>
-              {/* Updated badge - Mobile only */}
-              {isUpdated && (
-                <span className="sm:hidden text-[9px] px-1.5 py-0.5 rounded font-medium bg-blue-100 text-blue-700 border border-blue-300">
-                  Updated
+              {/* Revision count badge - Mobile only */}
+              {revisionCount > 0 && (
+                <span className="sm:hidden text-[9px] px-1.5 py-0.5 rounded font-medium bg-indigo-100 text-indigo-700 border border-indigo-300">
+                  {revisionCount} Rev
                 </span>
               )}
               {/* Status pill - Mobile only */}
@@ -244,6 +231,10 @@ export function OrderCard({
               >
                 {order.status}
               </span>
+              {/* New badge - Mobile only */}
+              {isUnviewed && (
+                <NewBadge className="sm:hidden w-6 h-6 flex-shrink-0 animate-pulse-scale" />
+              )}
             </div>
           </div>
 
@@ -269,41 +260,43 @@ export function OrderCard({
             {formatTimestamp(order.createdDate) || "-"}
           </p>
 
-          {/* JB Name */}
-          {order.jbId && (
+          {/* JB Name - Hidden for suppliers */}
+          {userRole !== "supplier" && order.jbId && (
             <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
               <span className="text-gray-500 hidden sm:inline">JB: </span>
               {getJBFullName(order.jbId)}
             </p>
           )}
 
-          {/* Sales Name */}
-          {order.sales && (
+          {/* Sales Name - Hidden for suppliers */}
+          {userRole !== "supplier" && order.sales && (
             <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
               <span className="text-gray-500">Sales: </span>
               {getFullNameFromUsername(order.sales)}
             </p>
           )}
 
-          {/* Atas Nama */}
-          {order.atasNama && (
+          {/* Customer Name - Hidden for suppliers */}
+          {userRole !== "supplier" && order.atasNama && (
             <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500">Atas Nama: </span>
+              <span className="text-gray-500">Customer Name: </span>
               {order.atasNama}
             </p>
           )}
 
-          {/* Pabrik with color badge */}
-          <div className="mb-0.5 sm:mb-1">
-            <span className="text-[11px] sm:text-sm text-gray-500 hidden sm:inline">
-              Pabrik:{" "}
-            </span>
-            <span
-              className={`text-[11px] sm:text-sm font-medium px-2 py-0.5 rounded ${getPabrikColor(pabrikLabel)}`}
-            >
-              {pabrikLabel}
-            </span>
-          </div>
+          {/* Supplier with color badge - Hidden for suppliers */}
+          {userRole !== "supplier" && (
+            <div className="mb-0.5 sm:mb-1">
+              <span className="text-[11px] sm:text-sm text-gray-500 hidden sm:inline">
+                Supplier:{" "}
+              </span>
+              <span
+                className={`text-[11px] sm:text-sm font-medium px-2 py-0.5 rounded ${getPabrikColor(pabrikLabel)}`}
+              >
+                {pabrikLabel}
+              </span>
+            </div>
+          )}
 
           {/* ETA beneath Pabrik - smaller text */}
           <p className="text-[10px] sm:text-xs text-gray-600 mb-2 sm:mb-3">
@@ -316,49 +309,93 @@ export function OrderCard({
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
               {/* Update Order Button - Only for Change Requested status */}
               {onUpdateOrder && (
-                <Button
-                  size="sm"
-                  onClick={() => onUpdateOrder(order)}
-                  className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                >
-                  <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Update Order</span>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      onClick={() => onUpdateOrder(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                    >
+                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Update Order</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Update order details</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
 
               {/* Show/Hide Items Button */}
               {onToggleExpand && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onToggleExpand}
-                  className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                >
-                  {isExpanded ? (
-                    <>
-                      <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Hide Items</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Show Items</span>
-                    </>
-                  )}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onToggleExpand}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Hide Items</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Show Items</span>
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {isExpanded ? "Hide order items" : "Show order items"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               )}
 
               {/* See Details Button */}
               {onSeeDetail && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSeeDetail(order)}
-                  className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                >
-                  <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                  <span className="hidden sm:inline">See Details</span>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onSeeDetail(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                    >
+                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">See Details</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View order details</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Review Revision Button */}
+              {onReviewRevision && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReviewRevision(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                    >
+                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Review Revision</span>
+                      <span className="sm:hidden">Review</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Review order revision</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           )}

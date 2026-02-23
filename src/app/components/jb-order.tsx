@@ -17,9 +17,9 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
   { value: "created", label: "Created Date" },
   { value: "eta", label: "ETA" },
   { value: "productName", label: "Product Name" },
-  { value: "pabrik", label: "Pabrik" },
+  { value: "pabrik", label: "Supplier" },
   { value: "sales", label: "Sales" },
-  { value: "atasNama", label: "Atas Nama" },
+  { value: "atasNama", label: "Customer Name" },
   { value: "requestNo", label: "Request No" },
 ];
 
@@ -151,6 +151,63 @@ export function JBOrder({
     (order) => order.status === "Confirmed by JB",
   ).length;
 
+  // Get current user
+  const currentUser =
+    localStorage.getItem("username") ||
+    sessionStorage.getItem("username") ||
+    "jb-irene-tjandra";
+
+  // Calculate unseen counts (orders not viewed by current user)
+  const unseenAllCount = orderNoFiltered.filter(
+    (order: Order) => !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenNewCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "New" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenViewedCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Viewed" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenChangeRequestedCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Change Requested" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenRevisedInternalReviewCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Revised - Internal Review" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenOrderRevisedCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Order Revised" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenStockReadyCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Stock Ready" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenInProductionCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "In Production" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenUnableCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Unable to Fulfill" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenCancelledCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Cancelled" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenConfirmedByJBCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Confirmed by JB" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+
   // Filter orders based on active tab from orderNoFiltered
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
     if (activeTab === "all") {
@@ -248,7 +305,14 @@ export function JBOrder({
               activeTab === "all" ? "text-gray-900 border-gray-900" : ""
             }
           >
-            All ({allCount})
+            <span className="flex items-center gap-1.5">
+              All ({allCount})
+              {unseenAllCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenAllCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="new"
@@ -256,7 +320,14 @@ export function JBOrder({
               activeTab === "new" ? "text-blue-600 border-blue-600" : ""
             }
           >
-            New ({newCount})
+            <span className="flex items-center gap-1.5">
+              New ({newCount})
+              {unseenNewCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenNewCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="viewed"
@@ -264,7 +335,14 @@ export function JBOrder({
               activeTab === "viewed" ? "text-purple-600 border-purple-600" : ""
             }
           >
-            Viewed ({viewedCount})
+            <span className="flex items-center gap-1.5">
+              Viewed ({viewedCount})
+              {unseenViewedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenViewedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="change-requested"
@@ -274,7 +352,14 @@ export function JBOrder({
                 : ""
             }
           >
-            Change Requested ({changeRequestedCount})
+            <span className="flex items-center gap-1.5">
+              Change Requested ({changeRequestedCount})
+              {unseenChangeRequestedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenChangeRequestedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="revised-internal-review"
@@ -284,7 +369,14 @@ export function JBOrder({
                 : ""
             }
           >
-            Revised - Internal Review ({revisedInternalReviewCount})
+            <span className="flex items-center gap-1.5">
+              Revised - Internal Review ({revisedInternalReviewCount})
+              {unseenRevisedInternalReviewCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenRevisedInternalReviewCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="order-revised"
@@ -294,7 +386,14 @@ export function JBOrder({
                 : ""
             }
           >
-            Order Revised ({orderRevisedCount})
+            <span className="flex items-center gap-1.5">
+              Order Revised ({orderRevisedCount})
+              {unseenOrderRevisedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenOrderRevisedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="stock-ready"
@@ -304,7 +403,14 @@ export function JBOrder({
                 : ""
             }
           >
-            Stock Ready ({stockReadyCount})
+            <span className="flex items-center gap-1.5">
+              Stock Ready ({stockReadyCount})
+              {unseenStockReadyCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenStockReadyCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="in-production"
@@ -314,7 +420,14 @@ export function JBOrder({
                 : ""
             }
           >
-            In Production ({inProductionCount})
+            <span className="flex items-center gap-1.5">
+              In Production ({inProductionCount})
+              {unseenInProductionCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenInProductionCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="unable"
@@ -322,7 +435,14 @@ export function JBOrder({
               activeTab === "unable" ? "text-red-600 border-red-600" : ""
             }
           >
-            Unable to Fulfill ({unableCount})
+            <span className="flex items-center gap-1.5">
+              Unable to Fulfill ({unableCount})
+              {unseenUnableCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenUnableCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="cancelled"
@@ -330,7 +450,14 @@ export function JBOrder({
               activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
             }
           >
-            Cancelled ({cancelledCount})
+            <span className="flex items-center gap-1.5">
+              Cancelled ({cancelledCount})
+              {unseenCancelledCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenCancelledCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -370,10 +497,11 @@ export function JBOrder({
                   onToggleExpand={() => toggleExpand(order.id)}
                   onSeeDetail={(order) => onSeeDetail?.(order, activeTab)}
                   onUpdateOrder={
-                    activeTab === "request-change"
+                    activeTab === "change-requested"
                       ? (order) => onUpdateOrder?.(order, activeTab)
                       : undefined
                   }
+                  currentUser={currentUser}
                 />
               ))}
             </div>
