@@ -42,6 +42,7 @@ import {
 import { AvailablePcsInput } from "./ui/available-pcs-input";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { DetailItemsTable } from "./ui/detail-items-table";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -76,8 +77,8 @@ const WARNA_COLORS: Record<string, string> = {
   "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
 };
 
-interface VerifyStockProps {
-  order: Request;
+interface RequestDetailsProps {
+  request: Request;
   onBack: () => void;
   mode?: "verify" | "detail";
   isJBWaiting?: boolean;
@@ -85,19 +86,19 @@ interface VerifyStockProps {
   onDuplicateRequest?: () => void;
 }
 
-export function VerifyStock({
-  order,
+export function RequestDetails({
+  request,
   onBack,
   mode = "verify",
   isJBWaiting = false,
   onEditRequest,
   onDuplicateRequest,
-}: VerifyStockProps) {
+}: RequestDetailsProps) {
   const [detailItems, setDetailItems] = useState<DetailBarangItem[]>([]);
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
   const [showSendToJBDialog, setShowSendToJBDialog] = useState(false);
   const [wasUpdated, setWasUpdated] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<Request>(order);
+  const [currentRequest, setCurrentRequest] = useState<Request>(request);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -116,7 +117,7 @@ export function VerifyStock({
       const savedOrders = localStorage.getItem("requests");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
-        const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
+        const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
         if (orderIndex !== -1) {
           orders[orderIndex].detailItems = detailItems;
           const currentUser =
@@ -215,11 +216,11 @@ export function VerifyStock({
         saveChanges();
       }
     };
-  }, [hasUnsavedChanges, detailItems, order.id]);
+  }, [hasUnsavedChanges, detailItems, request.id]);
 
   useEffect(() => {
     // Sort items on mount using the same logic as order-form
-    const sortedItems = [...order.detailItems].sort((a, b) => {
+    const sortedItems = [...request.detailItems].sort((a, b) => {
       // First sort by Kadar - extract numeric value
       const kadarA = parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
       const kadarB = parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
@@ -246,7 +247,7 @@ export function VerifyStock({
     const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
+      const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
       if (orderIndex !== -1 && orders[orderIndex].status === "Open") {
         const oldStatus = orders[orderIndex].status;
         orders[orderIndex].status = "Stockist Processing";
@@ -264,8 +265,8 @@ export function VerifyStock({
         );
 
         // Update local state to reflect changes immediately
-        setCurrentOrder({
-          ...order,
+        setCurrentRequest({
+          ...request,
           status: "Stockist Processing",
           updatedDate: Date.now(),
           updatedBy: currentUser,
@@ -273,7 +274,7 @@ export function VerifyStock({
         });
       }
     }
-  }, [order.id, order.detailItems]);
+  }, [request.id, request.detailItems]);
 
   const formatDate = (isoString: string) => {
     if (!isoString) return "";
@@ -309,12 +310,12 @@ export function VerifyStock({
   };
 
   const getOrderImage = () => {
-    if (order.photoId) {
-      const storedImage = getImage(order.photoId);
+    if (request.photoId) {
+      const storedImage = getImage(request.photoId);
       if (storedImage) return storedImage;
     }
-    if (order.kategoriBarang === "basic" && order.namaBasic) {
-      return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
+    if (request.kategoriBarang === "basic" && request.namaBasic) {
+      return NAMA_BASIC_IMAGES[request.namaBasic] || italySanta;
     }
     return italySanta;
   };
@@ -337,7 +338,7 @@ export function VerifyStock({
     const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
+      const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
       if (orderIndex !== -1) {
         // If sending to JB, calculate orderPcs as requested - available
         let updatedDetailItems = detailItems;
@@ -359,7 +360,7 @@ export function VerifyStock({
         localStorage.setItem("requests", JSON.stringify(orders));
 
         // Remove ETA reminder for this request and stockist
-        removeETAReminderForStockist(order.id, currentUser);
+        removeETAReminderForStockist(request.id, currentUser);
 
         // Create notification for status change
         notifyRequestStatusChanged(
@@ -400,7 +401,7 @@ export function VerifyStock({
     const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
+      const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
       if (orderIndex !== -1) {
         const oldStatus = orders[orderIndex].status;
         orders[orderIndex].detailItems = updatedItems;
@@ -447,7 +448,7 @@ export function VerifyStock({
       // All available pcs match requested pcs
       newStatus = "Ready Stock Marketing";
     } else if (
-      order.customerExpectation === "ready-marketing" &&
+      request.customerExpectation === "ready-marketing" &&
       someDoNotMatch
     ) {
       // Customer expects ready marketing but pcs don't match
@@ -463,22 +464,22 @@ export function VerifyStock({
   // Get labels instead of values
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
-    order.jenisProduk,
+    request.jenisProduk,
   );
   const productNameLabel =
-    order.kategoriBarang === "basic"
-      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
-      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
   const pabrikLabel =
-    typeof order.pabrik === "string"
-      ? getLabelFromValue(PABRIK_OPTIONS, order.pabrik)
-      : order.pabrik?.name ||
-        getLabelFromValue(PABRIK_OPTIONS, order.pabrik?.id || "");
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
   const atasNamaLabel =
-    typeof order.namaPelanggan === "string"
-      ? getLabelFromValue(ATAS_NAMA_OPTIONS, order.namaPelanggan)
-      : order.namaPelanggan?.name ||
-        getLabelFromValue(ATAS_NAMA_OPTIONS, order.namaPelanggan?.id || "");
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
 
   return (
     <div className="space-y-4">
@@ -519,7 +520,7 @@ export function VerifyStock({
             {jenisProdukLabel} {productNameLabel}
           </h3>
           <span className="inline-block text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-            {order.kategoriBarang === "basic" ? "Basic" : "Model"}
+            {request.kategoriBarang === "basic" ? "Basic" : "Model"}
           </span>
         </div>
 
@@ -527,37 +528,37 @@ export function VerifyStock({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left Column - Details */}
           <div className="space-y-2 text-sm">
-            {currentOrder.requestNo && (
+            {currentRequest.requestNo && (
               <div>
                 <span className="text-gray-500">Request No: </span>
                 <span className="font-medium font-mono">
-                  {currentOrder.requestNo}
+                  {currentRequest.requestNo}
                 </span>
               </div>
             )}
             <div>
               <span className="text-gray-500">Created: </span>
               <span className="font-medium">
-                {formatTimestamp(currentOrder.timestamp)}
+                {formatTimestamp(currentRequest.timestamp)}
               </span>
             </div>
-            {currentOrder.createdBy && (
+            {currentRequest.createdBy && (
               <div>
                 <span className="text-gray-500">Sales: </span>
                 <span className="font-medium">
-                  {getFullNameFromUsername(currentOrder.createdBy)}
+                  {getFullNameFromUsername(currentRequest.createdBy)}
                 </span>
               </div>
             )}
-            {currentOrder.stockistId && (
+            {currentRequest.stockistId && (
               <div>
                 <span className="text-gray-500">Stockist: </span>
                 <span className="font-medium">
-                  {getFullNameFromUsername(currentOrder.stockistId)}
+                  {getFullNameFromUsername(currentRequest.stockistId)}
                 </span>
               </div>
             )}
-            {order.namaPelanggan && (
+            {request.namaPelanggan && (
               <div>
                 <span className="text-gray-500">Customer Name: </span>
                 <span className="font-medium">{atasNamaLabel}</span>
@@ -567,13 +568,13 @@ export function VerifyStock({
               <span className="text-gray-500">Supplier: </span>
               <span className="font-medium">{pabrikLabel}</span>
             </div>
-            {order.customerExpectation && (
+            {request.customerExpectation && (
               <div>
                 <span className="text-gray-500">Customer Expectation: </span>
                 <span className="font-medium">
                   {getLabelFromValue(
                     CUSTOMER_EXPECTATION_OPTIONS,
-                    order.customerExpectation,
+                    request.customerExpectation,
                   )}
                 </span>
               </div>
@@ -581,30 +582,30 @@ export function VerifyStock({
             <div>
               <span className="text-gray-500">ETA: </span>
               <span className="font-medium">
-                {formatDate(order.waktuKirim) || "-"}
+                {formatDate(request.waktuKirim) || "-"}
               </span>
             </div>
             <div>
               <span className="text-gray-500">Status: </span>
               <span
-                className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium`}
+                className={`inline-block text-xs ${getStatusBadgeClasses(currentRequest.status)} px-2 py-1 rounded-full font-medium`}
               >
-                {currentOrder.status}
+                {currentRequest.status}
               </span>
             </div>
-            {currentOrder.updatedDate && (
+            {currentRequest.updatedDate && (
               <div>
                 <span className="text-gray-500">Updated: </span>
                 <span className="font-medium">
-                  {formatTimestampWithTime(currentOrder.updatedDate)}
+                  {formatTimestampWithTime(currentRequest.updatedDate)}
                 </span>
               </div>
             )}
-            {currentOrder.updatedBy && (
+            {currentRequest.updatedBy && (
               <div>
                 <span className="text-gray-500">Updated By: </span>
                 <span className="font-medium">
-                  {getFullNameFromUsername(currentOrder.updatedBy)}
+                  {getFullNameFromUsername(currentRequest.updatedBy)}
                 </span>
               </div>
             )}
@@ -623,196 +624,16 @@ export function VerifyStock({
         </div>
       </Card>
 
-      {/* Detail Barang - Desktop View (Table) */}
-      <Card className="p-4 hidden md:block">
-        <h2 className="text-lg font-semibold mb-4">Detail Barang</h2>
-
-        <div className="max-h-[600px] overflow-auto">
-          <table className="w-full text-sm border-collapse border">
-            <thead className="bg-gray-100 sticky top-0 z-10">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  #
-                </th>
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  Kadar
-                </th>
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  Warna
-                </th>
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  Ukuran
-                </th>
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  Berat (gr)
-                </th>
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  Requested Pcs
-                </th>
-                {isJBWaiting && (
-                  <th className="px-3 py-2 text-left font-medium border bg-amber-50">
-                    Ordered Pcs
-                  </th>
-                )}
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  Available Pcs
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {detailItems.map((item, index) => {
-                const kadarColor =
-                  KADAR_COLORS[item.kadar.toLowerCase()] ||
-                  "bg-gray-100 text-gray-900";
-                const warnaColor =
-                  WARNA_COLORS[item.warna.toLowerCase()] ||
-                  "bg-gray-100 text-gray-900";
-                const ukuranLabel = getLabelFromValue(
-                  UKURAN_KALUNG_OPTIONS,
-                  item.ukuran,
-                );
-
-                return (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 border text-center">
-                      {index + 1}
-                    </td>
-                    <td className="px-3 py-2 border">
-                      <span
-                        className={`inline-block px-2 py-1 rounded font-medium ${kadarColor}`}
-                      >
-                        {item.kadar.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 border">
-                      <span
-                        className={`inline-block px-2 py-1 rounded font-medium ${warnaColor}`}
-                      >
-                        {item.warna.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 border">{ukuranLabel || "-"}</td>
-                    <td className="px-3 py-2 border">{item.berat || "-"}</td>
-                    <td className="px-3 py-2 border font-semibold text-center">
-                      {item.pcs}
-                    </td>
-                    {isJBWaiting && (
-                      <td className="px-3 py-2 border font-semibold text-amber-700 text-center bg-amber-50">
-                        {item.orderPcs || "-"}
-                      </td>
-                    )}
-                    <td className="px-3 py-2 border">
-                      {mode === "detail" ? (
-                        <span className="font-medium">
-                          {item.availablePcs || "-"}
-                        </span>
-                      ) : (
-                        <div className="w-24">
-                          <AvailablePcsInput
-                            value={item.availablePcs || ""}
-                            onChange={(value) =>
-                              handleAvailablePcsChange(item.id, value)
-                            }
-                            requestedPcs={item.pcs}
-                          />
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Detail Barang - Mobile View (List) */}
-      <div className="md:hidden space-y-3">
-        <h2 className="text-lg font-semibold">Detail Barang</h2>
-
-        {detailItems.map((item, index) => {
-          const kadarColor =
-            KADAR_COLORS[item.kadar.toLowerCase()] ||
-            "bg-gray-100 text-gray-900";
-          const warnaColor =
-            WARNA_COLORS[item.warna.toLowerCase()] ||
-            "bg-gray-100 text-gray-900";
-          const ukuranLabel = getLabelFromValue(
-            UKURAN_KALUNG_OPTIONS,
-            item.ukuran,
-          );
-
-          return (
-            <Card key={item.id} className="p-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold">Item #{index + 1}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-gray-500">Kadar: </span>
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${kadarColor}`}
-                    >
-                      {item.kadar.toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Warna: </span>
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${warnaColor}`}
-                    >
-                      {item.warna.toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Ukuran: </span>
-                    <span className="font-medium">{ukuranLabel || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Berat (gr): </span>
-                    <span className="font-medium">{item.berat || "-"}</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t">
-                  <div className="mb-2">
-                    <span className="text-gray-500">Requested Pcs: </span>
-                    <span className="font-semibold">{item.pcs}</span>
-                  </div>{" "}
-                  {isJBWaiting && item.orderPcs && (
-                    <div className="mb-2">
-                      <span className="text-gray-500">Ordered Pcs: </span>
-                      <span className="font-semibold text-amber-700">
-                        {item.orderPcs}
-                      </span>
-                    </div>
-                  )}{" "}
-                  <div>
-                    <label className="text-gray-500 text-xs block mb-1">
-                      Available Pcs:
-                    </label>
-                    {mode === "detail" ? (
-                      <span className="font-medium">
-                        {item.availablePcs || "-"}
-                      </span>
-                    ) : (
-                      <AvailablePcsInput
-                        value={item.availablePcs || ""}
-                        onChange={(value) =>
-                          handleAvailablePcsChange(item.id, value)
-                        }
-                        requestedPcs={item.pcs}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+      <DetailItemsTable
+        items={detailItems}
+        mode={mode === "detail" ? "readonly" : "with-available-pcs"}
+        isJBWaiting={isJBWaiting}
+        onAvailablePcsChange={mode === "verify" ? handleAvailablePcsChange : undefined}
+        getKadarColor={(kadar) => KADAR_COLORS[kadar.toLowerCase()] || "bg-gray-100 text-gray-900"}
+        getWarnaColor={(warna) => WARNA_COLORS[warna.toLowerCase()] || "bg-gray-100 text-gray-900"}
+        getUkuranLabel={(ukuran) => getLabelFromValue(UKURAN_KALUNG_OPTIONS, ukuran)}
+        title="Detail Barang"
+      />
 
       {/* Action Buttons */}
       {mode === "verify" && (
@@ -838,7 +659,7 @@ export function VerifyStock({
       {/* Sales Action Buttons - Only show in detail mode */}
       {mode === "detail" && (
         <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
-          {onEditRequest && currentOrder.status === "Open" && (
+          {onEditRequest && currentRequest.status === "Open" && (
             <Button
               variant="outline"
               onClick={onEditRequest}

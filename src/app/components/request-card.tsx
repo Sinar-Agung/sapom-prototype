@@ -53,7 +53,7 @@ interface RequestCardProps {
   onEditOrder?: (order: Request) => void;
   onDuplicateOrder?: (order: Request) => void;
   onCancelOrder?: (orderId: string) => void;
-  onVerifyStock?: (order: Request, tab: string) => void;
+  onViewRequestDetails?: (order: Request, tab: string) => void;
   onSeeDetail?: (order: Request, tab: string) => void;
 }
 
@@ -67,7 +67,7 @@ export function RequestCard({
   onEditOrder,
   onDuplicateOrder,
   onCancelOrder,
-  onVerifyStock,
+  onViewRequestDetails,
   onSeeDetail,
 }: RequestCardProps) {
   const formatDate = (isoString: string) => {
@@ -285,7 +285,7 @@ export function RequestCard({
             onEditOrder ||
             onDuplicateOrder ||
             onCancelOrder ||
-            onVerifyStock ||
+            onViewRequestDetails ||
             onSeeDetail) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
               {/* Show/Hide Items Button */}
@@ -406,7 +406,7 @@ export function RequestCard({
 
               {/* Stockist actions */}
               {userRole === "stockist" &&
-                onVerifyStock &&
+                onViewRequestDetails &&
                 (order.status === "Open" ||
                   order.status === "Stockist Processing" ||
                   order.status === "In Progress") && (
@@ -415,7 +415,7 @@ export function RequestCard({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onVerifyStock(order, activeTab)}
+                        onClick={() => onViewRequestDetails(order, activeTab)}
                         className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                       >
                         <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />

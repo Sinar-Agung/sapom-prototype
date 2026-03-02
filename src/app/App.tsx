@@ -14,7 +14,7 @@ import { Navigation } from "./components/navigation";
 import { Notifications } from "./components/notifications";
 import { OrderDetails } from "./components/order-details";
 import { OrderEditForm } from "./components/order-edit-form";
-import { OrderForm } from "./components/order-form";
+import { RequestForm } from "./components/request-form";
 import { Register } from "./components/register";
 import { SalesOrders } from "./components/sales-orders";
 import { Settings } from "./components/settings";
@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "./components/ui/alert-dialog";
 import { Toaster } from "./components/ui/sonner";
-import { VerifyStock } from "./components/verify-stock";
+import { RequestDetails } from "./components/request-details";
 import { WriteOrder } from "./components/write-order";
 import {
   initializeMockData,
@@ -192,9 +192,9 @@ export default function App() {
     setCurrentPage("tambah-pesanan");
   };
 
-  const handleVerifyStock = (order: any, currentTab: string) => {
+  const handleRequestDetails = (order: any, currentTab: string) => {
     console.log(
-      "📋 handleVerifyStock called with:",
+      "📋 handleRequestDetails called with:",
       order?.requestNo || order?.id,
       "tab:",
       currentTab,
@@ -202,7 +202,7 @@ export default function App() {
     setMyOrdersTab(currentTab); // Save the current tab
     setVerifyingOrder(order);
     setVerifyMode("verify");
-    setCurrentPage("verify-stock");
+    setCurrentPage("request-details");
     console.log("   ✅ Page set to verify-stock, mode: verify");
   };
 
@@ -216,7 +216,7 @@ export default function App() {
       setCurrentPage("write-order");
     } else {
       setVerifyMode("detail");
-      setCurrentPage("verify-stock");
+      setCurrentPage("request-details");
     }
   };
 
@@ -334,7 +334,7 @@ export default function App() {
 
       if (isVerifyMode) {
         console.log("→ Opening in Verify Stock mode (can edit/verify)");
-        handleVerifyStock(request, "open");
+        handleRequestDetails(request, "open");
       } else {
         console.log("→ Opening in Detail mode (read-only)");
         handleSeeDetail(request, "open");
@@ -717,7 +717,7 @@ export default function App() {
     switch (currentPage) {
       case "tambah-pesanan":
         return (
-          <OrderForm
+          <RequestForm
             onFormChange={setHasFormChanges}
             initialData={editingOrder}
             mode={formMode}
@@ -740,7 +740,7 @@ export default function App() {
             onEditOrder={handleEditOrder}
             onDuplicateOrder={handleDuplicateOrder}
             userRole={userRole}
-            onVerifyStock={handleVerifyStock}
+            onViewRequestDetails={handleRequestDetails}
             onSeeDetail={handleSeeDetail}
             initialTab={myOrdersTab}
             justCreatedRequest={justCreatedRequest}
@@ -839,10 +839,10 @@ export default function App() {
             onNavigateToUpdateOrder={handleNavigateToUpdateOrder}
           />
         );
-      case "verify-stock":
+      case "request-details":
         return (
-          <VerifyStock
-            order={verifyingOrder}
+          <RequestDetails
+            request={verifyingOrder}
             onBack={handleBackFromVerify}
             mode={verifyMode}
             isJBWaiting={userRole === "jb" && jbRequestsTab === "waiting"}
@@ -865,7 +865,7 @@ export default function App() {
       case "write-order":
         return (
           <WriteOrder
-            order={verifyingOrder}
+            request={verifyingOrder}
             onBack={handleBackFromWriteOrder}
           />
         );
@@ -881,7 +881,7 @@ export default function App() {
         );
       default:
         return (
-          <OrderForm
+          <RequestForm
             onFormChange={setHasFormChanges}
             initialData={editingOrder}
             mode={formMode}

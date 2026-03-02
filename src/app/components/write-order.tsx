@@ -84,14 +84,14 @@ const WARNA_COLORS: Record<string, string> = {
 };
 
 interface WriteOrderProps {
-  order: Request;
+  request: Request;
   onBack: () => void;
 }
 
-export function WriteOrder({ order, onBack }: WriteOrderProps) {
+export function WriteOrder({ request, onBack }: WriteOrderProps) {
   const [orderItems, setOrderItems] = useState<DetailBarangItem[]>([]);
   const [hasCreatedOrder, setHasCreatedOrder] = useState(false);
-  const [eta, setEta] = useState(order.waktuKirim);
+  const [eta, setEta] = useState(request.waktuKirim);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -103,7 +103,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
   useEffect(() => {
     // Initialize order items - use existing orderPcs or calculate default (requested - available)
-    const initializeditems = order.detailItems.map((item) => {
+    const initializeditems = request.detailItems.map((item) => {
       // If orderPcs already exists and is not "0", use it
       if (item.orderPcs && item.orderPcs !== "0") {
         return item;
@@ -121,7 +121,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     });
     setOrderItems(initializeditems);
     orderItemsRef.current = initializeditems;
-  }, [order]);
+  }, [request]);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -145,7 +145,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         if (savedOrders) {
           const orders = JSON.parse(savedOrders);
           const orderIndex = orders.findIndex(
-            (o: Request) => o.id === order.id,
+            (o: Request) => o.id === request.id,
           );
           if (orderIndex !== -1) {
             orders[orderIndex].detailItems = orderItemsRef.current;
@@ -155,14 +155,14 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         }
       }
     };
-  }, [hasUnsavedChanges, eta, order.id]);
+  }, [hasUnsavedChanges, eta, request.id]);
 
   const saveChanges = () => {
     try {
       const savedOrders = localStorage.getItem("requests");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
-        const orderIndex = orders.findIndex((o: Request) => o.id === order.id);
+        const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
         if (orderIndex !== -1) {
           // Read from ref to get the latest orderItems
           orders[orderIndex].detailItems = orderItemsRef.current;
@@ -280,11 +280,11 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     setHasUnsavedChanges(true);
   };
 
-  const getOrderImage = (order: Request) => {
-    if (order.kategoriBarang === "basic" && order.namaBasic) {
-      return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
+  const getOrderImage = (request: Request) => {
+    if (request.kategoriBarang === "basic" && request.namaBasic) {
+      return NAMA_BASIC_IMAGES[request.namaBasic] || italySanta;
     }
-    return order.fotoBarangBase64 || italySanta;
+    return request.fotoBarangBase64 || italySanta;
   };
 
   const getKadarColor = (kadar: string) => {
@@ -377,24 +377,24 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     // Get product details
     const jenisProdukLabel = getLabelFromValue(
       JENIS_PRODUK_OPTIONS,
-      order.jenisProduk,
+      request.jenisProduk,
     );
     const productNameLabel =
-      order.kategoriBarang === "basic"
-        ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
-        : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+      request.kategoriBarang === "basic"
+        ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+        : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
 
     const pabrikLabel =
-      typeof order.pabrik === "string"
-        ? order.pabrik
-        : order.pabrik?.name || "Unknown Supplier";
+      typeof request.pabrik === "string"
+        ? request.pabrik
+        : request.pabrik?.name || "Unknown Supplier";
 
     // Build order message
     let message = `*ORDER TO SUPPLIER*\n\n`;
-    message += `Request No: ${order.requestNo || "-"}\n`;
+    message += `Request No: ${request.requestNo || "-"}\n`;
     message += `Product: ${jenisProdukLabel} ${productNameLabel}\n`;
     message += `Supplier: ${pabrikLabel}\n`;
-    message += `ETA: ${formatDate(order.waktuKirim) || "-"}\n\n`;
+    message += `ETA: ${formatDate(request.waktuKirim) || "-"}\n\n`;
     message += `*DETAIL ITEMS:*\n`;
 
     itemsToOrder.forEach((item: OrderItem, index: number) => {
@@ -412,7 +412,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
   const getOrderImageFile = async (): Promise<File | null> => {
     try {
-      const imageUrl = getOrderImage(order);
+      const imageUrl = getOrderImage(request);
 
       // Check if it's a base64 image
       if (imageUrl.startsWith("data:image")) {
@@ -530,7 +530,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
     if (savedRequests) {
       const requests = JSON.parse(savedRequests);
       const requestIndex = requests.findIndex(
-        (o: Request) => o.id === order.id,
+        (o: Request) => o.id === request.id,
       );
       if (requestIndex !== -1) {
         // Update the request status to "Ordered"
@@ -551,9 +551,9 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         const user = findUserByUsername(currentUser);
         const branchCode = user?.branchCode || "A"; // A=JKT, B=BDG, C=SBY
         const pabrikName =
-          typeof order.pabrik === "string"
-            ? order.pabrik
-            : order.pabrik?.name || "";
+          typeof request.pabrik === "string"
+            ? request.pabrik
+            : request.pabrik?.name || "";
         const supplierInitials = pabrikName
           .split(" ")
           .map((word) => word[0])
@@ -576,44 +576,44 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
         // Compute product display name
         const productDisplayName =
-          order.kategoriBarang === "basic"
-            ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
-            : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+          request.kategoriBarang === "basic"
+            ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+            : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
 
         // Get sales and atas nama from the order (which is a request)
-        const salesUsername = order.createdBy || "";
+        const salesUsername = request.createdBy || "";
         const atasNamaValue =
-          typeof order.namaPelanggan === "string"
-            ? order.namaPelanggan
-            : order.namaPelanggan?.name || "";
+          typeof request.namaPelanggan === "string"
+            ? request.namaPelanggan
+            : request.namaPelanggan?.name || "";
 
         // Convert pabrik to EntityReference if it's a string
-        const pabrikRef: typeof order.pabrik =
-          typeof order.pabrik === "string"
-            ? { id: order.pabrik, name: order.pabrik }
-            : order.pabrik;
+        const pabrikRef: typeof request.pabrik =
+          typeof request.pabrik === "string"
+            ? { id: request.pabrik, name: request.pabrik }
+            : request.pabrik;
 
         const newOrder: Order = {
           id: `order-${Date.now()}`,
           PONumber,
-          requestNo: order.requestNo,
-          requestId: order.id,
+          requestNo: request.requestNo,
+          requestId: request.id,
           createdDate: Date.now(),
           createdBy: currentUser,
           jbId: currentUser,
           sales: salesUsername,
           atasNama: atasNamaValue,
           pabrik: pabrikRef as any,
-          kategoriBarang: order.kategoriBarang,
-          jenisProduk: order.jenisProduk,
-          namaProduk: order.namaProduk,
-          namaBasic: order.namaBasic,
+          kategoriBarang: request.kategoriBarang,
+          jenisProduk: request.jenisProduk,
+          namaProduk: request.namaProduk,
+          namaBasic: request.namaBasic,
           namaBarang: productDisplayName,
           waktuKirim: eta,
-          customerExpectation: order.customerExpectation,
+          customerExpectation: request.customerExpectation,
           detailItems: orderDetailItems,
-          photoId: order.photoId,
-          fotoBarangBase64: order.fotoBarangBase64,
+          photoId: request.photoId,
+          fotoBarangBase64: request.fotoBarangBase64,
           status: "New",
         };
 
@@ -627,7 +627,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
         const savedRequests = localStorage.getItem("requests");
         if (savedRequests) {
           const requests: Request[] = JSON.parse(savedRequests);
-          const requestIndex = requests.findIndex((r) => r.id === order.id);
+          const requestIndex = requests.findIndex((r) => r.id === request.id);
           if (requestIndex !== -1) {
             const oldStatus = requests[requestIndex].status;
             requests[requestIndex].status = "Ordered";
@@ -660,22 +660,22 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
 
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
-    order.jenisProduk,
+    request.jenisProduk,
   );
   const productNameLabel =
-    order.kategoriBarang === "basic"
-      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
-      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
 
   const pabrikLabel =
-    typeof order.pabrik === "string"
-      ? order.pabrik
-      : order.pabrik?.name || "Unknown Pabrik";
+    typeof request.pabrik === "string"
+      ? request.pabrik
+      : request.pabrik?.name || "Unknown Pabrik";
 
   const atasNamaLabel =
-    typeof order.namaPelanggan === "string"
-      ? order.namaPelanggan
-      : order.namaPelanggan?.name || "";
+    typeof request.namaPelanggan === "string"
+      ? request.namaPelanggan
+      : request.namaPelanggan?.name || "";
 
   return (
     <div className="min-h-screen pb-20 md:pb-4">
@@ -709,7 +709,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
           {/* Image */}
           <div className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
             <img
-              src={getOrderImage(order)}
+              src={getOrderImage(request)}
               alt={productNameLabel}
               className="w-full h-full object-cover"
             />
@@ -723,33 +723,33 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
               </h3>
               <span
                 className={`text-xs px-2 py-1 rounded ${
-                  order.kategoriBarang === "basic"
+                  request.kategoriBarang === "basic"
                     ? "bg-purple-100 text-purple-700"
                     : "bg-teal-100 text-teal-700"
                 }`}
               >
-                {order.kategoriBarang === "basic" ? "Basic" : "Model"}
+                {request.kategoriBarang === "basic" ? "Basic" : "Model"}
               </span>
               <span
-                className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeClasses(order.status)}`}
+                className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeClasses(request.status)}`}
               >
-                {order.status}
+                {request.status}
               </span>
             </div>
-            {order.requestNo && (
+            {request.requestNo && (
               <p className="text-sm text-gray-700 mb-1">
                 <span className="text-gray-500">Request No: </span>
-                <span className="font-mono">{order.requestNo}</span>
+                <span className="font-mono">{request.requestNo}</span>
               </p>
             )}
             <p className="text-sm text-gray-700 mb-1">
               <span className="text-gray-500">Created: </span>
-              {formatTimestamp(order.timestamp) || "-"}
+              {formatTimestamp(request.timestamp) || "-"}
             </p>
-            {order.createdBy && (
+            {request.createdBy && (
               <p className="text-sm text-gray-700 mb-1">
                 <span className="text-gray-500">Sales: </span>
-                {getFullNameFromUsername(order.createdBy)}
+                {getFullNameFromUsername(request.createdBy)}
               </p>
             )}
             {atasNamaLabel && (
@@ -768,14 +768,14 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
             </div>
             <p className="text-xs text-gray-600">
               <span className="text-gray-500">ETA: </span>
-              {formatDate(order.waktuKirim) || "-"}
+              {formatDate(request.waktuKirim) || "-"}
             </p>
-            {order.customerExpectation && (
+            {request.customerExpectation && (
               <p className="text-sm text-gray-700 mt-2">
                 <span className="text-gray-500">Customer Expectation: </span>
                 {getLabelFromValue(
                   CUSTOMER_EXPECTATION_OPTIONS,
-                  order.customerExpectation,
+                  request.customerExpectation,
                 )}
               </p>
             )}

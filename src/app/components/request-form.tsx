@@ -18,21 +18,21 @@ import { generateRequestNo } from "@/app/utils/request-number";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { DetailItemInput } from "./order-form/detail-item-input";
+import { DetailItemInput } from "./request-form/detail-item-input";
 import {
   DetailItemsDisplay,
   type DetailBarangItem,
-} from "./order-form/detail-items-display";
+} from "./request-form/detail-items-display";
 import {
   getKadarColor,
   getUkuranDisplay,
   getWarnaColor,
   getWarnaLabel,
   parseBerat,
-} from "./order-form/form-helpers";
-import { OrderFormHeader } from "./order-form/order-form-header";
+} from "./request-form/form-helpers";
+import { RequestFormHeader } from "./request-form/request-form-header";
 
-interface OrderFormProps {
+interface RequestFormProps {
   onFormChange?: (hasChanges: boolean) => void;
   initialData?: any;
   mode?: "new" | "edit" | "duplicate";
@@ -42,7 +42,7 @@ interface OrderFormProps {
   formTitle?: string;
 }
 
-export function OrderForm(props: OrderFormProps) {
+export function RequestForm(props: RequestFormProps) {
   const {
     onFormChange,
     initialData,
@@ -1163,7 +1163,7 @@ export function OrderForm(props: OrderFormProps) {
         </div>
 
         {/* Header Section */}
-        <OrderFormHeader
+        <RequestFormHeader
           formData={formData}
           onFormDataChange={setFormData}
           onKategoriBarangChange={handleKategoriBarangChange}

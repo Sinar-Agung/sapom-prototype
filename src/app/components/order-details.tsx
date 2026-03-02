@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { DetailItemsTable } from "./ui/detail-items-table";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -336,50 +337,18 @@ export function OrderDetails({
       </Card>
 
       {/* Order Items Card */}
-      <Card className="p-4">
-        <h3 className="font-semibold mb-3">Order Items</h3>
-        <div className="max-h-[300px] overflow-auto">
-          <table className="w-full border-collapse border text-xs">
-            <thead className="bg-gray-100 sticky top-0 z-10">
-              <tr>
-                <th className="border p-2 text-left bg-gray-100">#</th>
-                <th className="border p-2 text-left bg-gray-100">Kadar</th>
-                <th className="border p-2 text-left bg-gray-100">Warna</th>
-                <th className="border p-2 text-left bg-gray-100">Ukuran</th>
-                <th className="border p-2 text-left bg-gray-100">Berat</th>
-                <th className="border p-2 text-left bg-gray-100">Pcs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.detailItems.map((item, index) => {
-                return (
-                  <tr key={item.id || index} className="hover:bg-gray-50">
-                    <td className="border p-2 text-center">{index + 1}</td>
-                    <td
-                      className={`border p-2 font-medium ${getKadarColor(item.kadar)}`}
-                    >
-                      {item.kadar.toUpperCase()}
-                    </td>
-                    <td className={`border p-2 ${getWarnaColor(item.warna)}`}>
-                      {getWarnaLabel(item.warna)}
-                    </td>
-                    <td className="border p-2">
-                      {(() => {
-                        const ukuranDisplay = getUkuranDisplay(item.ukuran);
-                        return ukuranDisplay.showUnit
-                          ? `${ukuranDisplay.value} cm`
-                          : ukuranDisplay.value;
-                      })()}
-                    </td>
-                    <td className="border p-2">{item.berat || "-"}</td>
-                    <td className="border p-2">{item.pcs}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <DetailItemsTable
+        items={order.detailItems}
+        mode="readonly"
+        getKadarColor={getKadarColor}
+        getWarnaColor={getWarnaColor}
+        getWarnaLabel={getWarnaLabel}
+        getUkuranLabel={(ukuran) => {
+          const display = getUkuranDisplay(ukuran);
+          return display.showUnit ? `${display.value} cm` : display.value;
+        }}
+        title="Order Items"
+      />
 
       {/* Supplier Action Buttons */}
       {userRole === "supplier" &&

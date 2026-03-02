@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored
+
+- **Request Component Naming and Structure**: Major refactoring to improve code clarity and eliminate duplication
+  - **Renamed Order → Request in Request-related code**:
+    - Renamed folder: `order-form/` → `request-form/`
+    - Renamed files: `order-form.tsx` → `request-form.tsx`, `order-form-header.tsx` → `request-form-header.tsx`
+    - Renamed components: `OrderForm` → `RequestForm`, `OrderFormHeader` → `RequestFormHeader`
+    - Updated props: `order: Request` → `request: Request` throughout Request-handling components
+    - Updated callback names: `onVerifyStock` → `onViewRequestDetails` for clarity
+    - Fixed all property accesses in `request-details.tsx` and `write-order.tsx`
+  - **Consolidated Request Detail pages**:
+    - Renamed: `verify-stock.tsx` → `request-details.tsx`
+    - Renamed components: `VerifyStock` → `RequestDetails`, `VerifyStockProps` → `RequestDetailsProps`
+    - Updated page route: `"verify-stock"` → `"request-details"`
+    - Single file now serves all three roles (JB, Stockist, Sales) using mode prop
+  - **Created shared detail items component**:
+    - New `DetailItemsTable` component (`ui/detail-items-table.tsx`, 237 lines)
+    - Supports two modes: `"readonly"` and `"with-available-pcs"`
+    - Handles both desktop table and mobile card views internally
+    - Integrated into `request-details.tsx` (replaced ~190 lines of inline code)
+    - Integrated into `order-details.tsx` for "Order Items" section (replaced ~45 lines)
+    - Eliminated significant code duplication while maintaining all functionality
+    - Preserves color coding, responsive design, and different display modes
+
 ### Fixed
 
 - **Order Form Mobile View**: Fixed title visibility issue in collapsible "Input Detail Barang" form

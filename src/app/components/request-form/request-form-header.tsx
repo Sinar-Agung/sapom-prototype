@@ -47,7 +47,7 @@ export interface FormData {
   customerExpectation: string;
 }
 
-interface OrderFormHeaderProps {
+interface RequestFormHeaderProps {
   formData: FormData;
   onFormDataChange: (formData: FormData) => void;
   onKategoriBarangChange: (value: string) => void;
@@ -57,7 +57,7 @@ interface OrderFormHeaderProps {
   onFileInputKeyChange: (key: number) => void;
 }
 
-export function OrderFormHeader({
+export function RequestFormHeader({
   formData,
   onFormDataChange,
   onKategoriBarangChange,

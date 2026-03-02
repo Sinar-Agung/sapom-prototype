@@ -37,18 +37,18 @@ import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, Camera, ImagePlus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { DetailItemInput } from "./order-form/detail-item-input";
+import { DetailItemInput } from "./request-form/detail-item-input";
 import {
   DetailBarangItem,
   DetailItemsDisplay,
-} from "./order-form/detail-items-display";
+} from "./request-form/detail-items-display";
 import {
   getKadarColor,
   getUkuranDisplay,
   getWarnaColor,
   getWarnaLabel,
   parseBerat,
-} from "./order-form/form-helpers";
+} from "./request-form/form-helpers";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
