@@ -150,6 +150,12 @@ export function JBOrder({
   const confirmedByJBCount = orderNoFiltered.filter(
     (order) => order.status === "Confirmed by JB",
   ).length;
+  const partiallyDeliveredCount = orderNoFiltered.filter(
+    (order) => order.status === "Partially Delivered",
+  ).length;
+  const fullyDeliveredCount = orderNoFiltered.filter(
+    (order) => order.status === "Fully Delivered",
+  ).length;
 
   // Get current user
   const currentUser =
@@ -207,6 +213,16 @@ export function JBOrder({
       order.status === "Confirmed by JB" &&
       !order.viewedBy?.includes(currentUser),
   ).length;
+  const unseenPartiallyDeliveredCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Partially Delivered" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenFullyDeliveredCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Fully Delivered" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
 
   // Filter orders based on active tab from orderNoFiltered
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
@@ -232,6 +248,10 @@ export function JBOrder({
       return order.status === "Cancelled";
     } else if (activeTab === "confirmed") {
       return order.status === "Confirmed by JB";
+    } else if (activeTab === "partially-delivered") {
+      return order.status === "Partially Delivered";
+    } else if (activeTab === "fully-delivered") {
+      return order.status === "Fully Delivered";
     }
     return false;
   });
@@ -455,6 +475,40 @@ export function JBOrder({
               {unseenCancelledCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
                   {unseenCancelledCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="partially-delivered"
+            className={
+              activeTab === "partially-delivered"
+                ? "text-blue-600 border-blue-600"
+                : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              Partially Delivered ({partiallyDeliveredCount})
+              {unseenPartiallyDeliveredCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenPartiallyDeliveredCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="fully-delivered"
+            className={
+              activeTab === "fully-delivered"
+                ? "text-green-600 border-green-600"
+                : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              Fully Delivered ({fullyDeliveredCount})
+              {unseenFullyDeliveredCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenFullyDeliveredCount}
                 </span>
               )}
             </span>

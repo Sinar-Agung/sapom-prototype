@@ -8,6 +8,7 @@ import {
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import {
   AlertTriangle,
+  Archive,
   Bell,
   CheckCheck,
   Clock,
@@ -45,12 +46,12 @@ export function Notifications({
   onNavigateToUpdateOrder,
 }: NotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [activeTab, setActiveTab] = useState<"all" | "unread" | "expiring">(
-    () => {
-      const saved = sessionStorage.getItem("notificationsActiveTab");
-      return (saved as "all" | "unread" | "expiring") || "all";
-    },
-  );
+  const [activeTab, setActiveTab] = useState<
+    "all" | "unread" | "expiring" | "archived"
+  >(() => {
+    const saved = sessionStorage.getItem("notificationsActiveTab");
+    return (saved as "all" | "unread" | "expiring") || "all";
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [notificationToRemove, setNotificationToRemove] = useState<
@@ -186,15 +187,44 @@ export function Notifications({
     }
   };
 
+  // 30 days in milliseconds
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  // First, separate archived notifications (older than 30 days)
+  const archivedNotifications = notifications.filter(
+    (n) => now - n.timestamp > THIRTY_DAYS_MS,
+  );
+  const nonArchivedNotifications = notifications.filter(
+    (n) => now - n.timestamp <= THIRTY_DAYS_MS,
+  );
+
   const filteredNotifications =
-    activeTab === "unread"
-      ? notifications.filter((n) => !n.readBy.includes(currentUser))
-      : activeTab === "expiring"
-        ? notifications.filter((n) => n.eventType === "request_expiring")
-        : notifications;
+    activeTab === "archived"
+      ? archivedNotifications
+      : activeTab === "unread"
+        ? nonArchivedNotifications.filter(
+            (n) =>
+              !n.readBy.includes(currentUser) &&
+              n.eventType !== "request_expiring",
+          )
+        : activeTab === "expiring"
+          ? nonArchivedNotifications.filter(
+              (n) => n.eventType === "request_expiring",
+            )
+          : nonArchivedNotifications.filter(
+              (n) => n.eventType !== "request_expiring",
+            ); // Exclude expiring from All tab
 
   // Sort notifications: expiring ones at the top, then by timestamp
   const sortedNotifications = [...filteredNotifications].sort((a, b) => {
+    // Special sorting for expiring tab: sort by days to ETA (ascending - closest to expiring first)
+    if (activeTab === "expiring") {
+      const aDaysToETA = a.changes?.[0]?.newValue as number;
+      const bDaysToETA = b.changes?.[0]?.newValue as number;
+      return (aDaysToETA || 0) - (bDaysToETA || 0);
+    }
+
     // Expiring notifications always come first
     if (
       a.eventType === "request_expiring" &&
@@ -212,17 +242,23 @@ export function Notifications({
     return b.timestamp - a.timestamp;
   });
 
-  const unreadCount = notifications.filter(
-    (n) => !n.readBy.includes(currentUser),
+  const unreadCount = nonArchivedNotifications.filter(
+    (n) =>
+      !n.readBy.includes(currentUser) && n.eventType !== "request_expiring",
   ).length;
 
-  const expiringCount = notifications.filter(
+  const expiringCount = nonArchivedNotifications.filter(
     (n) => n.eventType === "request_expiring",
   ).length;
+
+  const archivedCount = archivedNotifications.length;
 
   const getEventIcon = (eventType: string) => {
     if (eventType === "request_expiring") {
       return <AlertTriangle className="w-5 h-5 text-orange-600" />;
+    }
+    if (eventType === "request_expired") {
+      return <X className="w-5 h-5 text-red-600" />;
     }
     if (eventType === "order_change_requested") {
       return <Edit className="w-5 h-5 text-blue-600" />;
@@ -242,6 +278,7 @@ export function Notifications({
   const getEventColor = (eventType: string) => {
     if (eventType === "request_expiring")
       return "bg-orange-50 border-orange-300";
+    if (eventType === "request_expired") return "bg-red-50 border-red-300";
     if (eventType.includes("created")) return "bg-green-50 border-green-200";
     if (eventType.includes("updated")) return "bg-amber-50 border-amber-200";
     if (eventType.includes("cancelled")) return "bg-rose-50 border-rose-200";
@@ -265,6 +302,7 @@ export function Notifications({
   const getEventTypePillColor = (eventType: string): string => {
     if (eventType === "request_expiring")
       return "bg-orange-100 text-orange-700";
+    if (eventType === "request_expired") return "bg-red-100 text-red-700";
     if (eventType === "order_change_requested")
       return "bg-blue-100 text-blue-700";
     if (eventType.includes("created")) return "bg-green-100 text-green-700";
@@ -347,7 +385,7 @@ export function Notifications({
       <Tabs
         value={activeTab}
         onValueChange={(value) =>
-          setActiveTab(value as "all" | "unread" | "expiring")
+          setActiveTab(value as "all" | "unread" | "expiring" | "archived")
         }
         className="flex flex-col flex-1 min-h-0"
       >
@@ -373,6 +411,14 @@ export function Notifications({
             {expiringCount > 0 && (
               <span className="ml-2 bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full text-xs">
                 {expiringCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="archived">
+            Archived
+            {archivedCount > 0 && (
+              <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                {archivedCount}
               </span>
             )}
           </TabsTrigger>
@@ -404,6 +450,8 @@ export function Notifications({
                     : getFullNameFromUsername(notification.triggeredBy);
                   const isExpiring =
                     notification.eventType === "request_expiring";
+                  const isExpired =
+                    notification.eventType === "request_expired";
 
                   // Generalize 'You <action>' for all event types
                   let displayMessage = notification.message;
@@ -465,6 +513,10 @@ export function Notifications({
                         // System notification, don't personalize
                         displayMessage = notification.message;
                         break;
+                      case "request_expired":
+                        // System notification, don't personalize
+                        displayMessage = notification.message;
+                        break;
                       default:
                         // fallback: replace name with You if present
                         displayMessage = notification.message.replace(
@@ -506,9 +558,11 @@ export function Notifications({
                                   className={`font-semibold ${
                                     isExpiring
                                       ? "text-orange-900"
-                                      : isUnread
-                                        ? "text-gray-900"
-                                        : "text-gray-700"
+                                      : isExpired
+                                        ? "text-red-900"
+                                        : isUnread
+                                          ? "text-gray-900"
+                                          : "text-gray-700"
                                   }`}
                                   dangerouslySetInnerHTML={{
                                     __html: notification.title,
@@ -645,6 +699,8 @@ export function Notifications({
                     : getFullNameFromUsername(notification.triggeredBy);
                   const isExpiring =
                     notification.eventType === "request_expiring";
+                  const isExpired =
+                    notification.eventType === "request_expired";
 
                   // Customize message for "viewed" notifications when it's the current user
                   let displayMessage = notification.message;
@@ -663,7 +719,9 @@ export function Notifications({
                       className={`p-4 transition-all cursor-pointer hover:shadow-md ${
                         isExpiring
                           ? "border-2 border-orange-400 bg-orange-50"
-                          : `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
+                          : isExpired
+                            ? "border-2 border-red-400 bg-red-50"
+                            : `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
                       }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
@@ -685,7 +743,9 @@ export function Notifications({
                                   className={`font-semibold ${
                                     isExpiring
                                       ? "text-orange-900"
-                                      : "text-gray-900"
+                                      : isExpired
+                                        ? "text-red-900"
+                                        : "text-gray-900"
                                   }`}
                                   dangerouslySetInnerHTML={{
                                     __html: notification.title,
@@ -821,6 +881,8 @@ export function Notifications({
                     : getFullNameFromUsername(notification.triggeredBy);
                   const isExpiring =
                     notification.eventType === "request_expiring";
+                  const isExpired =
+                    notification.eventType === "request_expired";
 
                   return (
                     <Card
@@ -828,9 +890,11 @@ export function Notifications({
                       className={`p-4 transition-all cursor-pointer hover:shadow-md ${
                         isExpiring
                           ? "border-2 border-orange-400 bg-orange-50"
-                          : isUnread
-                            ? `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
-                            : "bg-white border-gray-200"
+                          : isExpired
+                            ? "border-2 border-red-400 bg-red-50"
+                            : isUnread
+                              ? `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
+                              : "bg-white border-gray-200"
                       }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
@@ -854,7 +918,9 @@ export function Notifications({
                                   className={`font-semibold ${
                                     isExpiring
                                       ? "text-orange-900"
-                                      : "text-gray-900"
+                                      : isExpired
+                                        ? "text-red-900"
+                                        : "text-gray-900"
                                   }`}
                                   dangerouslySetInnerHTML={{
                                     __html: notification.title,
@@ -924,6 +990,229 @@ export function Notifications({
                                     {change.newValue !== 1 ? "s" : ""} remaining
                                   </div>
                                 ))}
+                              </div>
+                            )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="archived"
+          className="flex-1 min-h-0 m-0 data-[state=active]:flex data-[state=active]:flex-col"
+        >
+          <div className="h-full overflow-y-auto scrollbar-hide">
+            {filteredNotifications.length === 0 ? (
+              <Card className="p-8">
+                <div className="text-center text-gray-500">
+                  <Archive className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-lg font-medium">
+                    No archived notifications
+                  </p>
+                  <p className="text-sm mt-1">
+                    Notifications older than 30 days will appear here.
+                  </p>
+                </div>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {sortedNotifications.map((notification) => {
+                  const isUnread = !notification.readBy.includes(currentUser);
+                  const isCurrentUser =
+                    notification.triggeredBy === currentUser;
+                  const triggeredByName = isCurrentUser
+                    ? "You"
+                    : getFullNameFromUsername(notification.triggeredBy);
+                  const isExpiring =
+                    notification.eventType === "request_expiring";
+                  const isExpired =
+                    notification.eventType === "request_expired";
+
+                  // Generalize 'You <action>' for all event types
+                  let displayMessage = notification.message;
+                  if (isCurrentUser) {
+                    switch (notification.eventType) {
+                      case "request_created":
+                        displayMessage = notification.message;
+                        break;
+                      case "request_updated":
+                        displayMessage = `You updated request ${notification.entityNumber}`;
+                        break;
+                      case "request_cancelled":
+                        displayMessage = `You cancelled request ${notification.entityNumber}`;
+                        break;
+                      case "request_status_changed":
+                        displayMessage = notification.message.replace(
+                          getFullNameFromUsername(notification.triggeredBy),
+                          "You",
+                        );
+                        break;
+                      case "request_viewed_by_stockist":
+                        displayMessage = `You viewed request ${notification.entityNumber}`;
+                        break;
+                      case "request_approved_by_stockist":
+                        displayMessage = `You approved request ${notification.entityNumber}`;
+                        break;
+                      case "request_rejected_by_stockist":
+                        displayMessage = `You rejected request ${notification.entityNumber}`;
+                        break;
+                      case "request_converted_to_order":
+                        displayMessage = `You converted request ${notification.entityNumber} to order`;
+                        break;
+                      case "order_created":
+                        displayMessage = `You created order ${notification.entityNumber}`;
+                        break;
+                      case "order_updated":
+                        displayMessage = `You updated order ${notification.entityNumber}`;
+                        break;
+                      case "order_revised":
+                        displayMessage = `You revised order ${notification.entityNumber}`;
+                        break;
+                      case "order_status_changed":
+                        displayMessage = notification.message.replace(
+                          getFullNameFromUsername(notification.triggeredBy),
+                          "You",
+                        );
+                        break;
+                      case "order_viewed_by_supplier":
+                        displayMessage = `You viewed order ${notification.entityNumber}`;
+                        break;
+                      case "order_arrival_recorded":
+                        displayMessage = `You recorded arrival for order ${notification.entityNumber}`;
+                        break;
+                      case "order_closed":
+                        displayMessage = `You closed order ${notification.entityNumber}`;
+                        break;
+                      case "request_expiring":
+                        displayMessage = notification.message;
+                        break;
+                      case "request_expired":
+                        displayMessage = notification.message;
+                        break;
+                      default:
+                        displayMessage = notification.message.replace(
+                          getFullNameFromUsername(notification.triggeredBy),
+                          "You",
+                        );
+                    }
+                  }
+
+                  return (
+                    <Card
+                      key={notification.id}
+                      className={`p-4 transition-all cursor-pointer hover:shadow-md bg-gray-50 border-gray-300 opacity-75`}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 mt-1">
+                          {getEventIcon(notification.eventType)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventTypePillColor(notification.eventType)}`}
+                                >
+                                  {formatEventType(notification.eventType)}
+                                </span>
+                                <h3
+                                  className="font-semibold text-gray-600"
+                                  dangerouslySetInnerHTML={{
+                                    __html: notification.title,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 whitespace-nowrap flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatTimestamp(notification.timestamp)}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) =>
+                                  handleRemoveNotification(e, notification.id)
+                                }
+                                className="h-7 px-2 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                              >
+                                <X className="w-3.5 h-3.5 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap text-gray-600 mb-2">
+                            {displayMessage}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <span className="font-medium">
+                                {notification.entityType === "request"
+                                  ? "Request"
+                                  : "Order"}
+                                :
+                              </span>
+                              <span className="font-mono">
+                                {notification.entityNumber}
+                              </span>
+                            </span>
+                            <span>•</span>
+                            <span>
+                              by{" "}
+                              {triggeredByName === "system"
+                                ? "System"
+                                : triggeredByName}
+                            </span>
+                          </div>
+                          {notification.changes &&
+                            notification.changes.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                {isExpiring ? (
+                                  <>
+                                    <p className="text-xs font-semibold text-gray-600 mb-1">
+                                      Days to ETA:
+                                    </p>
+                                    {notification.changes.map((change, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="text-xs text-gray-600 font-semibold"
+                                      >
+                                        {change.newValue} day
+                                        {change.newValue !== 1 ? "s" : ""}{" "}
+                                        remaining
+                                      </div>
+                                    ))}
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-xs font-semibold text-gray-600 mb-1">
+                                      Changes:
+                                    </p>
+                                    {notification.changes.map((change, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="text-xs text-gray-600"
+                                      >
+                                        <span className="font-medium">
+                                          {change.field}:
+                                        </span>{" "}
+                                        <span className="line-through text-red-600">
+                                          {change.oldValue || "N/A"}
+                                        </span>{" "}
+                                        →{" "}
+                                        <span className="text-green-600">
+                                          {change.newValue || "N/A"}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </>
+                                )}
                               </div>
                             )}
                         </div>

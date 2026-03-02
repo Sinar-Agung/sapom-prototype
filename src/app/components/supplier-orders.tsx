@@ -230,6 +230,12 @@ export function SupplierOrders({
   const filteredCancelledCount = orderNoFiltered.filter(
     (order: Order) => order.status === "Cancelled",
   ).length;
+  const filteredPartiallyDeliveredCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Partially Delivered",
+  ).length;
+  const filteredFullyDeliveredCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "Fully Delivered",
+  ).length;
 
   // Calculate unseen counts (orders not viewed by current user)
   const unseenAllCount = orderNoFiltered.filter(
@@ -276,6 +282,16 @@ export function SupplierOrders({
     (order: Order) =>
       order.status === "Cancelled" && !order.viewedBy?.includes(currentUser),
   ).length;
+  const unseenPartiallyDeliveredCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Partially Delivered" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenFullyDeliveredCount = orderNoFiltered.filter(
+    (order: Order) =>
+      order.status === "Fully Delivered" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
 
   // Filter by active tab
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
@@ -299,6 +315,10 @@ export function SupplierOrders({
       return order.status === "Unable to Fulfill";
     } else if (activeTab === "cancelled") {
       return order.status === "Cancelled";
+    } else if (activeTab === "partially-delivered") {
+      return order.status === "Partially Delivered";
+    } else if (activeTab === "fully-delivered") {
+      return order.status === "Fully Delivered";
     }
     return false;
   });
@@ -519,6 +539,40 @@ export function SupplierOrders({
               {unseenCancelledCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
                   {unseenCancelledCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="partially-delivered"
+            className={
+              activeTab === "partially-delivered"
+                ? "text-blue-600 border-blue-600"
+                : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              Partially Delivered ({filteredPartiallyDeliveredCount})
+              {unseenPartiallyDeliveredCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenPartiallyDeliveredCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="fully-delivered"
+            className={
+              activeTab === "fully-delivered"
+                ? "text-green-600 border-green-600"
+                : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              Fully Delivered ({filteredFullyDeliveredCount})
+              {unseenFullyDeliveredCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenFullyDeliveredCount}
                 </span>
               )}
             </span>

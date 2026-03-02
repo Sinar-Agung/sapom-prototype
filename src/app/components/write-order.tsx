@@ -800,7 +800,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
       <Card className="p-4">
         <h3 className="font-semibold mb-3">Order Items</h3>
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse border text-xs">
+          <table className="w-full border-collapse border text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="border p-2 text-left">#</th>
@@ -816,7 +816,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
                       title="Match All - Copy all requested values to Order Pcs"
                       className="p-1 hover:bg-gray-200 rounded transition-colors text-blue-600"
                     >
-                      <CopyPlus className="h-3.5 w-3.5" />
+                      <CopyPlus className="h-4 w-4" />
                     </button>
                   </div>
                 </th>
@@ -828,7 +828,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
                       title="Auto-fill All - Calculate Requested - Available for all items"
                       className="p-1 hover:bg-gray-200 rounded transition-colors text-green-600"
                     >
-                      <Wand2 className="h-3.5 w-3.5" />
+                      <Wand2 className="h-4 w-4" />
                     </button>
                   </div>
                 </th>
@@ -859,7 +859,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
                         title="Match - Copy requested to Order Pcs"
                         className="p-1 hover:bg-blue-50 rounded transition-colors text-blue-600"
                       >
-                        <Copy className="h-3.5 w-3.5" />
+                        <Copy className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -871,7 +871,7 @@ export function WriteOrder({ order, onBack }: WriteOrderProps) {
                         title="Auto-fill - Calculate Requested - Available"
                         className="p-1 hover:bg-green-50 rounded transition-colors text-green-600"
                       >
-                        <Calculator className="h-3.5 w-3.5" />
+                        <Calculator className="h-4 w-4" />
                       </button>
                     </div>
                   </td>

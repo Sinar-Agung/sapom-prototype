@@ -1,7 +1,7 @@
 import { NewBadge } from "@/app/components/new-badge";
 import { Button } from "@/app/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export interface DetailBarangItem {
   id: string;
@@ -30,6 +30,7 @@ interface DetailItemsDisplayProps {
   getWarnaColor: (warna: string) => string;
   getWarnaLabel: (warna: string) => string;
   getUkuranDisplay: (ukuran: string) => { value: string; showUnit: boolean };
+  isInputFormExpanded?: boolean;
 }
 
 export function DetailItemsDisplay({
@@ -49,11 +50,34 @@ export function DetailItemsDisplay({
   getWarnaColor,
   getWarnaLabel,
   getUkuranDisplay,
+  isInputFormExpanded = true,
 }: DetailItemsDisplayProps) {
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to the top when editing starts
+  useEffect(() => {
+    if (editingDetailId) {
+      const scrollContainer = tableScrollRef.current;
+      if (scrollContainer) {
+        // Scroll to the very top
+        scrollContainer.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [editingDetailId]);
+
+  // Dynamic height based on whether input form is expanded
+  const maxHeightClass = isInputFormExpanded
+    ? "max-h-[300px] sm:max-h-[250px]" // Shorter when form is expanded
+    : "max-h-[600px] sm:max-h-[250px]"; // Taller when form is collapsed
+
   return (
-    <div className="max-h-[250px] overflow-auto" ref={tableScrollRef}>
+    <div
+      className={`${maxHeightClass} ${editingDetailId ? "overflow-hidden" : "overflow-auto"}`}
+      ref={tableScrollRef}
+    >
       {/* Mobile Card View */}
       <div className="block sm:hidden space-y-3 pr-1">
         {items.length === 0 ? (
@@ -92,7 +116,11 @@ export function DetailItemsDisplay({
                   style={{
                     willChange: isRelocating ? "transform" : "auto",
                   }}
-                  className={`border rounded-lg bg-white shadow-sm overflow-hidden flex cursor-pointer relative ${
+                  className={`border rounded-lg bg-white shadow-sm overflow-hidden flex cursor-pointer relative transition-opacity ${
+                    editingDetailId && !isEditing
+                      ? "opacity-50 pointer-events-none"
+                      : ""
+                  } ${
                     isEditing
                       ? "editing-pulse"
                       : isAnimating
@@ -165,6 +193,7 @@ export function DetailItemsDisplay({
                         variant="outline"
                         size="sm"
                         className="h-7 px-2 text-xs flex-1"
+                        disabled={editingDetailId !== null && !isEditing}
                       >
                         Edit
                       </Button>
@@ -176,6 +205,7 @@ export function DetailItemsDisplay({
                         variant="destructive"
                         size="sm"
                         className="h-7 px-2 text-xs"
+                        disabled={editingDetailId !== null && !isEditing}
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -234,7 +264,11 @@ export function DetailItemsDisplay({
                       }
                     }}
                     onClick={() => onRowClick(item.id)}
-                    className={`${
+                    className={`transition-opacity ${
+                      editingDetailId && !isEditing
+                        ? "opacity-50 pointer-events-none"
+                        : ""
+                    } ${
                       isEditing
                         ? "editing-pulse"
                         : isAnimating
@@ -291,6 +325,7 @@ export function DetailItemsDisplay({
                           variant="outline"
                           size="sm"
                           className="h-6 px-2 text-xs"
+                          disabled={editingDetailId !== null && !isEditing}
                         >
                           Edit
                         </Button>
@@ -302,6 +337,7 @@ export function DetailItemsDisplay({
                           variant="destructive"
                           size="sm"
                           className="h-6 px-2 text-xs"
+                          disabled={editingDetailId !== null && !isEditing}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>

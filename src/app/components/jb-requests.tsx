@@ -120,6 +120,9 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   const filteredWaitingCount = requestNoFiltered.filter(
     (order: Request) => order.status === "Ordered",
   ).length;
+  const filteredExpiredCount = requestNoFiltered.filter(
+    (order: Request) => order.status === "Request Expired",
+  ).length;
 
   // Filter by active tab
   let filteredOrders = requestNoFiltered.filter((order: Request) => {
@@ -127,6 +130,8 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
       return order.status === "Requested to JB";
     } else if (activeTab === "waiting") {
       return order.status === "Ordered";
+    } else if (activeTab === "expired") {
+      return order.status === "Request Expired";
     }
     return false;
   });
@@ -175,6 +180,9 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   const waitingCount = orders.filter(
     (order: Request) => order.status === "Ordered",
   ).length;
+  const expiredCount = orders.filter(
+    (order: Request) => order.status === "Request Expired",
+  ).length;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -187,7 +195,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
       <div className="flex-shrink-0 mb-4">
         <FilterSortControls
           type="request"
-          totalCount={assignedCount + waitingCount}
+          totalCount={assignedCount + waitingCount + expiredCount}
           filterValue={requestNoFilter}
           onFilterChange={setRequestNoFilter}
           sortBy={sortBy}
@@ -222,6 +230,14 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
             }
           >
             Ordered ({filteredWaitingCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="expired"
+            className={
+              activeTab === "expired" ? "text-red-600 border-red-600" : ""
+            }
+          >
+            Expired ({filteredExpiredCount})
           </TabsTrigger>
         </TabsList>
 

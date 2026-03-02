@@ -18,7 +18,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Calculator, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -106,6 +106,35 @@ export function OrderArrivalComponent({
       ...prev,
       [itemId]: Math.max(0, numValue),
     }));
+  };
+
+  // Auto-fill a single item: Ordered - Delivered
+  const handleAutoFillItem = (
+    itemId: string,
+    ordered: number,
+    delivered: number,
+  ) => {
+    const calculated = Math.max(0, ordered - delivered);
+    setNewArrivals((prev) => ({
+      ...prev,
+      [itemId]: calculated,
+    }));
+  };
+
+  // Auto-fill all items: Ordered - Delivered for each
+  const handleAutoFillAll = () => {
+    const newValues: Record<string, number> = {};
+    order.detailItems.forEach((item) => {
+      const delivered = getDeliveredCount(
+        item.kadar,
+        item.warna,
+        item.ukuran,
+        item.berat,
+      );
+      const ordered = parseInt(item.pcs) || 0;
+      newValues[item.id] = Math.max(0, ordered - delivered);
+    });
+    setNewArrivals(newValues);
   };
 
   const handleSubmit = () => {
@@ -330,7 +359,16 @@ export function OrderArrivalComponent({
                 <th className="border p-2 text-left bg-gray-100">Ordered</th>
                 <th className="border p-2 text-left bg-gray-100">Delivered</th>
                 <th className="border p-2 text-left bg-gray-100">
-                  New Arrival
+                  <div className="flex items-center justify-between gap-1">
+                    <span>New Arrival</span>
+                    <button
+                      onClick={handleAutoFillAll}
+                      title="Auto-fill All - Calculate Ordered - Delivered for all items"
+                      className="p-1 hover:bg-gray-200 rounded transition-colors text-green-600"
+                    >
+                      <Calculator className="h-4 w-4" />
+                    </button>
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -362,16 +400,31 @@ export function OrderArrivalComponent({
                     <td className="border p-2">{item.pcs}</td>
                     <td className="border p-2">{delivered}</td>
                     <td className="border p-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={newArrival || ""}
-                        onChange={(e) =>
-                          handleNewArrivalChange(item.id, e.target.value)
-                        }
-                        className="w-20 text-right"
-                        placeholder="0"
-                      />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={newArrival || ""}
+                          onChange={(e) =>
+                            handleNewArrivalChange(item.id, e.target.value)
+                          }
+                          className="w-20 text-right"
+                          placeholder="0"
+                        />
+                        <button
+                          onClick={() =>
+                            handleAutoFillItem(
+                              item.id,
+                              parseInt(item.pcs) || 0,
+                              delivered,
+                            )
+                          }
+                          title="Auto-fill - Calculate Ordered - Delivered"
+                          className="p-1 hover:bg-green-50 rounded transition-colors text-green-600 flex-shrink-0"
+                        >
+                          <Calculator className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

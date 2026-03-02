@@ -332,6 +332,8 @@ export function MyOrders({
       );
     } else if (activeTab === "cancelled") {
       return order.status === "Cancelled";
+    } else if (activeTab === "expired") {
+      return order.status === "Request Expired";
     } else if (activeTab === "assigned") {
       // Assigned tab - show Requested to JB status for both sales and stockist
       return order.status === "Requested to JB";
@@ -362,6 +364,9 @@ export function MyOrders({
   }).length;
   const cancelledCount = requestNoFiltered.filter((order: Request) => {
     return order.status === "Cancelled";
+  }).length;
+  const expiredCount = requestNoFiltered.filter((order: Request) => {
+    return order.status === "Request Expired";
   }).length;
   const assignedCount = requestNoFiltered.filter((order: Request) => {
     return order.status === "Requested to JB";
@@ -652,6 +657,15 @@ export function MyOrders({
           >
             Cancelled ({cancelledCount})
           </TabsTrigger>
+          <TabsTrigger
+            value="expired"
+            onClick={handleTabClick}
+            className={
+              activeTab === "expired" ? "text-red-600 border-red-600" : ""
+            }
+          >
+            Expired ({expiredCount})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="flex-1 min-h-0 m-0">
@@ -770,6 +784,28 @@ export function MyOrders({
               <div className="text-center text-gray-500">
                 <p className="text-lg mb-2">No cancelled requests</p>
                 <p className="text-sm">Cancelled requests will appear here</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="space-y-3 pb-4">
+                {displayedOrders.map((order) => renderOrderCard(order))}
+              </div>
+              {displayedCount < sortedOrders.length && (
+                <div ref={observerTarget} className="flex justify-center py-4">
+                  <div className="text-sm text-gray-500">Loading more...</div>
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="expired" className="flex-1 min-h-0 m-0">
+          {filteredOrders.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <p className="text-lg mb-2">No expired requests</p>
+                <p className="text-sm">Expired requests will appear here</p>
               </div>
             </Card>
           ) : (

@@ -123,6 +123,9 @@ export function OrderForm(props: OrderFormProps) {
   // State for cancel confirmation dialog
   const [showCancelConfirmDialog, setShowCancelConfirmDialog] = useState(false);
 
+  // State for collapsible Input Detail Barang form (mobile)
+  const [isInputFormExpanded, setIsInputFormExpanded] = useState(true);
+
   const handleAddDetail = () => {
     // Validation
     if (formData.kategoriBarang === "basic" && !detailInput.berat.trim()) {
@@ -268,6 +271,9 @@ export function OrderForm(props: OrderFormProps) {
       notes: item.notes,
     });
     setEditingDetailId(item.id);
+
+    // Auto-expand form if collapsed (mobile)
+    setIsInputFormExpanded(true);
 
     // Remove "New" status from the item being edited
     setNewlyAddedIds((prev) => {
@@ -1187,18 +1193,24 @@ export function OrderForm(props: OrderFormProps) {
             </div>
           )}
 
-          {/* Sticky Input Form */}
-          <DetailItemInput
-            detailInput={detailInput}
-            onDetailInputChange={setDetailInput}
-            kategoriBarang={formData.kategoriBarang}
-            jenisProduk={formData.jenisProduk}
-            editingDetailId={editingDetailId}
-            isDisabled={isDetailInputDisabled}
-            isAddButtonDisabled={isAddButtonDisabled}
-            onAdd={handleAddDetail}
-            onCancel={handleCancelEdit}
-          />
+          {/* Sticky Input Form - Collapsible on Mobile */}
+          <div className="sticky top-0 z-10 bg-white">
+            <DetailItemInput
+              detailInput={detailInput}
+              onDetailInputChange={setDetailInput}
+              kategoriBarang={formData.kategoriBarang}
+              jenisProduk={formData.jenisProduk}
+              editingDetailId={editingDetailId}
+              isDisabled={isDetailInputDisabled}
+              isAddButtonDisabled={isAddButtonDisabled}
+              onAdd={handleAddDetail}
+              onCancel={handleCancelEdit}
+              isExpanded={isInputFormExpanded}
+              onToggleExpanded={() =>
+                setIsInputFormExpanded(!isInputFormExpanded)
+              }
+            />
+          </div>
 
           {/* Scrollable Detail Items Container - Shows ~5 rows before scrolling */}
           <DetailItemsDisplay
@@ -1220,16 +1232,17 @@ export function OrderForm(props: OrderFormProps) {
             getWarnaColor={getWarnaColor}
             getWarnaLabel={getWarnaLabel}
             getUkuranDisplay={getUkuranDisplay}
+            isInputFormExpanded={isInputFormExpanded}
           />
         </div>
 
         {/* Submit Buttons */}
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex gap-1.5 sm:gap-2">
           {onCancel && (
             <Button
               variant="outline"
               size="sm"
-              className="h-9 sm:h-8 w-full sm:w-auto"
+              className="h-8 flex-1 sm:flex-initial sm:w-auto text-xs sm:text-sm px-3 sm:px-4"
               onClick={handleCancelClick}
             >
               Cancel
@@ -1237,7 +1250,7 @@ export function OrderForm(props: OrderFormProps) {
           )}
           <Button
             size="sm"
-            className="h-9 sm:h-8 w-full sm:w-auto"
+            className="h-8 flex-1 sm:flex-initial sm:w-auto text-xs sm:text-sm px-3 sm:px-4"
             disabled={isSimpanDisabled}
             onClick={handleShowSaveConfirmation}
           >

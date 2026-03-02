@@ -217,20 +217,24 @@ export function OrderDetails({
     return labels[warna.toLowerCase()] || warna.toUpperCase();
   };
 
-  const getUkuranDisplay = (ukuran: string) => {
-    // Check if ukuran is a number (which means it's in cm)
-    const numValue = parseFloat(ukuran);
-    if (!isNaN(numValue)) {
-      return ukuran + " cm";
-    }
-    // Check if it's a size code (a, n, p, t)
-    const ukuranLabels: Record<string, string> = {
-      a: "A - Anak",
-      n: "N - Normal",
-      p: "P - Panjang",
-      t: "T - Tanggung",
+  const getUkuranDisplay = (
+    ukuran: string,
+  ): { value: string; showUnit: boolean } => {
+    const labels: Record<string, string> = {
+      a: "Anak",
+      n: "Normal",
+      p: "Panjang",
+      t: "Tanggung",
     };
-    return ukuranLabels[ukuran.toLowerCase()] || ukuran;
+
+    // Check if it's a predefined value
+    const label = labels[ukuran.toLowerCase()];
+    if (label) {
+      return { value: label, showUnit: false };
+    }
+
+    // Otherwise it's a numeric value (cm)
+    return { value: ukuran, showUnit: true };
   };
 
   return (
@@ -360,7 +364,12 @@ export function OrderDetails({
                       {getWarnaLabel(item.warna)}
                     </td>
                     <td className="border p-2">
-                      {getUkuranDisplay(item.ukuran)}
+                      {(() => {
+                        const ukuranDisplay = getUkuranDisplay(item.ukuran);
+                        return ukuranDisplay.showUnit
+                          ? `${ukuranDisplay.value} cm`
+                          : ukuranDisplay.value;
+                      })()}
                     </td>
                     <td className="border p-2">{item.berat || "-"}</td>
                     <td className="border p-2">{item.pcs}</td>
@@ -864,7 +873,13 @@ export function OrderDetails({
                                               {getWarnaLabel(item.warna)}
                                             </td>
                                             <td className="border px-2 py-1">
-                                              {getUkuranDisplay(item.ukuran)}
+                                              {(() => {
+                                                const ukuranDisplay =
+                                                  getUkuranDisplay(item.ukuran);
+                                                return ukuranDisplay.showUnit
+                                                  ? `${ukuranDisplay.value} cm`
+                                                  : ukuranDisplay.value;
+                                              })()}
                                             </td>
                                             <td className="border px-2 py-1 text-right">
                                               {item.berat}
@@ -1003,13 +1018,16 @@ export function OrderDetails({
                             </div>
 
                             {/* Right side: Photo */}
-                            {revision.changes.photoId && (
+                            {revision.previousValues.photoId && (
                               <div className="md:w-48">
                                 <p className="font-medium text-gray-700 text-xs mb-2">
                                   Product Photo
                                 </p>
                                 <img
-                                  src={getImage(revision.changes.photoId) || ""}
+                                  src={
+                                    getImage(revision.previousValues.photoId) ||
+                                    ""
+                                  }
                                   alt="Product"
                                   className="w-full h-48 object-cover rounded border"
                                 />
@@ -1048,29 +1066,67 @@ export function OrderDetails({
                                     </thead>
                                     <tbody>
                                       {revision.changes.detailItems.map(
-                                        (item, idx) => (
-                                          <tr key={idx}>
-                                            <td
-                                              className={`border px-2 py-1 font-medium ${getKadarColor(item.kadar)}`}
-                                            >
-                                              {item.kadar}
-                                            </td>
-                                            <td
-                                              className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                            >
-                                              {getWarnaLabel(item.warna)}
-                                            </td>
-                                            <td className="border px-2 py-1">
-                                              {getUkuranDisplay(item.ukuran)}
-                                            </td>
-                                            <td className="border px-2 py-1 text-right">
-                                              {item.berat}
-                                            </td>
-                                            <td className="border px-2 py-1 text-right">
-                                              {item.pcs}
-                                            </td>
-                                          </tr>
-                                        ),
+                                        (item, idx) => {
+                                          // Get corresponding previous item for comparison
+                                          const prevItem =
+                                            revision.previousValues
+                                              ?.detailItems?.[idx];
+
+                                          // Determine if each field changed
+                                          const kadarChanged =
+                                            prevItem &&
+                                            item.kadar !== prevItem.kadar;
+                                          const warnaChanged =
+                                            prevItem &&
+                                            item.warna !== prevItem.warna;
+                                          const ukuranChanged =
+                                            prevItem &&
+                                            item.ukuran !== prevItem.ukuran;
+                                          const beratChanged =
+                                            prevItem &&
+                                            item.berat !== prevItem.berat;
+                                          const pcsChanged =
+                                            prevItem &&
+                                            item.pcs !== prevItem.pcs;
+
+                                          return (
+                                            <tr key={idx}>
+                                              <td
+                                                className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                              >
+                                                {item.kadar}
+                                              </td>
+                                              <td
+                                                className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                              >
+                                                {getWarnaLabel(item.warna)}
+                                              </td>
+                                              <td
+                                                className={`px-2 py-1 ${ukuranChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                              >
+                                                {(() => {
+                                                  const ukuranDisplay =
+                                                    getUkuranDisplay(
+                                                      item.ukuran,
+                                                    );
+                                                  return ukuranDisplay.showUnit
+                                                    ? `${ukuranDisplay.value} cm`
+                                                    : ukuranDisplay.value;
+                                                })()}
+                                              </td>
+                                              <td
+                                                className={`px-2 py-1 text-right ${beratChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                              >
+                                                {item.berat}
+                                              </td>
+                                              <td
+                                                className={`px-2 py-1 text-right ${pcsChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                              >
+                                                {item.pcs}
+                                              </td>
+                                            </tr>
+                                          );
+                                        },
                                       )}
                                     </tbody>
                                   </table>

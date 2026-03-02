@@ -179,6 +179,39 @@ export const checkAndExpireRequests = () => {
 
       const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
 
+      // Build standardized message format
+      const pabrikLabel =
+        typeof req.pabrik === "string"
+          ? getLabelFromValue(PABRIK_OPTIONS, req.pabrik)
+          : req.pabrik?.name ||
+            getLabelFromValue(PABRIK_OPTIONS, req.pabrik?.id || "");
+
+      const formatDate = (isoString: string) => {
+        if (!isoString) return "-";
+        return new Date(isoString).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      };
+
+      const etaDateFormatted = formatDate(req.waktuKirim);
+      const itemCount = req.detailItems?.length || 0;
+      const salesName = getFullNameFromUsername(req.createdBy || "");
+
+      const message = `Supplier: ${pabrikLabel}\nETA: ${etaDateFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
+
+      // Build specific targets: sales creator, JB, and stockist (if assigned)
+      const specificTargets: string[] = [];
+      if (req.createdBy) {
+        specificTargets.push(req.createdBy);
+      }
+      if (req.stockistId) {
+        specificTargets.push(req.stockistId);
+      }
+      // Note: JB users will see this through role-based targetAudience filtering
+      // We don't have a specific JB assignment field, so all JB users can see expired requests
+
       // Create notification for expired request
       createNotification(
         "request_expired",
@@ -188,9 +221,9 @@ export const checkAndExpireRequests = () => {
         req.id,
         req.requestNo || req.id,
         title,
-        `Request ${req.requestNo || req.id} has expired (ETA: ${etaDate.toLocaleDateString("id-ID")})`,
+        message,
         ["sales", "stockist", "jb"],
-        req.createdBy ? [req.createdBy] : undefined,
+        specificTargets.length > 0 ? specificTargets : undefined,
         [{ field: "status", oldValue: oldStatus, newValue: "Request Expired" }],
         undefined,
         undefined,

@@ -511,6 +511,14 @@ export default function App() {
 
   const handleBackFromOrderEdit = () => {
     setEditingOrderForUpdate(null);
+
+    // If came from notifications, return to notifications
+    if (cameFromNotifications) {
+      setCameFromNotifications(false);
+      setCurrentPage("notifications");
+      return;
+    }
+
     setCurrentPage("jb-orders");
   };
 

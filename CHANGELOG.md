@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Order Form Mobile View**: Fixed title visibility issue in collapsible "Input Detail Barang" form
+  - Title and chevron icon now remain visible when form is collapsed on mobile
+  - Removed conditional hiding from wrapper div to ensure header is always accessible
+  - Internal collapsible div handles form field visibility independently
+
+### Changed
+
+- **Notification System**: Improved notification organization and filtering
+  - Expiring request notifications now only appear in "Expiring Requests" tab (excluded from "Unread" tab)
+  - Updated unread filter to exclude `request_expiring` event type for cleaner notification separation
+  - Unread count badge now accurately reflects only non-expiring unread notifications
+
+### Added
+
+- **Notification Archives**: Automatic archiving system for old notifications
+  - Added "Archived" tab to notifications page for notifications older than 30 days
+  - Archive icon imported from lucide-react for visual consistency
+  - Archived notifications display with muted gray styling (opacity-75, gray borders)
+  - Automatic 30-day threshold filter separates active from archived notifications
+  - Archived count badge shows number of archived notifications
+  - All non-archived tabs (All, Unread, Expiring) automatically exclude archived notifications
+
 ### Added - Internationalization (i18n) Support
 
 #### Core Infrastructure
