@@ -253,7 +253,7 @@ export function RequestCard({
           )}
 
           {/* Customer Name */}
-          {order.namaPelanggan && order.namaPelanggan.name && (
+          {order.namaPelanggan && (typeof order.namaPelanggan === "object" ? order.namaPelanggan.name : order.namaPelanggan) && (
             <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
               <span className="text-gray-500 hidden sm:inline">
                 Customer Name:{" "}

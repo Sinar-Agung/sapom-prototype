@@ -20,6 +20,7 @@ import tambang from "@/assets/images/tambang.png";
 import { CheckCircle, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Card } from "./ui/card";
+import { Order } from "../types/order";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -97,7 +98,7 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
     });
   };
 
-  const getOrderImage = (order: Order) => {
+  const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     }

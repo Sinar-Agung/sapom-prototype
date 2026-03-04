@@ -31,6 +31,7 @@ import {
   parseBerat,
 } from "./order-form/form-helpers";
 import { OrderFormHeader } from "./order-form/order-form-header";
+import { useTranslation } from "react-i18next";
 
 interface OrderFormProps {
   onFormChange?: (hasChanges: boolean) => void;
@@ -43,6 +44,7 @@ interface OrderFormProps {
 }
 
 export function OrderForm(props: OrderFormProps) {
+  const { t } = useTranslation();
   const {
     onFormChange,
     initialData,
@@ -50,7 +52,7 @@ export function OrderForm(props: OrderFormProps) {
     onSaveComplete,
     onNavigateToMyRequests,
     onCancel,
-    formTitle = "Create Request",
+    formTitle = "Crete Request",
   } = props;
 
   const [formData, setFormData] = useState({

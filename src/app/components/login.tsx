@@ -1,4 +1,4 @@
-import { authenticateUser } from "@/app/utils/user-data";
+import { authenticateWithAPI } from "@/api/auth-hybrid";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
@@ -17,8 +17,9 @@ export function Login({ onLogin, onRegister }: LoginProps) {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -33,16 +34,26 @@ export function Login({ onLogin, onRegister }: LoginProps) {
       return;
     }
 
-    // Authenticate user using the user database
-    const user = authenticateUser(username, password);
+    // Set loading state
+    setIsLoading(true);
 
-    if (!user) {
+    try {
+      // Authenticate user via API (with fallback to mock)
+      const result = await authenticateWithAPI(username, password);
+
+      if (!result.success) {
+        setError(result.message || t("auth.errorInvalidCredentials"));
+        return;
+      }
+
+      // Successfully authenticated
+      onLogin(username, password, rememberMe);
+    } catch (err) {
+      console.error("Authentication error:", err);
       setError(t("auth.errorInvalidCredentials"));
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    // Successfully authenticated
-    onLogin(username, password, rememberMe);
   };
 
   // Check if form is valid
@@ -145,9 +156,9 @@ export function Login({ onLogin, onRegister }: LoginProps) {
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white h-10 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading}
             >
-              {t("auth.login")}
+              {isLoading ? "Signing in..." : t("auth.login")}
             </Button>
 
             {/* Register Link */}

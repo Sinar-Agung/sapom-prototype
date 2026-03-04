@@ -51,7 +51,7 @@ import {
 } from "./utils/user-data";
 
 export default function App() {
-  const { i18n } = useTranslation();
+  const { i18n,t } = useTranslation();
 
   // ...state declarations...
   // (First set of isAuthenticated, currentUser, userRole already declared above)
@@ -559,9 +559,9 @@ export default function App() {
   };
 
   const getFormTitle = () => {
-    if (formMode === "edit") return "Edit Request";
-    if (formMode === "duplicate") return "Create New Request";
-    return "Create Request";
+    if (formMode === "edit") return t("order.editRequest");
+    if (formMode === "duplicate") return t("order.createNewRequest");
+    return t("order.createRequest");
   };
 
   const handleCancelEdit = () => {
