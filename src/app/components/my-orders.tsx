@@ -30,7 +30,7 @@ const REQUEST_SORT_OPTIONS: SortOption[] = [
 ];
 
 function useRequestSortOptions() {
-  const { t } = useTranslation();
+  const t  = useTranslation().t;
   return [
     { value: "updatedDate", label: t("sortOptions.updatedDate") },
     { value: "created", label: t("sortOptions.created") },

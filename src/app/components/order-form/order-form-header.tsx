@@ -21,6 +21,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
+import { useTranslation } from "react-i18next";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -67,6 +68,7 @@ export function OrderFormHeader({
   onFileInputKeyChange,
 }: OrderFormHeaderProps) {
   // Helper function to calculate ETA based on Customer Expectation
+  const { t } = useTranslation();
   const calculateETA = (action: string): Date | undefined => {
     if (!action) return undefined;
 
@@ -119,13 +121,13 @@ export function OrderFormHeader({
           options={PABRIK_OPTIONS}
           placeholder="Select supplier..."
           searchPlaceholder="Search supplier..."
-          emptyText="Supplier not found."
+          emptyMessage="Supplier not found."
           allowCustomValue={false}
         />
 
         {/* Customer Name */}
         <Label htmlFor="namaPelanggan" className="text-xs md:pt-2">
-          Customer Name
+          {t("order.customerName")}
         </Label>
         <Combobox
           value={formData.namaPelanggan.id || formData.namaPelanggan.name}
@@ -143,14 +145,14 @@ export function OrderFormHeader({
           options={ATAS_NAMA_OPTIONS}
           placeholder="Select or type name..."
           searchPlaceholder="Search name..."
-          emptyText="Name not found."
+          emptyMessage="Name not found."
           autoOpenOnFocus={false}
           allowCustomValue={true}
         />
 
         {/* Customer Expectation */}
         <Label htmlFor="customerExpectation" className="text-xs md:pt-2">
-          Customer Expectation
+          {t("order.customerExpectation")}
         </Label>
         <Combobox
           value={formData.customerExpectation}
@@ -165,7 +167,7 @@ export function OrderFormHeader({
           options={CUSTOMER_EXPECTATION_OPTIONS}
           placeholder="Select action..."
           searchPlaceholder="Search action..."
-          emptyText="Action not found."
+          emptyMessage="Action not found."
           allowCustomValue={false}
         />
 
@@ -227,7 +229,7 @@ export function OrderFormHeader({
           options={JENIS_PRODUK_OPTIONS}
           placeholder="Select type..."
           searchPlaceholder="Search product type..."
-          emptyText="Type not found."
+          emptyMessage="Type not found."
           allowCustomValue={false}
         />
 
@@ -248,7 +250,7 @@ export function OrderFormHeader({
               options={NAMA_BASIC_OPTIONS}
               placeholder="Select or type basic name..."
               searchPlaceholder="Search basic name..."
-              emptyText="Basic name not found."
+              emptyMessage="Basic name not found."
             />
           </>
         ) : (
@@ -267,7 +269,7 @@ export function OrderFormHeader({
               options={filteredNamaProdukOptions}
               placeholder="Select or type model name..."
               searchPlaceholder="Search model..."
-              emptyText="Model not found."
+              emptyMessage="Model not found."
             />
           </>
         )}

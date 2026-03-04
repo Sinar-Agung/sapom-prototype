@@ -80,7 +80,7 @@ export function DetailItemInput({
             options={KADAR_OPTIONS}
             placeholder="Kadar"
             searchPlaceholder="Search purity..."
-            emptyText="Purity not found."
+            emptyMessage="Purity not found."
             allowCustomValue={false}
             className="w-full"
             disabled={isDisabled}
@@ -110,7 +110,7 @@ export function DetailItemInput({
             options={WARNA_OPTIONS}
             placeholder="Warna"
             searchPlaceholder="Search color..."
-            emptyText="Color not found."
+            emptyMessage="Color not found."
             allowCustomValue={false}
             className="w-full"
             disabled={isDisabled}
@@ -164,7 +164,7 @@ export function DetailItemInput({
                 options={UKURAN_KALUNG_OPTIONS}
                 placeholder="Ukuran"
                 searchPlaceholder="Search size..."
-                emptyText="Size not found."
+                emptyMessage="Size not found."
                 allowCustomValue={false}
                 className="w-full"
                 disabled={isDisabled}

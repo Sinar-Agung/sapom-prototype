@@ -66,6 +66,9 @@
     "languagePreference": "Language Preference"
   },
   "order": {
+    "createRequest" : "Create Request",
+    "editRequest" : "Edit Request",
+    "customerExpectation": "Customer Expectation",
     "customerName": "Customer Name",
     "supplier": "Supplier",
     "deliveryTime": "Delivery Time",
