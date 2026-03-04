@@ -8,10 +8,20 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const PORT = 3000;
 const SECRET_KEY = "your-secret-key-change-in-production";
+
+// Rate limiter for auth endpoints (100 requests per 15 minutes per IP)
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many requests, please try again later." },
+});
 
 // Middleware
 app.use(express.json());
@@ -196,7 +206,7 @@ app.post("/api/auth/register", (req, res) => {
  * GET /api/auth/verify
  * Verify current token and return user info
  */
-app.get("/api/auth/verify", (req, res) => {
+app.get("/api/auth/verify", authRateLimit, (req, res) => {
   // Get token from cookie or Authorization header
   const token =
     req.cookies.authToken || req.headers.authorization?.split(" ")[1];
@@ -233,6 +243,55 @@ app.get("/api/auth/verify", (req, res) => {
 });
 
 /**
+ * GET /api/authentication/profile
+ * Get current user profile using token
+ */
+app.get("/api/authentication/profile", authRateLimit, (req, res) => {
+  const token =
+    req.cookies.authToken || req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "No token provided",
+    });
+  }
+
+  const decoded = verifyToken(token);
+
+  if (!decoded) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
+  }
+
+  const user = MOCK_USERS[decoded.username];
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
+  console.log(`👤 Profile fetched for: ${decoded.username}`);
+
+  return res.json({
+    success: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      fullName: user.fullName,
+      accountType: user.accountType,
+      email: user.email,
+      branchCode: user.branchCode,
+      language: "en",
+    },
+  });
+});
+
+/**
  * POST /api/auth/logout
  * Logout and clear cookie
  */
@@ -252,7 +311,7 @@ app.post("/api/auth/logout", (req, res) => {
  * GET /api/orders (Protected example)
  * Requires valid token
  */
-app.get("/api/orders", (req, res) => {
+app.get("/api/orders", authRateLimit, (req, res) => {
   const token =
     req.cookies.authToken || req.headers.authorization?.split(" ")[1];
 
@@ -320,6 +379,7 @@ app.listen(PORT, () => {
   console.log("  POST /api/auth/login - Login with credentials");
   console.log("  POST /api/auth/register - Register new user");
   console.log("  GET /api/auth/verify - Verify token");
+  console.log("  GET /api/authentication/profile - Get user profile");
   console.log("  POST /api/auth/logout - Logout");
   console.log("  GET /api/orders - Get orders (protected)");
   console.log("\n");

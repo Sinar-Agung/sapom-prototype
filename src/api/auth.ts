@@ -56,6 +56,20 @@ export interface VerifyTokenResponse {
   message?: string;
 }
 
+export interface UserProfileResponse {
+  success: boolean;
+  user?: {
+    id: string;
+    username: string;
+    fullName: string;
+    accountType: "sales" | "stockist" | "jb" | "supplier";
+    email: string;
+    branchCode?: string;
+    language?: string;
+  };
+  message?: string;
+}
+
 /**
  * Authenticate user with credentials
  * Saves token to both cookies and localStorage
@@ -113,6 +127,23 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
     throw {
       success: false,
       message: apiError.message || "Registration failed",
+    };
+  }
+}
+
+/**
+ * Get current authenticated user's profile data using the stored token
+ * @returns User profile response with user data
+ */
+export async function getUserProfile(): Promise<UserProfileResponse> {
+  try {
+    const response = await apiClient.get<UserProfileResponse>("/authentication/profile");
+    return response.data;
+  } catch (error) {
+    const apiError = error as ApiError;
+    throw {
+      success: false,
+      message: apiError.message || "Failed to get user profile",
     };
   }
 }

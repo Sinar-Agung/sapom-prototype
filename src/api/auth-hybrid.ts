@@ -4,12 +4,13 @@
  * Falls back to mock data if API is unavailable
  */
 
-import { login as apiLogin } from "./auth";
+import { login as apiLogin, getUserProfile } from "./auth";
 import { authenticateUser } from "@/app/utils/user-data";
-import { saveToken, saveUserInfo, saveUserRole } from "@/utils/cookie-helper";
+import { saveToken, saveUserInfo, saveUserRole, getUserInfo } from "@/utils/cookie-helper";
 import { t } from "i18next";
 
-const ENABLE_MOCK_MODE = false;//(import.meta as any).env.VITE_ENABLE_MOCK_MODE === "true";
+// Mock mode is disabled by default; set VITE_ENABLE_MOCK_MODE=true in .env to enable
+const ENABLE_MOCK_MODE = (import.meta as any).env.VITE_ENABLE_MOCK_MODE === "true";
 
 export interface AuthResult {
   success: boolean;
@@ -142,4 +143,39 @@ function authenticateWithMock(
       });
     }
   });
+}
+
+/**
+ * Get authenticated user data using the stored token
+ * Falls back to cookie-stored user info if API is unavailable
+ * @returns Authentication result with user data
+ */
+export async function getAuthenticatedUser(): Promise<AuthResult> {
+  if (ENABLE_MOCK_MODE) {
+    const userInfo = getUserInfo();
+    if (userInfo) {
+      return { success: true, user: userInfo };
+    }
+    return { success: false, message: "No authenticated user found" };
+  }
+
+  try {
+    console.log("👤 Fetching user profile from API...");
+    const response = await getUserProfile();
+
+    if (response.success && response.user) {
+      console.log("✅ User profile retrieved from API");
+      return { success: true, user: response.user };
+    }
+
+    return { success: false, message: response.message || "Failed to get user data" };
+  } catch {
+    // Fall back to cookie-stored user info
+    console.warn("⚠️ API profile fetch failed, using cookie data as fallback");
+    const userInfo = getUserInfo();
+    if (userInfo) {
+      return { success: true, user: userInfo };
+    }
+    return { success: false, message: "Failed to get authenticated user data" };
+  }
 }

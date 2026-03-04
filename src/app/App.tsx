@@ -49,6 +49,7 @@ import {
   initializeUserData,
   type LanguageCode,
 } from "./utils/user-data";
+import { getUserInfo, getUserRole as getStoredUserRole } from "@/utils/cookie-helper";
 
 export default function App() {
   const { i18n,t } = useTranslation();
@@ -587,26 +588,37 @@ export default function App() {
     password: string,
     rememberMe: boolean,
   ) => {
-    // Authenticate user using the user database
-    const user = authenticateUser(username, password);
+    // Try to get user data from cookies (stored by API authentication in login.tsx)
+    const cookieUserInfo = getUserInfo();
+    const storedRole = getStoredUserRole();
 
-    if (!user) {
-      // This shouldn't happen as Login component validates, but just in case
-      console.error("Authentication failed");
-      return;
+    let role: "sales" | "stockist" | "jb" | "supplier" = "sales";
+    let userLanguage_: string | undefined;
+
+    if (cookieUserInfo && storedRole) {
+      // Use data from cookies (set during API/hybrid authentication)
+      role = storedRole as "sales" | "stockist" | "jb" | "supplier";
+      userLanguage_ = cookieUserInfo.language;
+    } else {
+      // Fall back to mock authentication
+      const user = authenticateUser(username, password);
+      if (!user) {
+        console.error("Authentication failed");
+        return;
+      }
+      role = getUserRole(user);
+      userLanguage_ = user.language;
     }
-
-    const role = getUserRole(user);
 
     setIsAuthenticated(true);
     setCurrentUser(username);
     setUserRole(role);
 
     // Load user's language preference
-    if (user.language) {
-      setUserLanguage(user.language);
-      i18n.changeLanguage(user.language);
-      localStorage.setItem("userLanguage", user.language);
+    if (userLanguage_) {
+      setUserLanguage(userLanguage_ as LanguageCode);
+      i18n.changeLanguage(userLanguage_);
+      localStorage.setItem("userLanguage", userLanguage_);
     }
 
     // Check for expiring requests immediately on login
@@ -621,7 +633,9 @@ export default function App() {
     }
 
     // Store user profile in session storage
-    const userProfile = JSON.stringify(user);
+    const userProfile = cookieUserInfo
+      ? JSON.stringify(cookieUserInfo)
+      : JSON.stringify(authenticateUser(username, password));
 
     if (rememberMe) {
       localStorage.setItem("isAuthenticated", "true");
