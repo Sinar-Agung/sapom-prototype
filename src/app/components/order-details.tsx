@@ -10,7 +10,7 @@ import { Request } from "@/app/types/request";
 import { getImage } from "@/app/utils/image-storage";
 import { notifyOrderStatusChanged } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -315,6 +315,14 @@ export function OrderDetails({
                 <span className="text-gray-600">Created By:</span>{" "}
                 {getFullNameFromUsername(order.jbId)}
               </p>
+              {order.branchCode && (
+                <p>
+                  <span className="text-gray-600">Branch:</span>{" "}
+                  <span className="font-medium">
+                    {getBranchName(order.branchCode)}
+                  </span>
+                </p>
+              )}
               <p>
                 <span className="text-gray-600">Supplier:</span>{" "}
                 <span className="font-medium">{pabrikLabel}</span>

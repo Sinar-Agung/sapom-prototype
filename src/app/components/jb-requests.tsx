@@ -1,3 +1,4 @@
+import { getCurrentUserDetails } from "@/app/utils/user-data";
 import { useEffect, useState } from "react";
 import { Request } from "../types/request";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
@@ -105,6 +106,16 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
 
   // Filter by Request No first (before tab filtering)
   const requestNoFiltered = orders.filter((order: Request) => {
+    const currentUserDetails = getCurrentUserDetails();
+
+    // Branch filtering: Only show requests from the same branch
+    if (currentUserDetails?.branchCode && order.branchCode) {
+      if (currentUserDetails.branchCode !== order.branchCode) {
+        return false;
+      }
+    }
+
+    // Request number filter
     if (requestNoFilter) {
       const searchTerm = requestNoFilter.toLowerCase();
       const requestNo = order.requestNo?.toLowerCase() || "";

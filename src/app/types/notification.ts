@@ -3,6 +3,8 @@
  * Tracks events and changes across Requests and Orders
  */
 
+import { BranchCode } from "../utils/user-data";
+
 export type NotificationEventType =
   // Request events
   | "request_created"
@@ -63,6 +65,7 @@ export interface Notification {
   // Filtering attributes
   addressedTo?: string; // For order entityType: supplierName to filter by
   originator?: string; // For request entityType: sales author who created the request
+  branchCode?: BranchCode; // Branch where the request/order originated
 
   // Event details
   title: string;

@@ -108,6 +108,7 @@ export const upsertRequestExpiringNotification = (
     message: `Request ${request.requestNo || request.id} is nearing its ETA deadline in ${daysToETA} day${daysToETA !== 1 ? "s" : ""} (${etaDate.toLocaleDateString("id-ID")})`,
     changes: [{ field: "daysToETA", oldValue: null, newValue: daysToETA }],
     originator: request.createdBy, // Add originator
+    branchCode: request.branchCode, // Add branch code
     readBy: [],
   };
 
@@ -177,7 +178,7 @@ export const checkAndExpireRequests = () => {
           : req.namaPelanggan?.name ||
             getLabelFromValue(ATAS_NAMA_OPTIONS, req.namaPelanggan?.id || "");
 
-      const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+      const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
       // Build standardized message format
       const pabrikLabel =
@@ -228,6 +229,7 @@ export const checkAndExpireRequests = () => {
         undefined,
         undefined,
         req.createdBy,
+        req.branchCode,
       );
     }
   });
@@ -332,6 +334,11 @@ export const getNotificationsForUser = (
   const all = getAllNotifications();
   console.log("All notifications in storage:", all.length);
 
+  // Get current user details for branch filtering
+  const currentUser = findUserByUsername(username);
+  const userBranchCode = currentUser?.branchCode;
+  console.log(`User ${username} branch: ${userBranchCode}`);
+
   // Get all requests to check their status
   const requestsJson = localStorage.getItem("requests");
   const requests = requestsJson ? JSON.parse(requestsJson) : [];
@@ -342,6 +349,17 @@ export const getNotificationsForUser = (
       // Filter out notifications that have been removed by this user
       if (notification.removedBy?.includes(username)) {
         return false;
+      }
+
+      // Branch filtering for request notifications
+      if (notification.entityType === "request" && userBranchCode && notification.branchCode) {
+        // Only show notifications for requests from the same branch
+        if (notification.branchCode !== userBranchCode) {
+          console.log(
+            `Filtering out notification ${notification.id}: notification branch ${notification.branchCode} != user branch ${userBranchCode}`,
+          );
+          return false;
+        }
       }
 
       // Check if user is in specific targets
@@ -540,6 +558,7 @@ export const createNotification = (
   metadata?: any,
   addressedTo?: string,
   originator?: string,
+  branchCode?: string,
 ) => {
   const notification: Notification = {
     id: `NOTIF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -558,6 +577,7 @@ export const createNotification = (
     changes,
     addressedTo,
     originator,
+    branchCode: branchCode as any,
     readBy: [],
   };
 
@@ -622,8 +642,8 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
     });
   };
 
-  // Title: Product Name in bold green + "for <Atas Nama>" (HTML formatted)
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+  // Title: Product Name in bold green + "for <Atas Nama>" if available (HTML formatted)
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
   // Message: Supplier, ETA, Sales, and item count
   const etaDate = formatDate(request.waktuKirim);
@@ -645,6 +665,7 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
     undefined,
     undefined,
     createdBy, // originator
+    request.branchCode, // branchCode
   );
 
   console.log("Notification created:", notification.id);
@@ -724,7 +745,7 @@ export const notifyRequestStatusChanged = (
     // Only notify the sales user who created the request, and all JBs
     const salesTargets = request.createdBy ? [request.createdBy] : [];
 
-    const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+    const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
     return createNotification(
       "request_status_changed",
@@ -746,10 +767,11 @@ export const notifyRequestStatusChanged = (
       },
       undefined,
       request.createdBy,
+      request.branchCode,
     );
   }
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
   // Determine event type based on new status
   let eventType: NotificationEventType = "request_status_changed";
@@ -807,6 +829,7 @@ export const notifyRequestStatusChanged = (
     undefined,
     undefined,
     request.createdBy,
+    request.branchCode,
   );
 };
 
@@ -837,7 +860,7 @@ export const notifyRequestViewedByStockist = (
       : request.namaPelanggan?.name ||
         getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
   // Get additional info for message
   const pabrikLabel =
@@ -888,6 +911,7 @@ export const notifyRequestViewedByStockist = (
     undefined,
     undefined,
     request.createdBy,
+    request.branchCode,
   );
 };
 
@@ -918,7 +942,7 @@ export const notifyRequestReviewed = (
       : request.namaPelanggan?.name ||
         getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
   return createNotification(
     approved ? "request_approved_by_stockist" : "request_rejected_by_stockist",
@@ -935,12 +959,12 @@ export const notifyRequestReviewed = (
     undefined,
     undefined,
     request.createdBy,
+    request.branchCode,
   );
 };
 
 // Helper: Create notification for order creation
 export const notifyOrderCreated = (order: Order, createdBy: string) => {
-  const creatorName = getFullNameFromUsername(createdBy);
   const supplierName =
     typeof order.pabrik === "string"
       ? order.pabrik
@@ -962,7 +986,25 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
   // Get Atas Nama
   const atasNama = order.atasNama || "Unknown Customer";
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
+
+  // Format date helper
+  const formatDate = (isoString: string) => {
+    if (!isoString) return "-";
+    return new Date(isoString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // Format message with standardized fields
+  const salesName = getFullNameFromUsername(order.sales || "Unknown");
+  const etaFormatted = order.waktuKirim
+    ? formatDate(order.waktuKirim)
+    : "N/A";
+  const itemCount = order.detailItems?.length || 0;
+  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
 
   console.log("🏭 Creating order notification:", {
     orderPONumber: order.PONumber,
@@ -979,8 +1021,8 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
     order.id,
     order.PONumber,
     title,
-    `${creatorName} created order ${order.PONumber} for ${supplierName}`,
-    ["jb", "supplier"], // Only JB and supplier, not sales
+    message,
+    ["jb", "supplier", "sales"], // Notify JB, supplier, and sales with standardized message
     undefined,
     undefined,
     {
@@ -990,6 +1032,7 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
   );
 };
 
@@ -1016,7 +1059,7 @@ export const notifyOrderRevised = (order: Order, revisedBy: string) => {
       ? order.pabrik
       : order.pabrik?.name || "Unknown Supplier";
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 
   console.log("✏️ Creating order revision notification:", {
     orderPONumber: order.PONumber,
@@ -1046,6 +1089,7 @@ export const notifyOrderRevised = (order: Order, revisedBy: string) => {
     },
     atasNama, // addressedTo
     order.sales, // originator: sales who created the original request
+    order.branchCode,
   );
 };
 
@@ -1103,8 +1147,11 @@ export const notifyOrderStatusChanged = (
 
   // Special handling for "Change Requested" status
   if (changedByRole === "supplier" && newStatus === "Change Requested") {
+    // Supplier should also receive their own change request notification
+    targets.push("supplier");
+    
     // Create special notification for Order Change Requested
-    const title = `<strong class="text-blue-600">Order Change Requested:</strong> <strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+    const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 
     // Format the detailed body
     const salesName = getFullNameFromUsername(order.sales || "Unknown");
@@ -1133,11 +1180,12 @@ export const notifyOrderStatusChanged = (
       },
       supplierName, // addressedTo
       undefined, // originator (not applicable for orders)
+      order.branchCode,
     );
   }
 
   // Use standard title format
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
   let message = `${changerName} changed status from "${oldStatus}" to "${newStatus}"`;
 
   if (changedByRole === "supplier") {
@@ -1171,6 +1219,7 @@ export const notifyOrderStatusChanged = (
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
   );
 };
 
@@ -1202,7 +1251,7 @@ export const notifyOrderArrival = (
   // Get Atas Nama
   const atasNama = order.atasNama || "Unknown Customer";
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 
   return createNotification(
     "order_arrival_recorded",
@@ -1222,6 +1271,7 @@ export const notifyOrderArrival = (
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
   );
 };
 
@@ -1249,7 +1299,7 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
   // Get Atas Nama
   const atasNama = order.atasNama || "Unknown Customer";
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNama}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 
   return createNotification(
     "order_closed",
@@ -1269,6 +1319,7 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
   );
 };
 
@@ -1422,7 +1473,7 @@ export const notifyRequestUpdated = (
     return null;
   }
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
   // Target both stockists and the sales user who made the update
   const specificTargets = [updatedBy];
@@ -1442,6 +1493,7 @@ export const notifyRequestUpdated = (
     undefined,
     undefined,
     newRequest.createdBy,
+    newRequest.branchCode,
   );
 };
 
@@ -1470,7 +1522,7 @@ export const notifyRequestCancelled = (
       : request.namaPelanggan?.name ||
         getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
 
-  const title = `<strong class="text-green-600">${productName}</strong> for ${atasNamaLabel}`;
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
   return createNotification(
     "request_cancelled",
@@ -1487,5 +1539,6 @@ export const notifyRequestCancelled = (
     undefined,
     undefined,
     request.createdBy,
+    request.branchCode,
   );
 };

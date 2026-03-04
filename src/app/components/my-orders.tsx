@@ -1,3 +1,4 @@
+import { getCurrentUserDetails } from "@/app/utils/user-data";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Request } from "../types/request";
@@ -281,6 +282,15 @@ export function MyOrders({
 
   // Filter by Request No first
   const requestNoFiltered = orders.filter((order: Request) => {
+    const currentUserDetails = getCurrentUserDetails();
+
+    // Branch filtering: Only show requests from the same branch
+    if (currentUserDetails?.branchCode && order.branchCode) {
+      if (currentUserDetails.branchCode !== order.branchCode) {
+        return false;
+      }
+    }
+
     // For sales role, only show orders created by them
     if (userRole === "sales" && order.createdBy !== currentUser) {
       return false;

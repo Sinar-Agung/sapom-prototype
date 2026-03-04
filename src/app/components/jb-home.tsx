@@ -7,7 +7,11 @@ import {
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import {
+  getBranchName,
+  getCurrentUserDetails,
+  getFullNameFromUsername,
+} from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -19,6 +23,7 @@ import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
 import { CheckCircle, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
 
 // Image mapping for Nama Basic
@@ -50,6 +55,7 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
     localStorage.getItem("username") ||
     "";
   const fullName = getFullNameFromUsername(currentUser);
+  const currentUserDetails = getCurrentUserDetails();
 
   useEffect(() => {
     loadData();
@@ -58,7 +64,16 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
   const loadData = () => {
     const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
-      const orders: Request[] = JSON.parse(savedOrders);
+      const allOrders: Request[] = JSON.parse(savedOrders);
+      const currentUserDetails = getCurrentUserDetails();
+
+      // Filter by branch - only show requests from the same branch
+      const orders = allOrders.filter((order) => {
+        if (!currentUserDetails?.branchCode || !order.branchCode) {
+          return true; // Show all if either doesn't have a branch
+        }
+        return order.branchCode === currentUserDetails.branchCode;
+      });
 
       // Get 5 most recently created requests
       const recent = [...orders]
@@ -108,7 +123,14 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold mb-2">Welcome, {fullName}</h1>
+        <div className="flex items-center gap-2 mb-2">
+          <h1 className="text-2xl font-bold">Welcome, {fullName}</h1>
+          {currentUserDetails?.branchCode && (
+            <Badge variant="secondary" className="text-sm">
+              {getBranchName(currentUserDetails.branchCode)}
+            </Badge>
+          )}
+        </div>
         <p className="text-gray-600">Your dashboard overview</p>
       </div>
 

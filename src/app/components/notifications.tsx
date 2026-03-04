@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { NewBadge } from "./new-badge";
 import {
   AlertDialog,
@@ -40,6 +41,13 @@ interface NotificationsProps {
   onNavigateToUpdateOrder?: (orderId: string) => void;
 }
 
+const NOTIFICATION_SORT_OPTIONS: SortOption[] = [
+  { value: "timestamp", label: "Date" },
+  { value: "eventType", label: "Event Type" },
+  { value: "entityNumber", label: "Request/Order No" },
+  { value: "triggeredBy", label: "User" },
+];
+
 export function Notifications({
   onNavigateToRequest,
   onNavigateToOrder,
@@ -57,6 +65,18 @@ export function Notifications({
   const [notificationToRemove, setNotificationToRemove] = useState<
     string | null
   >(null);
+  const [filterText, setFilterText] = useState(() => {
+    return sessionStorage.getItem("notificationsFilterText") || "";
+  });
+  const [sortBy, setSortBy] = useState<string>(() => {
+    return sessionStorage.getItem("notificationsSortBy") || "timestamp";
+  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+    return (
+      (sessionStorage.getItem("notificationsSortDirection") as "asc" | "desc") ||
+      "desc"
+    );
+  });
   const currentUser =
     localStorage.getItem("username") ||
     sessionStorage.getItem("username") ||
@@ -69,6 +89,19 @@ export function Notifications({
   useEffect(() => {
     sessionStorage.setItem("notificationsActiveTab", activeTab);
   }, [activeTab]);
+
+  // Persist filter and sort states to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("notificationsFilterText", filterText);
+  }, [filterText]);
+
+  useEffect(() => {
+    sessionStorage.setItem("notificationsSortBy", sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem("notificationsSortDirection", sortDirection);
+  }, [sortDirection]);
 
   useEffect(() => {
     loadNotifications();
@@ -199,7 +232,7 @@ export function Notifications({
     (n) => now - n.timestamp <= THIRTY_DAYS_MS,
   );
 
-  const filteredNotifications =
+  const tabFilteredNotifications =
     activeTab === "archived"
       ? archivedNotifications
       : activeTab === "unread"
@@ -216,30 +249,46 @@ export function Notifications({
               (n) => n.eventType !== "request_expiring",
             ); // Exclude expiring from All tab
 
-  // Sort notifications: expiring ones at the top, then by timestamp
+  // Apply text filter
+  const filteredNotifications = tabFilteredNotifications.filter((n) => {
+    if (!filterText) return true;
+    const searchText = filterText.toLowerCase();
+    return (
+      n.entityNumber?.toLowerCase().includes(searchText) ||
+      n.message.toLowerCase().includes(searchText) ||
+      n.triggeredBy.toLowerCase().includes(searchText)
+    );
+  });
+
+  // Sort notifications based on user preference
   const sortedNotifications = [...filteredNotifications].sort((a, b) => {
     // Special sorting for expiring tab: sort by days to ETA (ascending - closest to expiring first)
-    if (activeTab === "expiring") {
+    if (activeTab === "expiring" && sortBy === "timestamp") {
       const aDaysToETA = a.changes?.[0]?.newValue as number;
       const bDaysToETA = b.changes?.[0]?.newValue as number;
       return (aDaysToETA || 0) - (bDaysToETA || 0);
     }
 
-    // Expiring notifications always come first
-    if (
-      a.eventType === "request_expiring" &&
-      b.eventType !== "request_expiring"
-    ) {
-      return -1;
+    let comparison = 0;
+
+    switch (sortBy) {
+      case "timestamp":
+        comparison = b.timestamp - a.timestamp;
+        break;
+      case "eventType":
+        comparison = a.eventType.localeCompare(b.eventType);
+        break;
+      case "entityNumber":
+        comparison = (a.entityNumber || "").localeCompare(b.entityNumber || "");
+        break;
+      case "triggeredBy":
+        comparison = a.triggeredBy.localeCompare(b.triggeredBy);
+        break;
+      default:
+        comparison = b.timestamp - a.timestamp;
     }
-    if (
-      a.eventType !== "request_expiring" &&
-      b.eventType === "request_expiring"
-    ) {
-      return 1;
-    }
-    // Otherwise sort by timestamp (newest first)
-    return b.timestamp - a.timestamp;
+
+    return sortDirection === "asc" ? comparison : -comparison;
   });
 
   const unreadCount = nonArchivedNotifications.filter(
@@ -380,6 +429,21 @@ export function Notifications({
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Filter and Sort Controls */}
+      <div className="flex-shrink-0 mb-4">
+        <FilterSortControls
+          type="notification"
+          totalCount={filteredNotifications.length}
+          filterValue={filterText}
+          onFilterChange={setFilterText}
+          sortOptions={NOTIFICATION_SORT_OPTIONS}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortDirection={sortDirection}
+          onSortDirectionChange={setSortDirection}
+        />
       </div>
 
       <Tabs
@@ -581,10 +645,10 @@ export function Notifications({
                                 onClick={(e) =>
                                   handleRemoveNotification(e, notification.id)
                                 }
-                                className="h-7 px-2 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
                               >
-                                <X className="w-3.5 h-3.5 mr-1" />
-                                Remove
+                                <Archive className="w-3.5 h-3.5 mr-1" />
+                                Archive
                               </Button>
                             </div>
                           </div>
@@ -764,10 +828,10 @@ export function Notifications({
                                 onClick={(e) =>
                                   handleRemoveNotification(e, notification.id)
                                 }
-                                className="h-7 px-2 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
                               >
-                                <X className="w-3.5 h-3.5 mr-1" />
-                                Remove
+                                <Archive className="w-3.5 h-3.5 mr-1" />
+                                Archive
                               </Button>
                             </div>
                           </div>
@@ -939,10 +1003,10 @@ export function Notifications({
                                 onClick={(e) =>
                                   handleRemoveNotification(e, notification.id)
                                 }
-                                className="h-7 px-2 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
                               >
-                                <X className="w-3.5 h-3.5 mr-1" />
-                                Remove
+                                <Archive className="w-3.5 h-3.5 mr-1" />
+                                Archive
                               </Button>
                             </div>
                           </div>
@@ -1140,10 +1204,10 @@ export function Notifications({
                                 onClick={(e) =>
                                   handleRemoveNotification(e, notification.id)
                                 }
-                                className="h-7 px-2 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
                               >
-                                <X className="w-3.5 h-3.5 mr-1" />
-                                Remove
+                                <Archive className="w-3.5 h-3.5 mr-1" />
+                                Archive
                               </Button>
                             </div>
                           </div>
@@ -1229,9 +1293,9 @@ export function Notifications({
       <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Notification</AlertDialogTitle>
+            <AlertDialogTitle>Archive Notification</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this notification? This action
+              Are you sure you want to archive this notification? This action
               cannot be undone. The notification will be permanently removed
               from your view.
             </AlertDialogDescription>
@@ -1242,9 +1306,9 @@ export function Notifications({
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmRemoveNotification}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              className="bg-gray-600 hover:bg-gray-700 focus:ring-gray-600"
             >
-              Remove
+              Archive
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

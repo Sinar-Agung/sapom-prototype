@@ -1,5 +1,11 @@
 // ...existing code...
-import { Briefcase, Factory, Package, UserCircle } from "lucide-react";
+import {
+  Briefcase,
+  ChevronDown,
+  Factory,
+  Package,
+  UserCircle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -14,8 +20,9 @@ import { Navigation } from "./components/navigation";
 import { Notifications } from "./components/notifications";
 import { OrderDetails } from "./components/order-details";
 import { OrderEditForm } from "./components/order-edit-form";
-import { RequestForm } from "./components/request-form";
 import { Register } from "./components/register";
+import { RequestDetails } from "./components/request-details";
+import { RequestForm } from "./components/request-form";
 import { SalesOrders } from "./components/sales-orders";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
@@ -32,7 +39,6 @@ import {
   AlertDialogTitle,
 } from "./components/ui/alert-dialog";
 import { Toaster } from "./components/ui/sonner";
-import { RequestDetails } from "./components/request-details";
 import { WriteOrder } from "./components/write-order";
 import {
   initializeMockData,
@@ -45,6 +51,8 @@ import {
 } from "./utils/notification-helper";
 import {
   authenticateUser,
+  getBranchName,
+  getCurrentUserDetails,
   getUserRole,
   initializeUserData,
   type LanguageCode,
@@ -112,6 +120,7 @@ export default function App() {
   const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("new");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
   const [cameFromNotifications, setCameFromNotifications] = useState(false);
+  const [isProfileExpanded, setIsProfileExpanded] = useState(false);
 
   // Initialize mock data and user data on first load
   useEffect(() => {
@@ -573,12 +582,28 @@ export default function App() {
   };
 
   const handleCancelEdit = () => {
+    // If came from notifications, return to notifications
+    if (cameFromNotifications) {
+      setCameFromNotifications(false);
+      setCurrentPage("notifications");
+      setHasFormChanges(false);
+      return;
+    }
+
     // Go back to my-orders page with the saved tab
     setCurrentPage("my-orders");
     setHasFormChanges(false);
   };
 
   const handleCancelCreate = () => {
+    // If came from notifications, return to notifications
+    if (cameFromNotifications) {
+      setCameFromNotifications(false);
+      setCurrentPage("notifications");
+      setHasFormChanges(false);
+      return;
+    }
+
     // If there are unsaved changes, show confirmation dialog
     if (hasFormChanges) {
       setPendingNavigation("home");
@@ -942,19 +967,41 @@ export default function App() {
 
       {/* Main Content - Fills remaining space with scrollable content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide p-4">
-        {/* Role Indicator - Fixed at top right */}
+        {/* Profile Section - Fixed at top right */}
         <div className="fixed top-4 right-4 z-40">
           <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-full shadow-md ${roleConfig.bg} border border-gray-200`}
-            title={`${roleConfig.label} - ${currentUser}`}
+            className={`flex items-center rounded-lg shadow-md ${roleConfig.bg} border border-gray-200 cursor-pointer transition-all ${
+              isProfileExpanded ? "gap-3 px-3 py-2 flex-col items-start" : "p-1.5"
+            }`}
+            onClick={() => setIsProfileExpanded(!isProfileExpanded)}
           >
-            <RoleIcon className={`w-5 h-5 ${roleConfig.color}`} />
-            <span
-              className={`text-xs sm:text-sm font-medium ${roleConfig.color}`}
-            >
-              <span className="hidden sm:inline">{roleConfig.label} - </span>
-              {currentUser}
-            </span>
+            {/* Icon - Always visible, smaller when collapsed */}
+            <div className={`flex items-center w-full ${isProfileExpanded ? "gap-3" : ""}`}>
+              <RoleIcon className={`${isProfileExpanded ? "w-6 h-6" : "w-4 h-4"} ${roleConfig.color}`} />
+
+              {/* Expanded info - only shown when expanded */}
+              {isProfileExpanded && (
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${roleConfig.color}`}>
+                      {currentUser}
+                    </span>
+                    <ChevronDown className="w-4 h-4 transition-transform rotate-180" />
+                  </div>
+                  <span className={`text-xs ${roleConfig.color} opacity-80`}>
+                    {roleConfig.label}
+                  </span>
+                  {(() => {
+                    const userDetails = getCurrentUserDetails();
+                    return userDetails?.branchCode ? (
+                      <span className={`text-xs ${roleConfig.color} opacity-70`}>
+                        {getBranchName(userDetails.branchCode)} Branch
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

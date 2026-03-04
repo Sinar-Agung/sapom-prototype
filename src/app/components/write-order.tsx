@@ -12,10 +12,7 @@ import {
   notifyRequestStatusChanged,
 } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import {
-  findUserByUsername,
-  getFullNameFromUsername,
-} from "@/app/utils/user-data";
+import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -162,7 +159,9 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
       const savedOrders = localStorage.getItem("requests");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
-        const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
+        const orderIndex = orders.findIndex(
+          (o: Request) => o.id === request.id,
+        );
         if (orderIndex !== -1) {
           // Read from ref to get the latest orderItems
           orders[orderIndex].detailItems = orderItemsRef.current;
@@ -547,32 +546,9 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
           pcs: item.orderPcs || item.pcs, // Use orderPcs as the pcs value
         }));
 
-        // Generate PO Number: SA{BranchCode}{SupplierInitials}{YYYYMMDD}{SequentialNumber}
-        const user = findUserByUsername(currentUser);
-        const branchCode = user?.branchCode || "A"; // A=JKT, B=BDG, C=SBY
-        const pabrikName =
-          typeof request.pabrik === "string"
-            ? request.pabrik
-            : request.pabrik?.name || "";
-        const supplierInitials = pabrikName
-          .split(" ")
-          .map((word) => word[0])
-          .join("")
-          .substring(0, 2)
-          .toUpperCase();
-        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-
-        // Get sequential number from localStorage
-        const poCounterKey = `po-counter-${dateStr}`;
-        const currentCounter = parseInt(
-          localStorage.getItem(poCounterKey) || "0",
-          10,
-        );
-        const nextCounter = currentCounter + 1;
-        localStorage.setItem(poCounterKey, nextCounter.toString());
-        const sequentialNumber = nextCounter.toString().padStart(4, "0");
-
-        const PONumber = `SA${branchCode}${supplierInitials}${dateStr}${sequentialNumber}`;
+        // Generate PO Number from Request Number (remove first character 'R')
+        // Request No format: RSAByymddxx -> PO Number: SAByymddxx
+        const PONumber = request.requestNo ? request.requestNo.substring(1) : `SA-${Date.now()}`;
 
         // Compute product display name
         const productDisplayName =
@@ -603,6 +579,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
           jbId: currentUser,
           sales: salesUsername,
           atasNama: atasNamaValue,
+          branchCode: request.branchCode,
           pabrik: pabrikRef as any,
           kategoriBarang: request.kategoriBarang,
           jenisProduk: request.jenisProduk,

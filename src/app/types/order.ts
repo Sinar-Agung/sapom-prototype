@@ -3,6 +3,7 @@
  * Orders are created by JB users from Requests and sent to suppliers
  */
 
+import type { BranchCode } from "../utils/user-data";
 import { DetailBarangItem, EntityReference } from "./request";
 
 /**
@@ -100,6 +101,9 @@ export interface Order {
 
   // JB user who created the order
   jbId: string;
+
+  // Branch where order was created (from request)
+  branchCode?: BranchCode;
 
   // Supplier/Factory reference
   pabrik: EntityReference;

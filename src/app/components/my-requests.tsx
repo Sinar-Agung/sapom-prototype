@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Request } from "../types/request";
 import { notifyRequestCancelled } from "../utils/notification-helper";
+import { getCurrentUserDetails } from "../utils/user-data";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { RequestCard } from "./request-card";
 import { Card } from "./ui/card";
@@ -295,6 +296,16 @@ export function MyOrders({
 
   // Filter by Request No first
   const requestNoFiltered = orders.filter((order: Request) => {
+    const currentUserDetails = getCurrentUserDetails();
+
+    // Branch filtering: Only show requests from the same branch
+    // (Suppliers have null branchCode, so they see all requests)
+    if (currentUserDetails?.branchCode && order.branchCode) {
+      if (currentUserDetails.branchCode !== order.branchCode) {
+        return false;
+      }
+    }
+
     // For sales role, only show orders created by them
     if (userRole === "sales" && order.createdBy !== currentUser) {
       return false;

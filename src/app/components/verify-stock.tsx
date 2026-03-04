@@ -16,7 +16,7 @@ import {
   removeETAReminderForStockist,
 } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
+import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -39,9 +39,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import { AvailablePcsInput } from "./ui/available-pcs-input";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { DetailItemsTable } from "./ui/detail-items-table";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -76,7 +76,7 @@ const WARNA_COLORS: Record<string, string> = {
   "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
 };
 
-interface RequestDetailsProps {
+interface VerifyStockProps {
   request: Request;
   onBack: () => void;
   mode?: "verify" | "detail";
@@ -85,14 +85,14 @@ interface RequestDetailsProps {
   onDuplicateRequest?: () => void;
 }
 
-export function RequestDetails({
+export function VerifyStock({
   request,
   onBack,
   mode = "verify",
   isJBWaiting = false,
   onEditRequest,
   onDuplicateRequest,
-}: RequestDetailsProps) {
+}: VerifyStockProps) {
   const [detailItems, setDetailItems] = useState<DetailBarangItem[]>([]);
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
   const [showSendToJBDialog, setShowSendToJBDialog] = useState(false);
@@ -116,9 +116,7 @@ export function RequestDetails({
       const savedOrders = localStorage.getItem("requests");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
-        const orderIndex = orders.findIndex(
-          (o: Request) => o.id === request.id,
-        );
+        const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
         if (orderIndex !== -1) {
           orders[orderIndex].detailItems = detailItems;
           const currentUser =
@@ -212,16 +210,40 @@ export function RequestDetails({
         if (savingAnimationTimeoutRef.current) {
           clearTimeout(savingAnimationTimeoutRef.current);
         }
+        // Dismiss any active saving toast
+        if (savingToastRef.current !== null) {
+          toast.dismiss(savingToastRef.current);
+          savingToastRef.current = null;
+        }
 
         // Save without showing toast (will be shown by back button handler or final action)
         saveChanges();
+      } else {
+        // Even if no unsaved changes, dismiss any stuck toast
+        if (savingToastRef.current !== null) {
+          toast.dismiss(savingToastRef.current);
+          savingToastRef.current = null;
+        }
       }
     };
   }, [hasUnsavedChanges, detailItems, request.id]);
 
   useEffect(() => {
+    // Load the latest data from localStorage to get saved availablePcs values
+    const savedRequests = localStorage.getItem("requests");
+    let itemsToUse = request.detailItems;
+    
+    if (savedRequests) {
+      const requests = JSON.parse(savedRequests);
+      const savedRequest = requests.find((r: Request) => r.id === request.id);
+      if (savedRequest && savedRequest.detailItems) {
+        // Use saved detailItems which may have availablePcs values
+        itemsToUse = savedRequest.detailItems;
+      }
+    }
+
     // Sort items on mount using the same logic as order-form
-    const sortedItems = [...request.detailItems].sort((a, b) => {
+    const sortedItems = [...itemsToUse].sort((a, b) => {
       // First sort by Kadar - extract numeric value
       const kadarA = parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
       const kadarB = parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
@@ -551,14 +573,6 @@ export function RequestDetails({
                 </span>
               </div>
             )}
-            {currentRequest.branchCode && (
-              <div>
-                <span className="text-gray-500">Branch: </span>
-                <span className="font-medium">
-                  {getBranchName(currentRequest.branchCode)}
-                </span>
-              </div>
-            )}
             {currentRequest.stockistId && (
               <div>
                 <span className="text-gray-500">Stockist: </span>
@@ -633,24 +647,188 @@ export function RequestDetails({
         </div>
       </Card>
 
-      <DetailItemsTable
-        items={detailItems}
-        mode={mode === "detail" ? "readonly" : "with-available-pcs"}
-        isJBWaiting={isJBWaiting}
-        onAvailablePcsChange={
-          mode === "verify" ? handleAvailablePcsChange : undefined
-        }
-        getKadarColor={(kadar) =>
-          KADAR_COLORS[kadar.toLowerCase()] || "bg-gray-100 text-gray-900"
-        }
-        getWarnaColor={(warna) =>
-          WARNA_COLORS[warna.toLowerCase()] || "bg-gray-100 text-gray-900"
-        }
-        getUkuranLabel={(ukuran) =>
-          getLabelFromValue(UKURAN_KALUNG_OPTIONS, ukuran)
-        }
-        title="Detail Barang"
-      />
+      {/* Detail Barang - Desktop View (Table) */}
+      <Card className="p-4 hidden md:block">
+        <h2 className="text-lg font-semibold mb-4">Detail Barang</h2>
+
+        <div className="max-h-[600px] overflow-auto">
+          <table className="w-full text-sm border-collapse border">
+            <thead className="bg-gray-100 sticky top-0 z-10">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  #
+                </th>
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  Kadar
+                </th>
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  Warna
+                </th>
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  Ukuran
+                </th>
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  Berat (gr)
+                </th>
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  Requested Pcs
+                </th>
+                {isJBWaiting && (
+                  <th className="px-3 py-2 text-left font-medium border bg-amber-50">
+                    Ordered Pcs
+                  </th>
+                )}
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  Available Pcs
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {detailItems.map((item, index) => {
+                const kadarColor =
+                  KADAR_COLORS[item.kadar.toLowerCase()] ||
+                  "bg-gray-100 text-gray-900";
+                const warnaColor =
+                  WARNA_COLORS[item.warna.toLowerCase()] ||
+                  "bg-gray-100 text-gray-900";
+                const ukuranLabel = getLabelFromValue(
+                  UKURAN_KALUNG_OPTIONS,
+                  item.ukuran,
+                );
+
+                return (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 border text-center">
+                      {index + 1}
+                    </td>
+                    <td className={`px-3 py-2 border font-medium ${kadarColor}`}>
+                      {item.kadar.toUpperCase()}
+                    </td>
+                    <td className={`px-3 py-2 border font-medium ${warnaColor}`}>
+                      {item.warna.toUpperCase()}
+                    </td>
+                    <td className="px-3 py-2 border">{ukuranLabel || "-"}</td>
+                    <td className="px-3 py-2 border">{item.berat || "-"}</td>
+                    <td className="px-3 py-2 border font-semibold text-center">
+                      {item.pcs}
+                    </td>
+                    {isJBWaiting && (
+                      <td className="px-3 py-2 border font-semibold text-amber-700 text-center bg-amber-50">
+                        {item.orderPcs || "-"}
+                      </td>
+                    )}
+                    <td className="px-3 py-2 border">
+                      {mode === "detail" ? (
+                        <span className="font-medium">
+                          {item.availablePcs || "-"}
+                        </span>
+                      ) : (
+                        <div className="w-24">
+                          <AvailablePcsInput
+                            value={item.availablePcs || ""}
+                            onChange={(value) =>
+                              handleAvailablePcsChange(item.id, value)
+                            }
+                            requestedPcs={item.pcs}
+                          />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Detail Barang - Mobile View (List) */}
+      <div className="md:hidden space-y-3">
+        <h2 className="text-lg font-semibold">Detail Barang</h2>
+
+        {detailItems.map((item, index) => {
+          const kadarColor =
+            KADAR_COLORS[item.kadar.toLowerCase()] ||
+            "bg-gray-100 text-gray-900";
+          const warnaColor =
+            WARNA_COLORS[item.warna.toLowerCase()] ||
+            "bg-gray-100 text-gray-900";
+          const ukuranLabel = getLabelFromValue(
+            UKURAN_KALUNG_OPTIONS,
+            item.ukuran,
+          );
+
+          return (
+            <Card key={item.id} className="p-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">Item #{index + 1}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-gray-500">Kadar: </span>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${kadarColor}`}
+                    >
+                      {item.kadar.toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Warna: </span>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${warnaColor}`}
+                    >
+                      {item.warna.toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Ukuran: </span>
+                    <span className="font-medium">{ukuranLabel || "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Berat (gr): </span>
+                    <span className="font-medium">{item.berat || "-"}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t">
+                  <div className="mb-2">
+                    <span className="text-gray-500">Requested Pcs: </span>
+                    <span className="font-semibold">{item.pcs}</span>
+                  </div>{" "}
+                  {isJBWaiting && item.orderPcs && (
+                    <div className="mb-2">
+                      <span className="text-gray-500">Ordered Pcs: </span>
+                      <span className="font-semibold text-amber-700">
+                        {item.orderPcs}
+                      </span>
+                    </div>
+                  )}{" "}
+                  <div>
+                    <label className="text-gray-500 text-xs block mb-1">
+                      Available Pcs:
+                    </label>
+                    {mode === "detail" ? (
+                      <span className="font-medium">
+                        {item.availablePcs || "-"}
+                      </span>
+                    ) : (
+                      <AvailablePcsInput
+                        value={item.availablePcs || ""}
+                        onChange={(value) =>
+                          handleAvailablePcsChange(item.id, value)
+                        }
+                        requestedPcs={item.pcs}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
 
       {/* Action Buttons */}
       {mode === "verify" && (

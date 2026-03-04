@@ -8,7 +8,11 @@ import {
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
 import { getImage } from "@/app/utils/image-storage";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import {
+  getBranchName,
+  getCurrentUserDetails,
+  getFullNameFromUsername,
+} from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -20,6 +24,7 @@ import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
 import { ArrowRight, Package } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
@@ -55,6 +60,7 @@ export function StockistHome({
     localStorage.getItem("username") ||
     "";
   const fullName = getFullNameFromUsername(currentUser);
+  const currentUserDetails = getCurrentUserDetails();
 
   useEffect(() => {
     loadOpenRequests();
@@ -87,13 +93,24 @@ export function StockistHome({
     const savedOrders = localStorage.getItem("requests");
     if (savedOrders) {
       const allOrders = JSON.parse(savedOrders) as Request[];
+      const currentUserDetails = getCurrentUserDetails();
+
+      // Filter by branch - only show requests from the same branch
+      const branchFiltered = allOrders.filter((order) => {
+        if (!currentUserDetails?.branchCode || !order.branchCode) {
+          return true; // Show all if either doesn't have a branch
+        }
+        return order.branchCode === currentUserDetails.branchCode;
+      });
 
       // Calculate totals for each status - matching my-orders.tsx logic
-      setOpenCount(allOrders.filter((order) => order.status === "Open").length);
+      setOpenCount(
+        branchFiltered.filter((order) => order.status === "Open").length,
+      );
 
       // In Progress includes multiple statuses to match request page
       setInProgressCount(
-        allOrders.filter(
+        branchFiltered.filter(
           (order) =>
             order.status === "In Progress" ||
             order.status === "Stockist Processing" ||
@@ -101,7 +118,9 @@ export function StockistHome({
         ).length,
       );
 
-      setDoneCount(allOrders.filter((order) => order.status === "Done").length);
+      setDoneCount(
+        branchFiltered.filter((order) => order.status === "Done").length,
+      );
 
       // Assigned count - requests that have been assigned/completed by stockist
       const assignedStatuses = [
@@ -111,12 +130,13 @@ export function StockistHome({
         "Done",
       ];
       setAssignedCount(
-        allOrders.filter((order) => assignedStatuses.includes(order.status))
-          .length,
+        branchFiltered.filter((order) =>
+          assignedStatuses.includes(order.status),
+        ).length,
       );
 
       // Filter for Open status and take latest 3
-      const openOrders = allOrders
+      const openOrders = branchFiltered
         .filter((order) => order.status === "Open")
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, 3);
@@ -148,7 +168,14 @@ export function StockistHome({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold mb-2">Welcome, {fullName}</h1>
+        <div className="flex items-center gap-2 mb-2">
+          <h1 className="text-2xl font-bold">Welcome, {fullName}</h1>
+          {currentUserDetails?.branchCode && (
+            <Badge variant="secondary" className="text-sm">
+              {getBranchName(currentUserDetails.branchCode)}
+            </Badge>
+          )}
+        </div>
         <p className="text-gray-600">Here are the latest open requests</p>
       </div>
 

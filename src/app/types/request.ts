@@ -3,6 +3,8 @@
  * These interfaces define the data structures used throughout the application
  */
 
+import type { BranchCode } from "../utils/user-data";
+
 /**
  * Represents a detail item in a request (detail barang)
  * Contains specifications for individual jewelry items
@@ -56,6 +58,7 @@ export interface Request {
   updatedDate?: number;
   updatedBy?: string;
   stockistId?: string;
+  branchCode?: BranchCode; // Branch where request was created
 
   // Factory reference - can be object or string for compatibility
   pabrik: EntityReference | string;

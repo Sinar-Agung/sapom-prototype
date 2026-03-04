@@ -7,24 +7,33 @@
 ==========================================
 
 BRANCH CODES:
-- JKT: Jakarta
-- BDG: Bandung
-- SBY: Surabaya
+- JKT: Jakarta (Kode: A)
+- BDG: Bandung (Kode: B)
+- SBY: Surabaya (Kode: C)
 
-SALES USERS (4):
-1. Username: budi         | Password: sales123 | Full Name: Budi Santoso        | Credit: Rp 500,000,000 | Branch: JKT
-2. Username: anie         | Password: sales123 | Full Name: Ani Wijaya          | Credit: Rp 750,000,000 | Branch: BDG
-3. Username: cahy         | Password: sales123 | Full Name: Cahya Pratama       | Credit: Rp 600,000,000 | Branch: SBY
-4. Username: dewi         | Password: sales123 | Full Name: Dewi Sari           | Credit: Rp 850,000,000 | Branch: JKT
+SALES USERS (6):
+1. Username: sales1         | Password: sales123 | Full Name: Budi Santoso        | Credit: Rp 500,000,000 | Branch: JKT
+2. Username: sales2         | Password: sales123 | Full Name: Ani Wijaya          | Credit: Rp 750,000,000 | Branch: BDG
+3. Username: sales3         | Password: sales123 | Full Name: Cahya Pratama       | Credit: Rp 600,000,000 | Branch: SBY
+4. Username: sales4         | Password: sales123 | Full Name: Dewi Sari           | Credit: Rp 850,000,000 | Branch: JKT
+5. Username: sales5         | Password: sales123 | Full Name: Rina Hartono        | Credit: Rp 700,000,000 | Branch: BDG
+6. Username: sales6         | Password: sales123 | Full Name: Agus Setiawan       | Credit: Rp 550,000,000 | Branch: SBY
 
-STOCKIST USERS (2):
-1. Username: ekmw         | Password: stock123 | Full Name: Eko Widodo          | Group: Kadar Muda (375, 420, 700) | Branch: JKT
-2. Username: fitr         | Password: stock123 | Full Name: Fitri Rahmawati     | Group: Kadar Tua (750, 916, 999)  | Branch: BDG
+STOCKIST USERS (6):
+1. Username: stockist1         | Password: stock123 | Full Name: Eko Widodo          | Group: Kadar Muda (375, 420, 700) | Branch: JKT
+2. Username: stockist2         | Password: stock123 | Full Name: Fitri Rahmawati     | Group: Kadar Tua (750, 916, 999)  | Branch: BDG
+3. Username: stockist3         | Password: stock123 | Full Name: Gunawan Pratama     | Group: Kadar Muda (375, 420, 700) | Branch: SBY
+4. Username: stockist4         | Password: stock123 | Full Name: Hani Lestari        | Group: Kadar Tua (750, 916, 999)  | Branch: JKT
+5. Username: stockist5         | Password: stock123 | Full Name: Irfan Hakim         | Group: Kadar Muda (375, 420, 700) | Branch: BDG
+6. Username: stockist6         | Password: stock123 | Full Name: Julia Santoso       | Group: Kadar Tua (750, 916, 999)  | Branch: SBY
 
-JEWELRY BUYER (JB) USERS (3):
-1. Username: hend         | Password: jb123    | Full Name: Hendra Gunawan      | Group: Domestic Supplier   | Branch: JKT
-2. Username: inda         | Password: jb123    | Full Name: Indah Permatasari   | Group: Import Specialist   | Branch: BDG
-3. Username: joko         | Password: jb123    | Full Name: Joko Susanto        | Group: Custom Design       | Branch: SBY
+JEWELRY BUYER (JB) USERS (6):
+1. Username: jb1         | Password: jb123    | Full Name: Hendra Gunawan      | Group: Domestic Supplier   | Branch: JKT
+2. Username: jb2         | Password: jb123    | Full Name: Indah Permatasari   | Group: Import Specialist   | Branch: BDG
+3. Username: jb3         | Password: jb123    | Full Name: Joko Susanto        | Group: Custom Design       | Branch: SBY
+4. Username: jb4         | Password: jb123    | Full Name: Kartika Dewi        | Group: Domestic Supplier   | Branch: JKT
+5. Username: jb5         | Password: jb123    | Full Name: Lukman Hakim        | Group: Import Specialist   | Branch: BDG
+6. Username: jb6         | Password: jb123    | Full Name: Maya Sari           | Group: Custom Design       | Branch: SBY
 
 SUPPLIER USERS (10):
 1.  Username: kh          | Password: 123      | Full Name: King Halim Workshop     | Supplier: King Halim   (supplierId: king-halim)
@@ -104,7 +113,7 @@ export interface SupplierUser {
 export type User = SalesUser | StockistUser | JBUser | SupplierUser;
 
 // ==========================================
-// SALES USERS (4 users)
+// SALES USERS (6 users)
 // ==========================================
 export const SALES_USERS: SalesUser[] = [
   {
@@ -147,10 +156,30 @@ export const SALES_USERS: SalesUser[] = [
     phone: "+62 815-6789-0123",
     branchCode: "JKT",
   },
+  {
+    username: "sales5",
+    password: "sales123",
+    fullName: "Rina Hartono",
+    accountType: "sales",
+    creditLimit: 700000000, // 700 million IDR
+    email: "rina.hartono@jewelry.co.id",
+    phone: "+62 816-7890-1234",
+    branchCode: "BDG",
+  },
+  {
+    username: "sales6",
+    password: "sales123",
+    fullName: "Agus Setiawan",
+    accountType: "sales",
+    creditLimit: 550000000, // 550 million IDR
+    email: "agus.setiawan@jewelry.co.id",
+    phone: "+62 817-8901-2345",
+    branchCode: "SBY",
+  },
 ];
 
 // ==========================================
-// STOCKIST USERS (2 users)
+// STOCKIST USERS (6 users)
 // ==========================================
 export const STOCKIST_USERS: StockistUser[] = [
   {
@@ -161,7 +190,7 @@ export const STOCKIST_USERS: StockistUser[] = [
     allocatedKadar: ["375", "420", "700"], // 6k, 8k, 9k
     group: "Kadar Muda",
     email: "eko.widodo@jewelry.co.id",
-    phone: "+62 816-7890-1234",
+    phone: "+62 818-7890-1234",
     branchCode: "JKT",
   },
   {
@@ -172,13 +201,57 @@ export const STOCKIST_USERS: StockistUser[] = [
     allocatedKadar: ["750", "916", "999"], // 16k, 17k, 24k
     group: "Kadar Tua",
     email: "fitri.rahmawati@jewelry.co.id",
-    phone: "+62 817-8901-2345",
+    phone: "+62 819-8901-2345",
     branchCode: "BDG",
+  },
+  {
+    username: "stockist3",
+    password: "stock123",
+    fullName: "Gunawan Pratama",
+    accountType: "stockist",
+    allocatedKadar: ["375", "420", "700"], // 6k, 8k, 9k
+    group: "Kadar Muda",
+    email: "gunawan.pratama@jewelry.co.id",
+    phone: "+62 820-9012-3456",
+    branchCode: "SBY",
+  },
+  {
+    username: "stockist4",
+    password: "stock123",
+    fullName: "Hani Lestari",
+    accountType: "stockist",
+    allocatedKadar: ["750", "916", "999"], // 16k, 17k, 24k
+    group: "Kadar Tua",
+    email: "hani.lestari@jewelry.co.id",
+    phone: "+62 821-0123-4567",
+    branchCode: "JKT",
+  },
+  {
+    username: "stockist5",
+    password: "stock123",
+    fullName: "Irfan Hakim",
+    accountType: "stockist",
+    allocatedKadar: ["375", "420", "700"], // 6k, 8k, 9k
+    group: "Kadar Muda",
+    email: "irfan.hakim@jewelry.co.id",
+    phone: "+62 822-1234-5678",
+    branchCode: "BDG",
+  },
+  {
+    username: "stockist6",
+    password: "stock123",
+    fullName: "Julia Santoso",
+    accountType: "stockist",
+    allocatedKadar: ["750", "916", "999"], // 16k, 17k, 24k
+    group: "Kadar Tua",
+    email: "julia.santoso@jewelry.co.id",
+    phone: "+62 823-2345-6789",
+    branchCode: "SBY",
   },
 ];
 
 // ==========================================
-// JEWELRY BUYER (JB) USERS (3 users)
+// JEWELRY BUYER (JB) USERS (6 users)
 // ==========================================
 export const JB_USERS: JBUser[] = [
   {
@@ -188,7 +261,7 @@ export const JB_USERS: JBUser[] = [
     accountType: "jb",
     group: "Domestic Supplier", // Handles local Indonesian suppliers
     email: "hendra.gunawan@jewelry.co.id",
-    phone: "+62 818-9012-3456",
+    phone: "+62 824-9012-3456",
     branchCode: "JKT",
   },
   {
@@ -198,7 +271,7 @@ export const JB_USERS: JBUser[] = [
     accountType: "jb",
     group: "Import Specialist", // Handles international suppliers
     email: "indah.permatasari@jewelry.co.id",
-    phone: "+62 819-0123-4567",
+    phone: "+62 825-0123-4567",
     branchCode: "BDG",
   },
   {
@@ -208,7 +281,37 @@ export const JB_USERS: JBUser[] = [
     accountType: "jb",
     group: "Custom Design", // Handles custom/model orders
     email: "joko.susanto@jewelry.co.id",
-    phone: "+62 820-1234-5678",
+    phone: "+62 826-1234-5678",
+    branchCode: "SBY",
+  },
+  {
+    username: "jb4",
+    password: "jb123",
+    fullName: "Kartika Dewi",
+    accountType: "jb",
+    group: "Domestic Supplier",
+    email: "kartika.dewi@jewelry.co.id",
+    phone: "+62 827-2345-6789",
+    branchCode: "JKT",
+  },
+  {
+    username: "jb5",
+    password: "jb123",
+    fullName: "Lukman Hakim",
+    accountType: "jb",
+    group: "Import Specialist",
+    email: "lukman.hakim@jewelry.co.id",
+    phone: "+62 828-3456-7890",
+    branchCode: "BDG",
+  },
+  {
+    username: "jb6",
+    password: "jb123",
+    fullName: "Maya Sari",
+    accountType: "jb",
+    group: "Custom Design",
+    email: "maya.sari@jewelry.co.id",
+    phone: "+62 829-4567-8901",
     branchCode: "SBY",
   },
 ];
