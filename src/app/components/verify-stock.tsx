@@ -116,7 +116,9 @@ export function VerifyStock({
       const savedOrders = localStorage.getItem("requests");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
-        const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
+        const orderIndex = orders.findIndex(
+          (o: Request) => o.id === request.id,
+        );
         if (orderIndex !== -1) {
           orders[orderIndex].detailItems = detailItems;
           const currentUser =
@@ -232,7 +234,7 @@ export function VerifyStock({
     // Load the latest data from localStorage to get saved availablePcs values
     const savedRequests = localStorage.getItem("requests");
     let itemsToUse = request.detailItems;
-    
+
     if (savedRequests) {
       const requests = JSON.parse(savedRequests);
       const savedRequest = requests.find((r: Request) => r.id === request.id);
@@ -701,10 +703,14 @@ export function VerifyStock({
                     <td className="px-3 py-2 border text-center">
                       {index + 1}
                     </td>
-                    <td className={`px-3 py-2 border font-medium ${kadarColor}`}>
+                    <td
+                      className={`px-3 py-2 border font-medium ${kadarColor}`}
+                    >
                       {item.kadar.toUpperCase()}
                     </td>
-                    <td className={`px-3 py-2 border font-medium ${warnaColor}`}>
+                    <td
+                      className={`px-3 py-2 border font-medium ${warnaColor}`}
+                    >
                       {item.warna.toUpperCase()}
                     </td>
                     <td className="px-3 py-2 border">{ukuranLabel || "-"}</td>

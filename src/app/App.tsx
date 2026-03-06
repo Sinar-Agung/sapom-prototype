@@ -971,19 +971,27 @@ export default function App() {
         <div className="fixed top-4 right-4 z-40">
           <div
             className={`flex items-center rounded-lg shadow-md ${roleConfig.bg} border border-gray-200 cursor-pointer transition-all ${
-              isProfileExpanded ? "gap-3 px-3 py-2 flex-col items-start" : "p-1.5"
+              isProfileExpanded
+                ? "gap-3 px-3 py-2 flex-col items-start"
+                : "p-1.5"
             }`}
             onClick={() => setIsProfileExpanded(!isProfileExpanded)}
           >
             {/* Icon - Always visible, smaller when collapsed */}
-            <div className={`flex items-center w-full ${isProfileExpanded ? "gap-3" : ""}`}>
-              <RoleIcon className={`${isProfileExpanded ? "w-6 h-6" : "w-4 h-4"} ${roleConfig.color}`} />
+            <div
+              className={`flex items-center w-full ${isProfileExpanded ? "gap-3" : ""}`}
+            >
+              <RoleIcon
+                className={`${isProfileExpanded ? "w-6 h-6" : "w-4 h-4"} ${roleConfig.color}`}
+              />
 
               {/* Expanded info - only shown when expanded */}
               {isProfileExpanded && (
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-semibold ${roleConfig.color}`}>
+                    <span
+                      className={`text-sm font-semibold ${roleConfig.color}`}
+                    >
                       {currentUser}
                     </span>
                     <ChevronDown className="w-4 h-4 transition-transform rotate-180" />
@@ -994,7 +1002,9 @@ export default function App() {
                   {(() => {
                     const userDetails = getCurrentUserDetails();
                     return userDetails?.branchCode ? (
-                      <span className={`text-xs ${roleConfig.color} opacity-70`}>
+                      <span
+                        className={`text-xs ${roleConfig.color} opacity-70`}
+                      >
                         {getBranchName(userDetails.branchCode)} Branch
                       </span>
                     ) : null;

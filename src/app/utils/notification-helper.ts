@@ -352,7 +352,11 @@ export const getNotificationsForUser = (
       }
 
       // Branch filtering for request notifications
-      if (notification.entityType === "request" && userBranchCode && notification.branchCode) {
+      if (
+        notification.entityType === "request" &&
+        userBranchCode &&
+        notification.branchCode
+      ) {
         // Only show notifications for requests from the same branch
         if (notification.branchCode !== userBranchCode) {
           console.log(
@@ -1000,9 +1004,7 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
 
   // Format message with standardized fields
   const salesName = getFullNameFromUsername(order.sales || "Unknown");
-  const etaFormatted = order.waktuKirim
-    ? formatDate(order.waktuKirim)
-    : "N/A";
+  const etaFormatted = order.waktuKirim ? formatDate(order.waktuKirim) : "N/A";
   const itemCount = order.detailItems?.length || 0;
   const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
 
@@ -1149,7 +1151,7 @@ export const notifyOrderStatusChanged = (
   if (changedByRole === "supplier" && newStatus === "Change Requested") {
     // Supplier should also receive their own change request notification
     targets.push("supplier");
-    
+
     // Create special notification for Order Change Requested
     const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 

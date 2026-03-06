@@ -548,7 +548,9 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
 
         // Generate PO Number from Request Number (remove first character 'R')
         // Request No format: RSAByymddxx -> PO Number: SAByymddxx
-        const PONumber = request.requestNo ? request.requestNo.substring(1) : `SA-${Date.now()}`;
+        const PONumber = request.requestNo
+          ? request.requestNo.substring(1)
+          : `SA-${Date.now()}`;
 
         // Compute product display name
         const productDisplayName =

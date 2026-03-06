@@ -1,0 +1,354 @@
+Phase,Category,Module,Task ID,Task Name,Description,Dependencies,Estimated Hours,User Role,Priority,Status
+DESIGN,UI/UX Prototyping,Authentication,D-AUTH-001,Login Screen Design,Design login interface with username/password fields and Remember Me option,,8,All,High,Completed
+DESIGN,UI/UX Prototyping,Authentication,D-AUTH-002,Registration Screen Design,Design registration form with user details and branch selection,,8,All,High,Completed
+DESIGN,UI/UX Prototyping,Authentication,D-AUTH-003,Role Selection Flow,Design role-based routing after authentication,,4,All,High,Completed
+DESIGN,UI/UX Prototyping,Navigation,D-NAV-001,Bottom Navigation Bar,Design responsive bottom navigation for mobile/desktop,,8,All,High,Completed
+DESIGN,UI/UX Prototyping,Navigation,D-NAV-002,Profile Section,Design collapsible profile section with role indicator and branch info,,6,All,Medium,Completed
+DESIGN,UI/UX Prototyping,Sales UI,D-SALES-001,Request Creation Form,Design multi-step request form with product details entry,,16,Sales,High,Completed
+DESIGN,UI/UX Prototyping,Sales UI,D-SALES-002,My Requests Dashboard,Design requests list view with filtering and sorting,,12,Sales,High,Completed
+DESIGN,UI/UX Prototyping,Sales UI,D-SALES-003,Request Details View,Design detailed view showing request status and history,,10,Sales,High,Completed
+DESIGN,UI/UX Prototyping,Sales UI,D-SALES-004,My Orders View,Design orders list originating from user's requests,,12,Sales,Medium,Completed
+DESIGN,UI/UX Prototyping,Sales UI,D-SALES-005,Notifications Center,Design notifications list with tabs (All/Unread/Expiring/Archived),,12,Sales,High,Completed
+DESIGN,UI/UX Prototyping,Stockist UI,D-STOCK-001,Stockist Home Dashboard,Design dashboard showing pending requests by branch,,12,Stockist,High,Completed
+DESIGN,UI/UX Prototyping,Stockist UI,D-STOCK-002,Stock Verification Form,Design form for entering available pieces per detail item,,16,Stockist,High,Completed
+DESIGN,UI/UX Prototyping,Stockist UI,D-STOCK-003,Request Approval Flow,Design approve/reject workflow with status transitions,,8,Stockist,High,Completed
+DESIGN,UI/UX Prototyping,Stockist UI,D-STOCK-004,Notifications Center,Design stockist-specific notification views,,10,Stockist,High,Completed
+DESIGN,UI/UX Prototyping,JB UI,D-JB-001,JB Home Dashboard,Design dashboard showing requests requiring JB action,,12,JB,High,Completed
+DESIGN,UI/UX Prototyping,JB UI,D-JB-002,Requests Management,Design requests list with filtering by status and branch,,12,JB,High,Completed
+DESIGN,UI/UX Prototyping,JB UI,D-JB-003,Order Creation Form,Design order creation form from approved requests,,20,JB,High,Completed
+DESIGN,UI/UX Prototyping,JB UI,D-JB-004,Order Management,Design orders list and detail views for JB,,14,JB,High,Completed
+DESIGN,UI/UX Prototyping,JB UI,D-JB-005,Inbound Management,Design inbound tracking and arrival recording,,16,JB,High,Completed
+DESIGN,UI/UX Prototyping,JB UI,D-JB-006,Order Edit Form,Design form for editing order details and items,,16,JB,Medium,Completed
+DESIGN,UI/UX Prototyping,JB UI,D-JB-007,Notifications Center,Design JB-specific notification views,,10,JB,High,Completed
+DESIGN,UI/UX Prototyping,Supplier UI,D-SUPP-001,Supplier Home Dashboard,Design dashboard showing assigned orders,,12,Supplier,High,Completed
+DESIGN,UI/UX Prototyping,Supplier UI,D-SUPP-002,Orders List View,Design orders list with status filtering,,10,Supplier,High,Completed
+DESIGN,UI/UX Prototyping,Supplier UI,D-SUPP-003,Order Details View,Design detailed order view with action buttons,,12,Supplier,High,Completed
+DESIGN,UI/UX Prototyping,Supplier UI,D-SUPP-004,Status Update Flow,Design workflow for updating order status (In Production/Stock Ready/Unable to Fulfill),,10,Supplier,High,Completed
+DESIGN,UI/UX Prototyping,Supplier UI,D-SUPP-005,Change Request Flow,Design interface for requesting order changes,,12,Supplier,Medium,Completed
+DESIGN,UI/UX Prototyping,Supplier UI,D-SUPP-006,Notifications Center,Design supplier-specific notification views,,10,Supplier,High,Completed
+DESIGN,UI/UX Prototyping,Shared Components,D-SHARED-001,Detail Items Table,Design responsive table/card view for product detail items,,14,All,High,Completed
+DESIGN,UI/UX Prototyping,Shared Components,D-SHARED-002,Filter & Sort Controls,Design reusable filter and sort controls for lists,,10,All,Medium,Completed
+DESIGN,UI/UX Prototyping,Shared Components,D-SHARED-003,Status Badges,Design color-coded status badges for requests and orders,,6,All,Medium,Completed
+DESIGN,UI/UX Prototyping,Shared Components,D-SHARED-004,Card Components,Design reusable card layouts for requests and orders,,8,All,Medium,Completed
+DESIGN,UI/UX Prototyping,Shared Components,D-SHARED-005,Mobile Responsive Layouts,Design breakpoints and responsive behavior for all screens,,20,All,High,Completed
+DESIGN,UI/UX Prototyping,Settings,D-SET-001,Settings Page,Design settings page with language and theme preferences,,8,All,Low,Completed
+DESIGN,Data Architecture,ERD,D-ERD-001,User Entity Design,Define User table with fields: id username password role branchCode fullName language,,4,All,High,Completed
+DESIGN,Data Architecture,ERD,D-ERD-002,Request Entity Design,Define Request table with all fields including requestNo status timestamps detailItems,,6,All,High,Completed
+DESIGN,Data Architecture,ERD,D-ERD-003,Order Entity Design,Define Order table with fields: PONumber requestId status supplier detailItems timestamps,,6,All,High,Completed
+DESIGN,Data Architecture,ERD,D-ERD-004,Notification Entity Design,Define Notification table with eventType targets readBy archivedBy timestamps,,6,All,High,Completed
+DESIGN,Data Architecture,ERD,D-ERD-005,Detail Item Schema,Define DetailBarangItem schema for product specifications,,4,All,High,Completed
+DESIGN,Data Architecture,ERD,D-ERD-006,Entity Relationships,Map relationships: User-Request Request-Order User-Notification,,6,All,High,Completed
+DESIGN,Data Architecture,ERD,D-ERD-007,Branch Data Model,Define branch codes and hierarchy (JKT BDG SBY),,3,All,Medium,Completed
+DESIGN,Data Architecture,Data Flow,D-FLOW-001,Request Lifecycle Flow,Map complete request flow from creation to completion,,8,All,High,Completed
+DESIGN,Data Architecture,Data Flow,D-FLOW-002,Order Lifecycle Flow,Map complete order flow from creation to delivery,,8,All,High,Completed
+DESIGN,Data Architecture,Data Flow,D-FLOW-003,Notification Flow,Map notification triggers and delivery logic,,6,All,High,Completed
+DESIGN,Data Architecture,Data Flow,D-FLOW-004,Status Transition Map,Define valid status transitions for requests and orders,,6,All,High,Completed
+DESIGN,Business Logic,Rules,D-LOGIC-001,Request Number Generation,Define formula: RSA + branchCode + YYMMDD + base36Counter,,4,All,High,Completed
+DESIGN,Business Logic,Rules,D-LOGIC-002,PO Number Generation,Define formula: requestNo without first character (R),,2,All,High,Completed
+DESIGN,Business Logic,Rules,D-LOGIC-003,Request Expiry Rules,Define 7-day expiry for requests in Open/Stockist Processing status,,3,All,High,Completed
+DESIGN,Business Logic,Rules,D-LOGIC-004,Stock Availability Logic,Define logic for stock ready vs unavailable vs partial fulfillment,,4,All,High,Completed
+DESIGN,Business Logic,Rules,D-LOGIC-005,Notification Targeting Rules,Define which users receive which notification types,,6,All,High,Completed
+DESIGN,Business Logic,Rules,D-LOGIC-006,Branch Filtering Rules,Define branch-based visibility and access control,,4,All,High,Completed
+DESIGN,Business Logic,Rules,D-LOGIC-007,Auto-archiving Rules,Define 60-day auto-archive for old notifications,,3,All,Medium,Completed
+DESIGN,API Design,Endpoints,D-API-001,Authentication Endpoints,Design POST /api/auth/login and POST /api/auth/register,,4,All,High,Not Started
+DESIGN,API Design,Endpoints,D-API-002,Request CRUD Endpoints,Design GET/POST/PUT/DELETE /api/requests endpoints,,6,All,High,Not Started
+DESIGN,API Design,Endpoints,D-API-003,Order CRUD Endpoints,Design GET/POST/PUT/DELETE /api/orders endpoints,,6,All,High,Not Started
+DESIGN,API Design,Endpoints,D-API-004,Notification Endpoints,Design GET/PUT /api/notifications endpoints,,4,All,High,Not Started
+DESIGN,API Design,Endpoints,D-API-005,User Management Endpoints,Design GET/PUT /api/users endpoints,,4,All,Medium,Not Started
+DESIGN,API Design,Endpoints,D-API-006,Status Update Endpoints,Design POST /api/requests/:id/status and /api/orders/:id/status,,4,All,High,Not Started
+DESIGN,API Design,Response Schemas,D-API-007,Standard Response Format,Define consistent API response structure with data/error/metadata,,3,All,High,Not Started
+DESIGN,API Design,Response Schemas,D-API-008,Error Code Standards,Define error codes and messages for all failure scenarios,,4,All,High,Not Started
+DESIGN,API Design,Response Schemas,D-API-009,Pagination Schema,Define pagination structure for list endpoints,,3,All,Medium,Not Started
+DEVELOPMENT,Backend,Database Setup,DEV-DB-001,Database Installation,Install and configure PostgreSQL/MySQL/MongoDB,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Database Setup,DEV-DB-002,Create Users Table,Implement users table with authentication fields,,3,Backend,High,Not Started
+DEVELOPMENT,Backend,Database Setup,DEV-DB-003,Create Requests Table,Implement requests table with all required fields and indexes,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Database Setup,DEV-DB-004,Create Orders Table,Implement orders table with relationships to requests,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Database Setup,DEV-DB-005,Create Notifications Table,Implement notifications table with event tracking,,3,Backend,High,Not Started
+DEVELOPMENT,Backend,Database Setup,DEV-DB-006,Setup Indexes,Create indexes on frequently queried fields (status branchCode dates),,3,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Database Setup,DEV-DB-007,Seed Initial Data,Create seed scripts for branches suppliers products,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Authentication,DEV-AUTH-001,JWT Implementation,Implement JWT token generation and validation,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Authentication,DEV-AUTH-002,Login API,Build POST /api/auth/login endpoint with password verification,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Authentication,DEV-AUTH-003,Registration API,Build POST /api/auth/register endpoint with validation,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Authentication,DEV-AUTH-004,Password Hashing,Implement bcrypt password hashing,,3,Backend,High,Not Started
+DEVELOPMENT,Backend,Authentication,DEV-AUTH-005,Session Management,Implement session/token refresh mechanism,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Authentication,DEV-AUTH-006,Role-Based Access Control,Implement middleware for role checking,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-001,Create Request API,Build POST /api/requests endpoint with validation,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-002,Get Requests API,Build GET /api/requests with filtering and pagination,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-003,Update Request API,Build PUT /api/requests/:id endpoint,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-004,Delete Request API,Build DELETE /api/requests/:id endpoint,,3,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-005,Request Number Generator,Implement RSA+branch+date+counter logic,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-006,Status Update Logic,Implement request status transition validation,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-007,Branch Filtering,Implement branch-based request filtering,,3,Backend,High,Not Started
+DEVELOPMENT,Backend,Request Module,DEV-REQ-008,Expiry Check Service,Implement background job for checking expired requests,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Order Module,DEV-ORD-001,Create Order API,Build POST /api/orders endpoint from approved requests,,8,Backend,High,Not Started
+DEVELOPMENT,Backend,Order Module,DEV-ORD-002,Get Orders API,Build GET /api/orders with filtering by supplier status,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Order Module,DEV-ORD-003,Update Order API,Build PUT /api/orders/:id endpoint,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Order Module,DEV-ORD-004,PO Number Generator,Implement PO number generation from request number,,2,Backend,High,Not Started
+DEVELOPMENT,Backend,Order Module,DEV-ORD-005,Order Status Update,Implement order status change API with validation,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Order Module,DEV-ORD-006,Arrival Recording,Implement arrival date and tracking recording,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Order Module,DEV-ORD-007,Order Closure Logic,Implement order closure and completion workflow,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-001,Notification Creation Service,Build service to create notifications with targeting logic,,8,Backend,High,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-002,Get Notifications API,Build GET /api/notifications with filtering by user/status,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-003,Mark as Read API,Build PUT /api/notifications/:id/read endpoint,,3,Backend,High,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-004,Archive Notification API,Build PUT /api/notifications/:id/archive endpoint,,3,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-005,Bulk Operations,Implement mark all as read and bulk archive,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-006,Auto-archiving Service,Implement background job for 60-day auto-archive,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-007,ETA Reminder Service,Implement background job for expiring request notifications,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Notification Module,DEV-NOT-008,Event Triggers,Implement notification triggers for all status changes,,8,Backend,High,Not Started
+DEVELOPMENT,Backend,File Upload,DEV-FILE-001,Image Upload API,Build POST /api/uploads endpoint for product photos,,6,Backend,Medium,Not Started
+DEVELOPMENT,Backend,File Upload,DEV-FILE-002,File Storage Service,Implement file storage (local/S3/cloud storage),,6,Backend,Medium,Not Started
+DEVELOPMENT,Backend,File Upload,DEV-FILE-003,File Validation,Implement file type and size validation,,3,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Settings Module,DEV-SET-001,Get User Settings,Build GET /api/users/:id/settings endpoint,,3,Backend,Low,Not Started
+DEVELOPMENT,Backend,Settings Module,DEV-SET-002,Update Settings,Build PUT /api/users/:id/settings endpoint,,3,Backend,Low,Not Started
+DEVELOPMENT,Backend,Logging & Monitoring,DEV-LOG-001,Request Logging,Implement API request/response logging,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Logging & Monitoring,DEV-LOG-002,Error Logging,Implement error logging with stack traces,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Logging & Monitoring,DEV-LOG-003,Performance Monitoring,Implement query performance monitoring,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Security,DEV-SEC-001,Input Validation,Implement comprehensive input validation middleware,,6,Backend,High,Not Started
+DEVELOPMENT,Backend,Security,DEV-SEC-002,SQL Injection Prevention,Implement parameterized queries and ORM usage,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Security,DEV-SEC-003,XSS Prevention,Implement output sanitization,,4,Backend,High,Not Started
+DEVELOPMENT,Backend,Security,DEV-SEC-004,Rate Limiting,Implement API rate limiting,,4,Backend,Medium,Not Started
+DEVELOPMENT,Backend,Security,DEV-SEC-005,CORS Configuration,Configure CORS policies,,2,Backend,High,Not Started
+DEVELOPMENT,Frontend,Project Setup,DEV-FE-001,Initialize React Project,Setup React + TypeScript + Vite project,,2,Frontend,High,Completed
+DEVELOPMENT,Frontend,Project Setup,DEV-FE-002,Install Dependencies,Install required packages (React Router TailwindCSS Lucide icons),,2,Frontend,High,Completed
+DEVELOPMENT,Frontend,Project Setup,DEV-FE-003,Configure Routing,Setup React Router with role-based routing,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Project Setup,DEV-FE-004,Setup State Management,Configure context or state management solution,,4,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Project Setup,DEV-FE-005,API Client Setup,Setup axios/fetch client with interceptors,,4,Frontend,High,Not Started
+DEVELOPMENT,Frontend,Project Setup,DEV-FE-006,Configure Build,Setup production build configuration,,3,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Authentication,DEV-FE-AUTH-001,Login Component,Build login form with validation,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Authentication,DEV-FE-AUTH-002,Register Component,Build registration form with validation,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Authentication,DEV-FE-AUTH-003,Auth Context,Implement authentication context and hooks,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Authentication,DEV-FE-AUTH-004,Protected Routes,Implement protected route wrapper component,,3,Frontend,High,Completed
+DEVELOPMENT,Frontend,Authentication,DEV-FE-AUTH-005,Token Storage,Implement token storage and retrieval,,3,Frontend,High,Completed
+DEVELOPMENT,Frontend,Authentication,DEV-FE-AUTH-006,Auto Logout,Implement auto logout on token expiry,,3,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Navigation,DEV-FE-NAV-001,Navigation Component,Build bottom navigation bar with role-based items,,6,Frontend,High,Completed
+DEVELOPMENT,Frontend,Navigation,DEV-FE-NAV-002,Profile Section,Build collapsible profile section,,4,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Navigation,DEV-FE-NAV-003,Route Guards,Implement navigation guards based on user role,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-001,Button Components,Build reusable button variants,,3,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-002,Input Components,Build form input components with validation,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-003,Card Components,Build reusable card layouts,,3,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-004,Modal/Dialog Components,Build modal and alert dialog components,,4,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-005,Table Components,Build responsive table component,,6,Frontend,High,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-006,Filter Sort Controls,Build reusable filter and sort component,,6,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-007,Status Badge Component,Build status badge with color coding,,2,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-008,Loading States,Build loading spinners and skeletons,,3,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Shared Components,DEV-FE-UI-009,Toast Notifications,Implement toast notification system,,3,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-001,Request Form Component,Build multi-step request creation form,,12,Frontend,High,Completed
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-002,Detail Item Input,Build detail item input component with validation,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-003,My Requests Page,Build requests list page with filtering,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-004,Request Details Page,Build request details view page,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-005,Request Card Component,Build request card for list view,,4,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-006,API Integration,Integrate with request APIs (create get update),,6,Frontend,High,Not Started
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-007,Form Validation,Implement comprehensive form validation,,6,Frontend,High,Completed
+DEVELOPMENT,Frontend,Request Module,DEV-FE-REQ-008,Draft Auto-save,Implement auto-save for request drafts,,4,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Stock Verification,DEV-FE-STOCK-001,Stock Verification Page,Build stockist verification interface,,10,Frontend,High,Completed
+DEVELOPMENT,Frontend,Stock Verification,DEV-FE-STOCK-002,Available PCS Input,Build available pieces input component,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Stock Verification,DEV-FE-STOCK-003,Stockist Home Dashboard,Build stockist home page with pending requests,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Stock Verification,DEV-FE-STOCK-004,API Integration,Integrate with stock verification APIs,,4,Frontend,High,Not Started
+DEVELOPMENT,Frontend,Order Module,DEV-FE-ORD-001,Order Creation Form,Build JB order creation form from request,,12,Frontend,High,Completed
+DEVELOPMENT,Frontend,Order Module,DEV-FE-ORD-002,Order Details Page,Build order details view,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Order Module,DEV-FE-ORD-003,Order Edit Form,Build order editing interface,,10,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Order Module,DEV-FE-ORD-004,Orders List Page,Build orders list with filtering,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Order Module,DEV-FE-ORD-005,Order Card Component,Build order card for list view,,4,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Order Module,DEV-FE-ORD-006,Arrival Recording,Build arrival recording interface,,6,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Order Module,DEV-FE-ORD-007,API Integration,Integrate with order APIs,,8,Frontend,High,Not Started
+DEVELOPMENT,Frontend,JB Module,DEV-FE-JB-001,JB Home Dashboard,Build JB home page with actions needed,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,JB Module,DEV-FE-JB-002,JB Requests Page,Build JB requests management page,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,JB Module,DEV-FE-JB-003,JB Orders Page,Build JB orders management page,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,JB Module,DEV-FE-JB-004,JB Inbound Page,Build inbound tracking page,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Supplier Module,DEV-FE-SUPP-001,Supplier Home Dashboard,Build supplier home page with assigned orders,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Supplier Module,DEV-FE-SUPP-002,Supplier Orders Page,Build supplier orders list page,,8,Frontend,High,Completed
+DEVELOPMENT,Frontend,Supplier Module,DEV-FE-SUPP-003,Status Update Interface,Build supplier status update UI,,6,Frontend,High,Completed
+DEVELOPMENT,Frontend,Supplier Module,DEV-FE-SUPP-004,Change Request Form,Build order change request interface,,6,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Supplier Module,DEV-FE-SUPP-005,API Integration,Integrate with supplier APIs,,6,Frontend,High,Not Started
+DEVELOPMENT,Frontend,Notification Module,DEV-FE-NOT-001,Notifications Page,Build notifications center with tabs,,10,Frontend,High,Completed
+DEVELOPMENT,Frontend,Notification Module,DEV-FE-NOT-002,Notification Card,Build notification card component,,4,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Notification Module,DEV-FE-NOT-003,Notification Badge,Build unread count badge for navigation,,3,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Notification Module,DEV-FE-NOT-004,Mark as Read Functionality,Implement mark as read/unread,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Notification Module,DEV-FE-NOT-005,Archive Functionality,Implement archive/unarchive,,4,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Notification Module,DEV-FE-NOT-006,Real-time Updates,Implement polling or websocket for real-time notifications,,8,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Notification Module,DEV-FE-NOT-007,API Integration,Integrate with notification APIs,,6,Frontend,High,Not Started
+DEVELOPMENT,Frontend,Settings Module,DEV-FE-SET-001,Settings Page,Build settings page layout,,4,Frontend,Low,Completed
+DEVELOPMENT,Frontend,Settings Module,DEV-FE-SET-002,Language Selector,Build language selection with i18n integration,,4,Frontend,Low,Completed
+DEVELOPMENT,Frontend,Settings Module,DEV-FE-SET-003,Theme Selector,Build theme selection (if applicable),,3,Frontend,Low,Not Started
+DEVELOPMENT,Frontend,Settings Module,DEV-FE-SET-004,API Integration,Integrate with settings APIs,,3,Frontend,Low,Not Started
+DEVELOPMENT,Frontend,Responsive Design,DEV-FE-RESP-001,Mobile Layout Testing,Test and fix mobile layouts for all pages,,12,Frontend,High,Completed
+DEVELOPMENT,Frontend,Responsive Design,DEV-FE-RESP-002,Tablet Layout Testing,Test and fix tablet layouts for all pages,,8,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Responsive Design,DEV-FE-RESP-003,Desktop Layout Optimization,Optimize desktop layouts for large screens,,6,Frontend,Medium,Completed
+DEVELOPMENT,Frontend,Error Handling,DEV-FE-ERR-001,API Error Handling,Implement global API error handling,,4,Frontend,High,Not Started
+DEVELOPMENT,Frontend,Error Handling,DEV-FE-ERR-002,Form Error Display,Implement form validation error display,,4,Frontend,High,Completed
+DEVELOPMENT,Frontend,Error Handling,DEV-FE-ERR-003,Network Error Handling,Implement offline/network error handling,,4,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Error Handling,DEV-FE-ERR-004,Error Boundary,Implement React error boundaries,,3,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Performance,DEV-FE-PERF-001,Code Splitting,Implement route-based code splitting,,4,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Performance,DEV-FE-PERF-002,Lazy Loading,Implement lazy loading for components and images,,4,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Performance,DEV-FE-PERF-003,Caching Strategy,Implement API response caching,,4,Frontend,Medium,Not Started
+DEVELOPMENT,Frontend,Performance,DEV-FE-PERF-004,Bundle Optimization,Optimize bundle size and tree shaking,,4,Frontend,Medium,Not Started
+DEVELOPMENT,Integration,API Integration,INT-001,Authentication Flow,Integrate frontend auth with backend APIs,,4,Full Stack,High,Not Started
+DEVELOPMENT,Integration,API Integration,INT-002,Request CRUD Integration,Connect request module frontend to backend,,6,Full Stack,High,Not Started
+DEVELOPMENT,Integration,API Integration,INT-003,Order CRUD Integration,Connect order module frontend to backend,,6,Full Stack,High,Not Started
+DEVELOPMENT,Integration,API Integration,INT-004,Notification Integration,Connect notification module to backend,,4,Full Stack,High,Not Started
+DEVELOPMENT,Integration,API Integration,INT-005,File Upload Integration,Connect file upload to backend storage,,4,Full Stack,Medium,Not Started
+DEVELOPMENT,Integration,API Integration,INT-006,Settings Integration,Connect settings to backend,,2,Full Stack,Low,Not Started
+DEVELOPMENT,Integration,Testing,INT-007,End-to-End Flow Testing,Test complete user workflows across frontend and backend,,12,Full Stack,High,Not Started
+DEVELOPMENT,Integration,Testing,INT-008,Data Consistency Testing,Verify data consistency across modules,,8,Full Stack,High,Not Started
+TESTING,Test Planning,Test Cases,TEST-PLAN-001,Write Test Strategy Document,Define overall testing strategy and approach,,8,QA,High,Not Started
+TESTING,Test Planning,Test Cases,TEST-PLAN-002,Define Test Environments,Setup dev test staging environments,,4,QA,High,Not Started
+TESTING,Test Planning,Test Cases,TEST-PLAN-003,Test Data Preparation,Create test data sets for all scenarios,,8,QA,High,Not Started
+TESTING,Unit Testing,Backend,TEST-UNIT-BE-001,Authentication Unit Tests,Write tests for login register JWT validation,,6,Backend,High,Not Started
+TESTING,Unit Testing,Backend,TEST-UNIT-BE-002,Request Module Unit Tests,Write tests for request CRUD and business logic,,8,Backend,High,Not Started
+TESTING,Unit Testing,Backend,TEST-UNIT-BE-003,Order Module Unit Tests,Write tests for order CRUD and status transitions,,8,Backend,High,Not Started
+TESTING,Unit Testing,Backend,TEST-UNIT-BE-004,Notification Module Unit Tests,Write tests for notification creation and targeting,,6,Backend,High,Not Started
+TESTING,Unit Testing,Backend,TEST-UNIT-BE-005,Utility Functions Tests,Write tests for number generators date helpers,,4,Backend,Medium,Not Started
+TESTING,Unit Testing,Backend,TEST-UNIT-BE-006,Validation Tests,Write tests for input validation rules,,4,Backend,High,Not Started
+TESTING,Unit Testing,Frontend,TEST-UNIT-FE-001,Component Unit Tests,Write tests for shared UI components,,8,Frontend,Medium,Not Started
+TESTING,Unit Testing,Frontend,TEST-UNIT-FE-002,Form Validation Tests,Write tests for form validation logic,,6,Frontend,High,Not Started
+TESTING,Unit Testing,Frontend,TEST-UNIT-FE-003,Utility Functions Tests,Write tests for helper functions,,4,Frontend,Medium,Not Started
+TESTING,Unit Testing,Frontend,TEST-UNIT-FE-004,Hook Tests,Write tests for custom React hooks,,4,Frontend,Medium,Not Started
+TESTING,Integration Testing,API,TEST-INT-001,Authentication Flow Tests,Test login register and token refresh flows,,4,Backend,High,Not Started
+TESTING,Integration Testing,API,TEST-INT-002,Request API Integration Tests,Test request CRUD endpoints with database,,6,Backend,High,Not Started
+TESTING,Integration Testing,API,TEST-INT-003,Order API Integration Tests,Test order CRUD endpoints with database,,6,Backend,High,Not Started
+TESTING,Integration Testing,API,TEST-INT-004,Notification API Tests,Test notification creation and retrieval,,4,Backend,High,Not Started
+TESTING,Integration Testing,API,TEST-INT-005,Status Transition Tests,Test status change workflows and validations,,6,Backend,High,Not Started
+TESTING,Functional Testing,Authentication,TEST-FUNC-AUTH-001,Login Page Test Cases,Test login with valid/invalid credentials remember me,,3,QA,High,Not Started
+TESTING,Functional Testing,Authentication,TEST-FUNC-AUTH-002,Registration Test Cases,Test registration with various input combinations,,3,QA,High,Not Started
+TESTING,Functional Testing,Authentication,TEST-FUNC-AUTH-003,Role-based Access Tests,Test access control for different user roles,,4,QA,High,Not Started
+TESTING,Functional Testing,Authentication,TEST-FUNC-AUTH-004,Session Management Tests,Test session timeout and token expiry,,3,QA,Medium,Not Started
+TESTING,Functional Testing,Sales Module,TEST-FUNC-SALES-001,Request Creation Tests,Test creating requests with various product types,,6,QA,High,Not Started
+TESTING,Functional Testing,Sales Module,TEST-FUNC-SALES-002,Request Editing Tests,Test editing draft requests,,4,QA,High,Not Started
+TESTING,Functional Testing,Sales Module,TEST-FUNC-SALES-003,Request Cancellation Tests,Test cancelling requests in different statuses,,3,QA,Medium,Not Started
+TESTING,Functional Testing,Sales Module,TEST-FUNC-SALES-004,My Requests View Tests,Test filtering sorting and viewing requests,,4,QA,High,Not Started
+TESTING,Functional Testing,Sales Module,TEST-FUNC-SALES-005,My Orders View Tests,Test viewing orders originated from requests,,3,QA,Medium,Not Started
+TESTING,Functional Testing,Sales Module,TEST-FUNC-SALES-006,Request Details Tests,Test detailed view and status tracking,,3,QA,High,Not Started
+TESTING,Functional Testing,Stockist Module,TEST-FUNC-STOCK-001,Stock Verification Tests,Test entering available pieces for items,,6,QA,High,Not Started
+TESTING,Functional Testing,Stockist Module,TEST-FUNC-STOCK-002,Request Approval Tests,Test approving requests with full stock,,4,QA,High,Not Started
+TESTING,Functional Testing,Stockist Module,TEST-FUNC-STOCK-003,Request Rejection Tests,Test rejecting requests with unavailable stock,,4,QA,High,Not Started
+TESTING,Functional Testing,Stockist Module,TEST-FUNC-STOCK-004,Partial Stock Tests,Test handling partial stock availability,,4,QA,High,Not Started
+TESTING,Functional Testing,Stockist Module,TEST-FUNC-STOCK-005,Branch Filtering Tests,Test stockist only sees own branch requests,,3,QA,High,Not Started
+TESTING,Functional Testing,Stockist Module,TEST-FUNC-STOCK-006,Auto-save Draft Tests,Test auto-saving available pieces,,3,QA,Medium,Not Started
+TESTING,Functional Testing,JB Module,TEST-FUNC-JB-001,Order Creation Tests,Test creating orders from approved requests,,8,QA,High,Not Started
+TESTING,Functional Testing,JB Module,TEST-FUNC-JB-002,Order Editing Tests,Test editing order details and items,,6,QA,Medium,Not Started
+TESTING,Functional Testing,JB Module,TEST-FUNC-JB-003,Request Management Tests,Test JB viewing and managing all branch requests,,4,QA,High,Not Started
+TESTING,Functional Testing,JB Module,TEST-FUNC-JB-004,Order Management Tests,Test JB managing orders across suppliers,,4,QA,High,Not Started
+TESTING,Functional Testing,JB Module,TEST-FUNC-JB-005,Inbound Tracking Tests,Test recording arrivals and tracking shipments,,6,QA,High,Not Started
+TESTING,Functional Testing,JB Module,TEST-FUNC-JB-006,Order Closure Tests,Test closing and confirming completed orders,,4,QA,Medium,Not Started
+TESTING,Functional Testing,JB Module,TEST-FUNC-JB-007,PO Number Generation Tests,Test PO number generation and uniqueness,,3,QA,High,Not Started
+TESTING,Functional Testing,Supplier Module,TEST-FUNC-SUPP-001,View Assigned Orders Tests,Test supplier sees only their orders,,3,QA,High,Not Started
+TESTING,Functional Testing,Supplier Module,TEST-FUNC-SUPP-002,Status Update Tests,Test updating order status (In Production Stock Ready),,4,QA,High,Not Started
+TESTING,Functional Testing,Supplier Module,TEST-FUNC-SUPP-003,Change Request Tests,Test requesting changes to orders,,4,QA,Medium,Not Started
+TESTING,Functional Testing,Supplier Module,TEST-FUNC-SUPP-004,Unable to Fulfill Tests,Test marking orders as unable to fulfill,,3,QA,High,Not Started
+TESTING,Functional Testing,Supplier Module,TEST-FUNC-SUPP-005,Order Details View Tests,Test viewing order specifications and history,,3,QA,Medium,Not Started
+TESTING,Functional Testing,Notification Module,TEST-FUNC-NOT-001,Notification Delivery Tests,Test notifications sent to correct users,,6,QA,High,Not Started
+TESTING,Functional Testing,Notification Module,TEST-FUNC-NOT-002,Notification Tabs Tests,Test All Unread Expiring Archived tabs,,4,QA,High,Not Started
+TESTING,Functional Testing,Notification Module,TEST-FUNC-NOT-003,Mark as Read Tests,Test marking notifications as read/unread,,3,QA,High,Not Started
+TESTING,Functional Testing,Notification Module,TEST-FUNC-NOT-004,Archive Tests,Test archiving and unarchiving notifications,,3,QA,Medium,Not Started
+TESTING,Functional Testing,Notification Module,TEST-FUNC-NOT-005,Auto-archive Tests,Test 60-day auto-archiving functionality,,4,QA,Medium,Not Started
+TESTING,Functional Testing,Notification Module,TEST-FUNC-NOT-006,ETA Reminder Tests,Test expiring request notifications (7 days),,4,QA,High,Not Started
+TESTING,Functional Testing,Notification Module,TEST-FUNC-NOT-007,Notification Navigation Tests,Test clicking notifications navigates to details,,3,QA,Medium,Not Started
+TESTING,Functional Testing,Settings,TEST-FUNC-SET-001,Language Change Tests,Test changing language updates UI,,3,QA,Low,Not Started
+TESTING,Functional Testing,Settings,TEST-FUNC-SET-002,Settings Persistence Tests,Test settings saved and restored on login,,2,QA,Low,Not Started
+TESTING,Functional Testing,Shared Features,TEST-FUNC-SHARE-001,Filter Tests,Test filtering functionality across all list views,,6,QA,High,Not Started
+TESTING,Functional Testing,Shared Features,TEST-FUNC-SHARE-002,Sort Tests,Test sorting functionality across all list views,,4,QA,High,Not Started
+TESTING,Functional Testing,Shared Features,TEST-FUNC-SHARE-003,Search Tests,Test search functionality where applicable,,4,QA,Medium,Not Started
+TESTING,Functional Testing,Shared Features,TEST-FUNC-SHARE-004,Pagination Tests,Test pagination in list views,,3,QA,Medium,Not Started
+TESTING,UI Testing,Responsive Design,TEST-UI-001,Mobile Layout Tests,Test all pages on mobile viewports (320px-768px),,12,QA,High,Not Started
+TESTING,UI Testing,Responsive Design,TEST-UI-002,Tablet Layout Tests,Test all pages on tablet viewports (768px-1024px),,8,QA,Medium,Not Started
+TESTING,UI Testing,Responsive Design,TEST-UI-003,Desktop Layout Tests,Test all pages on desktop viewports (1024px+),,8,QA,Medium,Not Started
+TESTING,UI Testing,Cross-browser,TEST-UI-004,Chrome Testing,Test functionality on Chrome browser,,6,QA,High,Not Started
+TESTING,UI Testing,Cross-browser,TEST-UI-005,Safari Testing,Test functionality on Safari browser,,6,QA,High,Not Started
+TESTING,UI Testing,Cross-browser,TEST-UI-006,Firefox Testing,Test functionality on Firefox browser,,4,QA,Medium,Not Started
+TESTING,UI Testing,Cross-browser,TEST-UI-007,Edge Testing,Test functionality on Edge browser,,4,QA,Medium,Not Started
+TESTING,UI Testing,Accessibility,TEST-UI-008,Keyboard Navigation Tests,Test all interactive elements accessible via keyboard,,6,QA,Medium,Not Started
+TESTING,UI Testing,Accessibility,TEST-UI-009,Screen Reader Tests,Test application with screen readers,,6,QA,Medium,Not Started
+TESTING,UI Testing,Accessibility,TEST-UI-010,Color Contrast Tests,Test color contrast meets WCAG standards,,4,QA,Low,Not Started
+TESTING,UI Testing,Visual Regression,TEST-UI-011,Visual Regression Suite,Setup and run visual regression tests for all pages,,8,QA,Medium,Not Started
+TESTING,Performance Testing,Load Testing,TEST-PERF-001,API Load Tests,Test API endpoints under concurrent user load,,8,QA,Medium,Not Started
+TESTING,Performance Testing,Load Testing,TEST-PERF-002,Database Query Performance,Test and optimize slow database queries,,6,Backend,Medium,Not Started
+TESTING,Performance Testing,Load Testing,TEST-PERF-003,Frontend Performance Tests,Test page load times and rendering performance,,6,Frontend,Medium,Not Started
+TESTING,Performance Testing,Stress Testing,TEST-PERF-004,Peak Load Tests,Test system behavior under peak load conditions,,6,QA,Medium,Not Started
+TESTING,Performance Testing,Stress Testing,TEST-PERF-005,Concurrent User Tests,Test system with maximum concurrent users,,6,QA,Medium,Not Started
+TESTING,Security Testing,Penetration,TEST-SEC-001,Authentication Security Tests,Test for authentication bypass vulnerabilities,,6,Security,High,Not Started
+TESTING,Security Testing,Penetration,TEST-SEC-002,SQL Injection Tests,Test for SQL injection vulnerabilities,,4,Security,High,Not Started
+TESTING,Security Testing,Penetration,TEST-SEC-003,XSS Tests,Test for cross-site scripting vulnerabilities,,4,Security,High,Not Started
+TESTING,Security Testing,Penetration,TEST-SEC-004,CSRF Tests,Test for cross-site request forgery vulnerabilities,,4,Security,High,Not Started
+TESTING,Security Testing,Authorization,TEST-SEC-005,Access Control Tests,Test unauthorized access to protected resources,,6,Security,High,Not Started
+TESTING,Security Testing,Authorization,TEST-SEC-006,Role Permission Tests,Test users can only access permitted features,,6,Security,High,Not Started
+TESTING,Security Testing,Data Security,TEST-SEC-007,Data Encryption Tests,Test sensitive data encryption (passwords etc),,4,Security,High,Not Started
+TESTING,Security Testing,Data Security,TEST-SEC-008,Data Masking Tests,Test PII data properly masked in logs/responses,,4,Security,Medium,Not Started
+TESTING,Regression Testing,Full Suite,TEST-REG-001,Regression Test Execution,Run full regression test suite after each release,,12,QA,High,Not Started
+TESTING,Regression Testing,Automation,TEST-REG-002,Automated Test Suite,Develop automated regression test suite,,20,QA,High,Not Started
+BUG FIX,Bug Tracking,Setup,BUG-001,Bug Tracking System Setup,Setup Jira/GitHub Issues for bug tracking,,4,QA,High,Not Started
+BUG FIX,Bug Tracking,Triage,BUG-002,Bug Triage Process,Establish bug triage and prioritization process,,2,QA,High,Not Started
+BUG FIX,Critical Bugs,Resolution,BUG-CRIT-001,Critical Bug Fix - Batch 1,Fix critical/blocker bugs found in testing,,40,Dev Team,Critical,Not Started
+BUG FIX,Critical Bugs,Resolution,BUG-CRIT-002,Critical Bug Fix - Batch 2,Second batch of critical bug fixes,,40,Dev Team,Critical,Not Started
+BUG FIX,High Priority,Resolution,BUG-HIGH-001,High Priority Bug Fix - Batch 1,Fix high priority bugs,,30,Dev Team,High,Not Started
+BUG FIX,High Priority,Resolution,BUG-HIGH-002,High Priority Bug Fix - Batch 2,Second batch of high priority fixes,,30,Dev Team,High,Not Started
+BUG FIX,Medium Priority,Resolution,BUG-MED-001,Medium Priority Bug Fix - Batch 1,Fix medium priority bugs,,20,Dev Team,Medium,Not Started
+BUG FIX,Medium Priority,Resolution,BUG-MED-002,Medium Priority Bug Fix - Batch 2,Second batch of medium priority fixes,,20,Dev Team,Medium,Not Started
+BUG FIX,Low Priority,Resolution,BUG-LOW-001,Low Priority Bug Fix,Fix low priority and cosmetic bugs,,16,Dev Team,Low,Not Started
+BUG FIX,Verification,Testing,BUG-VER-001,Bug Fix Verification,Verify all fixed bugs and close tickets,,20,QA,High,Not Started
+BUG FIX,Regression,Testing,BUG-REG-001,Post-Fix Regression Testing,Run regression tests after bug fixes,,16,QA,High,Not Started
+UAT,Preparation,Planning,UAT-PREP-001,UAT Plan Creation,Create UAT test plan and timeline,,6,QA,High,Not Started
+UAT,Preparation,Planning,UAT-PREP-002,UAT Environment Setup,Setup UAT environment with production-like data,,8,DevOps,High,Not Started
+UAT,Preparation,Documentation,UAT-PREP-003,User Guides Creation,Create user guides for all roles,,16,Documentation,High,Not Started
+UAT,Preparation,Documentation,UAT-PREP-004,UAT Test Cases Document,Create UAT test cases document for users,,12,QA,High,Not Started
+UAT,Preparation,Training,UAT-PREP-005,User Training Sessions,Conduct training sessions for end users,,16,Training,High,Not Started
+UAT,Preparation,Training,UAT-PREP-006,Training Materials,Create training videos and documentation,,12,Training,Medium,Not Started
+UAT,Execution,Sales UAT,UAT-SALES-001,Sales User Testing - Request Module,Sales users test request creation and management,,8,Sales Users,High,Not Started
+UAT,Execution,Sales UAT,UAT-SALES-002,Sales User Testing - Orders Module,Sales users test viewing their orders,,4,Sales Users,Medium,Not Started
+UAT,Execution,Sales UAT,UAT-SALES-003,Sales User Testing - Notifications,Sales users test notification functionality,,4,Sales Users,High,Not Started
+UAT,Execution,Stockist UAT,UAT-STOCK-001,Stockist Testing - Verification,Stockist users test stock verification workflow,,8,Stockist Users,High,Not Started
+UAT,Execution,Stockist UAT,UAT-STOCK-002,Stockist Testing - Dashboard,Stockist users test dashboard and filtering,,4,Stockist Users,Medium,Not Started
+UAT,Execution,Stockist UAT,UAT-STOCK-003,Stockist Testing - Notifications,Stockist users test notification functionality,,4,Stockist Users,High,Not Started
+UAT,Execution,JB UAT,UAT-JB-001,JB Testing - Request Management,JB users test request approval workflow,,6,JB Users,High,Not Started
+UAT,Execution,JB UAT,UAT-JB-002,JB Testing - Order Creation,JB users test creating orders from requests,,8,JB Users,High,Not Started
+UAT,Execution,JB UAT,UAT-JB-003,JB Testing - Order Management,JB users test managing and editing orders,,6,JB Users,High,Not Started
+UAT,Execution,JB UAT,UAT-JB-004,JB Testing - Inbound Tracking,JB users test inbound and arrival recording,,6,JB Users,High,Not Started
+UAT,Execution,JB UAT,UAT-JB-005,JB Testing - Notifications,JB users test notification functionality,,4,JB Users,High,Not Started
+UAT,Execution,Supplier UAT,UAT-SUPP-001,Supplier Testing - Order View,Supplier users test viewing assigned orders,,4,Supplier Users,High,Not Started
+UAT,Execution,Supplier UAT,UAT-SUPP-002,Supplier Testing - Status Updates,Supplier users test updating order status,,6,Supplier Users,High,Not Started
+UAT,Execution,Supplier UAT,UAT-SUPP-003,Supplier Testing - Change Requests,Supplier users test requesting order changes,,4,Supplier Users,Medium,Not Started
+UAT,Execution,Supplier UAT,UAT-SUPP-004,Supplier Testing - Notifications,Supplier users test notification functionality,,4,Supplier Users,High,Not Started
+UAT,Execution,Cross-role Testing,UAT-CROSS-001,End-to-End Workflow Testing,Test complete workflows across all roles,,12,All Users,High,Not Started
+UAT,Execution,Cross-role Testing,UAT-CROSS-002,Multi-branch Testing,Test branch-based filtering and access control,,8,All Users,High,Not Started
+UAT,Feedback,Collection,UAT-FB-001,Feedback Collection,Collect and document user feedback and issues,,8,QA,High,Not Started
+UAT,Feedback,Analysis,UAT-FB-002,Feedback Analysis,Analyze feedback and prioritize changes,,6,Product Owner,High,Not Started
+UAT,Feedback,Implementation,UAT-FB-003,UAT Issue Resolution,Fix issues and implement feedback from UAT,,40,Dev Team,High,Not Started
+UAT,Validation,Signoff,UAT-VAL-001,UAT Re-testing,Re-test after UAT changes implementation,,16,QA,High,Not Started
+UAT,Validation,Signoff,UAT-VAL-002,User Acceptance Signoff,Obtain formal acceptance from all user groups,,4,Product Owner,High,Not Started
+DEPLOYMENT,Planning,Strategy,DEPLOY-PLAN-001,Deployment Strategy Document,Create deployment strategy and rollback plan,,6,DevOps,High,Not Started
+DEPLOYMENT,Planning,Strategy,DEPLOY-PLAN-002,Release Notes Creation,Create comprehensive release notes,,4,Documentation,High,Not Started
+DEPLOYMENT,Planning,Strategy,DEPLOY-PLAN-003,Deployment Checklist,Create pre/post deployment checklist,,4,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Setup,DEPLOY-INFRA-001,Production Server Setup,Setup production servers and infrastructure,,12,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Setup,DEPLOY-INFRA-002,Database Production Setup,Setup production database with replication,,8,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Setup,DEPLOY-INFRA-003,Load Balancer Configuration,Configure load balancer for high availability,,6,DevOps,Medium,Not Started
+DEPLOYMENT,Infrastructure,Setup,DEPLOY-INFRA-004,CDN Configuration,Setup CDN for static assets,,4,DevOps,Medium,Not Started
+DEPLOYMENT,Infrastructure,Setup,DEPLOY-INFRA-005,SSL Certificate Setup,Install and configure SSL certificates,,3,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Security,DEPLOY-INFRA-006,Firewall Configuration,Configure firewall rules and security groups,,4,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Security,DEPLOY-INFRA-007,Backup Configuration,Setup automated backups and retention policy,,6,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Monitoring,DEPLOY-INFRA-008,Monitoring Setup,Setup application and server monitoring (New Relic/DataDog),,6,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Monitoring,DEPLOY-INFRA-009,Logging Setup,Setup centralized logging (ELK/Splunk),,6,DevOps,High,Not Started
+DEPLOYMENT,Infrastructure,Monitoring,DEPLOY-INFRA-010,Alerting Setup,Configure alerts for critical issues,,4,DevOps,High,Not Started
+DEPLOYMENT,Database,Migration,DEPLOY-DB-001,Database Migration Scripts,Create production database migration scripts,,8,Backend,High,Not Started
+DEPLOYMENT,Database,Migration,DEPLOY-DB-002,Data Migration Testing,Test data migration in staging environment,,6,Backend,High,Not Started
+DEPLOYMENT,Database,Migration,DEPLOY-DB-003,Production Data Migration,Execute production data migration,,4,Backend,Critical,Not Started
+DEPLOYMENT,Database,Migration,DEPLOY-DB-004,Database Indexing,Create indexes for production optimization,,4,Backend,High,Not Started
+DEPLOYMENT,Application,Build,DEPLOY-APP-001,Production Build,Create optimized production build,,2,Frontend,High,Not Started
+DEPLOYMENT,Application,Build,DEPLOY-APP-002,Environment Variables Setup,Configure production environment variables,,3,DevOps,High,Not Started
+DEPLOYMENT,Application,Deployment,DEPLOY-APP-003,Backend Deployment,Deploy backend application to production,,4,DevOps,Critical,Not Started
+DEPLOYMENT,Application,Deployment,DEPLOY-APP-004,Frontend Deployment,Deploy frontend application to production,,3,DevOps,Critical,Not Started
+DEPLOYMENT,Application,Deployment,DEPLOY-APP-005,Database Seeding,Seed production database with initial data,,4,Backend,High,Not Started
+DEPLOYMENT,Verification,Testing,DEPLOY-VER-001,Smoke Testing,Run smoke tests on production environment,,4,QA,Critical,Not Started
+DEPLOYMENT,Verification,Testing,DEPLOY-VER-002,Production Verification,Verify all features working in production,,8,QA,Critical,Not Started
+DEPLOYMENT,Verification,Testing,DEPLOY-VER-003,Performance Verification,Verify production performance meets requirements,,4,QA,High,Not Started
+DEPLOYMENT,Documentation,Completion,DEPLOY-DOC-001,System Documentation,Complete system architecture and API documentation,,12,Documentation,High,Not Started
+DEPLOYMENT,Documentation,Completion,DEPLOY-DOC-002,Administrator Guide,Create system administrator guide,,8,Documentation,High,Not Started
+DEPLOYMENT,Documentation,Completion,DEPLOY-DOC-003,Deployment Guide,Create deployment and maintenance guide,,6,Documentation,High,Not Started
+DEPLOYMENT,Training,End Users,DEPLOY-TRAIN-001,Production Training,Conduct final training on production system,,8,Training,High,Not Started
+DEPLOYMENT,Training,Support,DEPLOY-TRAIN-002,Support Team Training,Train support team for production issues,,6,Training,High,Not Started
+DEPLOYMENT,Go Live,Execution,DEPLOY-LIVE-001,Go-Live Execution,Execute go-live deployment,,4,DevOps,Critical,Not Started
+DEPLOYMENT,Go Live,Execution,DEPLOY-LIVE-002,Go-Live Communication,Communicate go-live to all stakeholders,,2,Project Manager,High,Not Started
+DEPLOYMENT,Go Live,Support,DEPLOY-LIVE-003,Hypercare Support (Week 1),Provide intensive support during first week,,40,Support Team,Critical,Not Started
+DEPLOYMENT,Go Live,Support,DEPLOY-LIVE-004,Extended Support (Weeks 2-4),Provide extended support during first month,,60,Support Team,High,Not Started
+DEPLOYMENT,Post-Deployment,Monitoring,DEPLOY-POST-001,Performance Monitoring,Monitor production performance and optimize,,Ongoing,DevOps,High,Not Started
+DEPLOYMENT,Post-Deployment,Monitoring,DEPLOY-POST-002,Error Monitoring,Monitor and fix production errors,,Ongoing,Dev Team,High,Not Started
+DEPLOYMENT,Post-Deployment,Maintenance,DEPLOY-POST-003,Regular Maintenance,Perform regular system maintenance,,Ongoing,DevOps,High,Not Started
+DEPLOYMENT,Post-Deployment,Updates,DEPLOY-POST-004,Security Patches,Apply security patches and updates,,Ongoing,DevOps,High,Not Started

@@ -36,8 +36,18 @@ export function FilterSortControls({
   onSortDirectionChange,
   sortOptions,
 }: FilterSortControlsProps) {
-  const label = type === "request" ? "Request No" : type === "order" ? "Order No" : "Notification";
-  const itemName = type === "request" ? "requests" : type === "order" ? "orders" : "notifications";
+  const label =
+    type === "request"
+      ? "Request No"
+      : type === "order"
+        ? "Order No"
+        : "Notification";
+  const itemName =
+    type === "request"
+      ? "requests"
+      : type === "order"
+        ? "orders"
+        : "notifications";
 
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
