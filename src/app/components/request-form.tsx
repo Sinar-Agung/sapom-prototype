@@ -256,9 +256,15 @@ export function RequestForm(props: RequestFormProps) {
       });
 
       setDetailItems(updatedItems);
-    }
 
-    // Don't reset form - keep values for reuse
+      // Reset berat and pcs, but keep kadar, warna, ukuran for quick entry
+      setDetailInput({
+        ...detailInput,
+        berat: "",
+        pcs: "",
+        notes: "",
+      });
+    }
   };
 
   const handleEditDetail = (item: DetailBarangItem) => {
@@ -1296,11 +1302,14 @@ export function RequestForm(props: RequestFormProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel onClick={() => setShowSaveConfirmDialog(false)}>
+            <AlertDialogCancel 
+              onClick={() => setShowSaveConfirmDialog(false)}
+              className="text-red-600 bg-white border-red-300 hover:bg-red-50 hover:text-red-700"
+            >
               Cancel
             </AlertDialogCancel>
             <Button
-              variant="outline"
+              className="bg-green-600 text-white hover:bg-green-700"
               onClick={() => {
                 setShowSaveConfirmDialog(false);
                 handleSaveOrder("save");

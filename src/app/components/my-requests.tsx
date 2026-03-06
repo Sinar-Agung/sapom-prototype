@@ -272,6 +272,30 @@ export function MyOrders({
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
+    
+    // Mark request as viewed when showing items
+    if (expandedOrderId !== orderId) {
+      markRequestAsViewed(orderId);
+    }
+  };
+
+  const markRequestAsViewed = (requestId: string) => {
+    const savedRequests = localStorage.getItem("requests");
+    if (!savedRequests) return;
+
+    const allRequests: Request[] = JSON.parse(savedRequests);
+    const updatedRequests = allRequests.map((req) => {
+      if (req.id === requestId) {
+        const viewedBy = req.viewedBy || [];
+        if (!viewedBy.includes(currentUser)) {
+          return { ...req, viewedBy: [...viewedBy, currentUser] };
+        }
+      }
+      return req;
+    });
+
+    localStorage.setItem("requests", JSON.stringify(updatedRequests));
+    setOrders(updatedRequests);
   };
 
   const cancelOrder = (orderId: string) => {
@@ -382,6 +406,49 @@ export function MyOrders({
   const assignedCount = requestNoFiltered.filter((order: Request) => {
     return order.status === "Requested to JB";
   }).length;
+
+  // Calculate unseen counts (requests not viewed by current user)
+  const unseenAllCount = requestNoFiltered.filter(
+    (order: Request) => !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenOpenCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Open" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenInProgressCount = requestNoFiltered.filter((order: Request) => {
+    if (userRole === "stockist") {
+      return (
+        order.status === "Stockist Processing" &&
+        order.stockistId === currentUser &&
+        !order.viewedBy?.includes(currentUser)
+      );
+    }
+    return (
+      order.status === "Stockist Processing" &&
+      !order.viewedBy?.includes(currentUser)
+    );
+  }).length;
+  const unseenDoneCount = requestNoFiltered.filter(
+    (order: Request) =>
+      (order.status === "Done" ||
+        order.status === "Ready Stock Marketing" ||
+        order.status === "Stock Unavailable") &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenCancelledCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Cancelled" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenExpiredCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Request Expired" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenAssignedCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Requested to JB" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
 
   // Total requests visible to current user
   const totalVisibleRequests = orders.filter((order: Request) => {
@@ -552,6 +619,30 @@ export function MyOrders({
     // Check if we should show sales name (show if order is NOT created by current user)
     const showSalesName = order.createdBy && order.createdBy !== currentUser;
 
+    // Wrap onViewRequestDetails to mark as viewed
+    const handleViewRequestDetails = onViewRequestDetails
+      ? (order: Request, tab: string) => {
+          markRequestAsViewed(order.id);
+          onViewRequestDetails(order, tab);
+        }
+      : undefined;
+
+    // Wrap onSeeDetail to mark as viewed
+    const handleSeeDetail = onSeeDetail
+      ? (order: Request, tab: string) => {
+          markRequestAsViewed(order.id);
+          onSeeDetail(order, tab);
+        }
+      : undefined;
+
+    // Wrap onDuplicateOrder to mark as viewed
+    const handleDuplicateOrder = onDuplicateOrder
+      ? (order: Request) => {
+          markRequestAsViewed(order.id);
+          onDuplicateOrder(order);
+        }
+      : undefined;
+
     return (
       <RequestCard
         key={order.id}
@@ -562,10 +653,11 @@ export function MyOrders({
         isExpanded={isExpanded}
         onToggleExpand={() => toggleExpand(order.id)}
         onEditOrder={onEditOrder}
-        onDuplicateOrder={onDuplicateOrder}
+        onDuplicateOrder={handleDuplicateOrder}
         onCancelOrder={cancelOrder}
-        onViewRequestDetails={onViewRequestDetails}
-        onSeeDetail={onSeeDetail}
+        onViewRequestDetails={handleViewRequestDetails}
+        onSeeDetail={handleSeeDetail}
+        currentUser={currentUser}
       />
     );
   };
@@ -619,7 +711,14 @@ export function MyOrders({
               activeTab === "all" ? "text-gray-900 border-gray-900" : ""
             }
           >
-            All ({allCount})
+            <span className="flex items-center gap-1.5">
+              All ({allCount})
+              {unseenAllCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenAllCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="open"
@@ -628,7 +727,14 @@ export function MyOrders({
               activeTab === "open" ? "text-amber-600 border-amber-600" : ""
             }
           >
-            Open ({openCount})
+            <span className="flex items-center gap-1.5">
+              Open ({openCount})
+              {unseenOpenCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenOpenCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="in-progress"
@@ -637,7 +743,14 @@ export function MyOrders({
               activeTab === "in-progress" ? "text-blue-600 border-blue-600" : ""
             }
           >
-            In Progress ({inProgressCount})
+            <span className="flex items-center gap-1.5">
+              In Progress ({inProgressCount})
+              {unseenInProgressCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenInProgressCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="assigned"
@@ -648,7 +761,14 @@ export function MyOrders({
                 : ""
             }
           >
-            Assigned ({assignedCount})
+            <span className="flex items-center gap-1.5">
+              Assigned ({assignedCount})
+              {unseenAssignedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenAssignedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="done"
@@ -657,7 +777,14 @@ export function MyOrders({
               activeTab === "done" ? "text-green-600 border-green-600" : ""
             }
           >
-            Done ({doneCount})
+            <span className="flex items-center gap-1.5">
+              Done ({doneCount})
+              {unseenDoneCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenDoneCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="cancelled"
@@ -666,7 +793,14 @@ export function MyOrders({
               activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
             }
           >
-            Cancelled ({cancelledCount})
+            <span className="flex items-center gap-1.5">
+              Cancelled ({cancelledCount})
+              {unseenCancelledCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenCancelledCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="expired"
@@ -675,7 +809,14 @@ export function MyOrders({
               activeTab === "expired" ? "text-red-600 border-red-600" : ""
             }
           >
-            Expired ({expiredCount})
+            <span className="flex items-center gap-1.5">
+              Expired ({expiredCount})
+              {unseenExpiredCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenExpiredCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
         </TabsList>
 

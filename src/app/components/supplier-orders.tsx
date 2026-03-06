@@ -137,6 +137,7 @@ export function SupplierOrders({
     console.log("🔍 Supplier Orders Debug:");
     console.log("  Current User:", currentUser);
     console.log("  Supplier ID:", supplierId);
+    console.log("  Active Tab:", activeTab);
     console.log("  Saved Orders:", savedOrders ? "Found" : "Not found");
 
     if (savedOrders && supplierId) {
@@ -149,9 +150,18 @@ export function SupplierOrders({
       );
 
       console.log("  Filtered Orders for", supplierId + ":", myOrders.length);
-      console.log("  Orders:", myOrders);
+      console.log("  Orders:", myOrders.map(o => ({
+        id: o.id,
+        PONumber: o.PONumber,
+        status: o.status,
+        pabrikId: o.pabrik?.id,
+        pabrikName: o.pabrik?.name
+      })));
 
       setOrders(myOrders);
+    } else {
+      console.log("  ⚠️ No orders or supplierId missing");
+      setOrders([]);
     }
   };
 
@@ -186,12 +196,8 @@ export function SupplierOrders({
   };
 
   // Filter by Order No first (before tab filtering)
-  const supplierId = getSupplierId();
+  // Note: orders state already filtered by supplierId in loadOrders()
   const orderNoFiltered = orders.filter((order: Order) => {
-    // Ensure this order belongs to the current supplier
-    if (order.pabrik?.id !== supplierId) {
-      return false;
-    }
     // Filter by Order No
     if (orderNoFilter) {
       const searchTerm = orderNoFilter.toLowerCase();
@@ -323,13 +329,33 @@ export function SupplierOrders({
     return false;
   });
 
+  // Debug log filtered results
+  console.log("📊 Filtering Results:");
+  console.log("  Active Tab:", activeTab);
+  console.log("  Orders in state:", orders.length);
+  console.log("  After PONumber filter:", orderNoFiltered.length);
+  console.log("  After tab filter:", filteredOrders.length);
+  console.log("  Sort By:", sortBy);
+  console.log("  Sort Direction:", sortDirection);
+  if (filteredOrders.length > 0) {
+    console.log("  Sample Orders (before sort):", filteredOrders.slice(0, 3).map(o => ({
+      PONumber: o.PONumber,
+      status: o.status,
+      createdDate: o.createdDate,
+      updatedDate: o.updatedDate,
+      pabrik: o.pabrik?.name
+    })));
+  }
+
   // Sort orders
   filteredOrders = filteredOrders.sort((a, b) => {
     let comparison = 0;
     switch (sortBy) {
       case "updatedDate":
-        comparison =
-          new Date(b.updatedDate).getTime() - new Date(a.updatedDate).getTime();
+        // Use updatedDate if available, otherwise use createdDate
+        const aUpdated = a.updatedDate || a.createdDate || 0;
+        const bUpdated = b.updatedDate || b.createdDate || 0;
+        comparison = bUpdated - aUpdated;
         break;
       case "created":
         comparison =
@@ -359,6 +385,16 @@ export function SupplierOrders({
     }
     return sortDirection === "desc" ? comparison : -comparison;
   });
+
+  // Debug log after sorting
+  if (filteredOrders.length > 0) {
+    console.log("  ✅ After Sort (Top 3):", filteredOrders.slice(0, 3).map(o => ({
+      PONumber: o.PONumber,
+      status: o.status,
+      createdDate: new Date(o.createdDate).toLocaleString(),
+      updatedDate: o.updatedDate ? new Date(o.updatedDate).toLocaleString() : 'N/A',
+    })));
+  }
 
   return (
     <div className="space-y-4 pb-20 md:pb-4">

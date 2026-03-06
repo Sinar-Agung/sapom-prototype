@@ -59,6 +59,7 @@ export interface Request {
   updatedBy?: string;
   stockistId?: string;
   branchCode?: BranchCode; // Branch where request was created
+  viewedBy?: string[]; // Array of usernames who have viewed this request
 
   // Factory reference - can be object or string for compatibility
   pabrik: EntityReference | string;

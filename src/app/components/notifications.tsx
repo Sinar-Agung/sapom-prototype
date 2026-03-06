@@ -73,9 +73,8 @@ export function Notifications({
   });
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
     return (
-      (sessionStorage.getItem("notificationsSortDirection") as
-        | "asc"
-        | "desc") || "desc"
+      (sessionStorage.getItem("notificationsSortDirection") as "asc" | "desc") ||
+      "desc"
     );
   });
   const currentUser =

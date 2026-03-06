@@ -571,12 +571,14 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
             ? { id: request.pabrik, name: request.pabrik }
             : request.pabrik;
 
+        const orderTimestamp = Date.now();
         const newOrder: Order = {
-          id: `order-${Date.now()}`,
+          id: `order-${orderTimestamp}`,
           PONumber,
           requestNo: request.requestNo,
           requestId: request.id,
-          createdDate: Date.now(),
+          createdDate: orderTimestamp,
+          updatedDate: orderTimestamp, // Set initial updatedDate same as createdDate
           createdBy: currentUser,
           jbId: currentUser,
           sales: salesUsername,

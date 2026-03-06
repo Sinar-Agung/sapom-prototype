@@ -102,6 +102,30 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
+    
+    // Mark request as viewed when showing items
+    if (expandedOrderId !== orderId) {
+      markRequestAsViewed(orderId);
+    }
+  };
+
+  const markRequestAsViewed = (requestId: string) => {
+    const savedRequests = localStorage.getItem("requests");
+    if (!savedRequests) return;
+
+    const allRequests: Request[] = JSON.parse(savedRequests);
+    const updatedRequests = allRequests.map((req) => {
+      if (req.id === requestId) {
+        const viewedBy = req.viewedBy || [];
+        if (!viewedBy.includes(currentUser)) {
+          return { ...req, viewedBy: [...viewedBy, currentUser] };
+        }
+      }
+      return req;
+    });
+
+    localStorage.setItem("requests", JSON.stringify(updatedRequests));
+    setOrders(updatedRequests);
   };
 
   // Filter by Request No first (before tab filtering)
@@ -133,6 +157,27 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   ).length;
   const filteredExpiredCount = requestNoFiltered.filter(
     (order: Request) => order.status === "Request Expired",
+  ).length;
+
+  const currentUser =
+    sessionStorage.getItem("username") ||
+    localStorage.getItem("username") ||
+    "";
+
+  // Calculate unseen counts (requests not viewed by current user)
+  const unseenAssignedCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Requested to JB" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenWaitingCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Ordered" && !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenExpiredCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Request Expired" &&
+      !order.viewedBy?.includes(currentUser),
   ).length;
 
   // Filter by active tab
@@ -232,7 +277,14 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
                 : ""
             }
           >
-            Assigned to JB ({filteredAssignedCount})
+            <span className="flex items-center gap-1.5">
+              Assigned to JB ({filteredAssignedCount})
+              {unseenAssignedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenAssignedCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="waiting"
@@ -240,7 +292,14 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
               activeTab === "waiting" ? "text-blue-600 border-blue-600" : ""
             }
           >
-            Ordered ({filteredWaitingCount})
+            <span className="flex items-center gap-1.5">
+              Ordered ({filteredWaitingCount})
+              {unseenWaitingCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenWaitingCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="expired"
@@ -248,7 +307,14 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
               activeTab === "expired" ? "text-red-600 border-red-600" : ""
             }
           >
-            Expired ({filteredExpiredCount})
+            <span className="flex items-center gap-1.5">
+              Expired ({filteredExpiredCount})
+              {unseenExpiredCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenExpiredCount}
+                </span>
+              )}
+            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -265,6 +331,15 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
               <div className="space-y-3 pb-4">
                 {filteredOrders.map((order) => {
                   const isExpanded = expandedOrderId === order.id;
+                  
+                  // Wrap onSeeDetail to mark as viewed
+                  const handleSeeDetail = onSeeDetail
+                    ? (order: Request, tab: string) => {
+                        markRequestAsViewed(order.id);
+                        onSeeDetail(order, tab);
+                      }
+                    : undefined;
+                  
                   return (
                     <RequestCard
                       key={order.id}
@@ -273,7 +348,8 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
                       activeTab={activeTab}
                       isExpanded={isExpanded}
                       onToggleExpand={() => toggleExpand(order.id)}
-                      onSeeDetail={onSeeDetail}
+                      onSeeDetail={handleSeeDetail}
+                      currentUser={currentUser}
                     />
                   );
                 })}

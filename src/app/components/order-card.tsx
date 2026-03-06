@@ -372,7 +372,7 @@ export function OrderCard({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>View order details</p>
+                    <p>See Details</p>
                   </TooltipContent>
                 </Tooltip>
               )}

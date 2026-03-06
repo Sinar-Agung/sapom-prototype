@@ -49,6 +49,7 @@
     "settings": "Settings",
     "notifications": "Notifications",
     "inbound": "Inbound",
+    "questions": "Questions",
     "newRequest": "New Request"
   },
   "settings": {

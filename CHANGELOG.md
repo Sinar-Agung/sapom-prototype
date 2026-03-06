@@ -9,19 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-**Project Documentation**:
-- Created comprehensive project lifecycle breakdown document (PROJECT_BREAKDOWN.csv)
-- Created Indonesian version of project breakdown (PROJECT_BREAKDOWN_ID.csv)
-- Documented 432 tasks across all SDLC phases:
-  - Design phase (71 tasks, ~450 hours)
-  - Development phase (175 tasks, ~850 hours)
-  - Testing phase (101 tasks, ~500 hours)
-  - Bug Fix phase (11 batches, ~216 hours)
-  - UAT phase (30 tasks, ~228 hours)
-  - Deployment phase (44 tasks, ~300+ hours)
-- Each task includes: ID, name, description, dependencies, estimated hours, user role, priority, and status
-- Organized by Phase > Category > Module hierarchy
-- Reflects current implementation status (frontend mostly completed, backend not started)
+- **Request Cards "New" Badge System**: Visual indicators for unseen requests with mark-as-viewed tracking
+  - Added animated "New" badge to request cards (matching order cards pattern)
+  - Badge appears for requests not yet viewed by current user
+  - Added `viewedBy` property to Request type for tracking viewed status
+  - Implemented mark-as-viewed functionality across all request views:
+    - **Sales**: Badge removed on show items, see details, or duplicate actions
+    - **Stockist**: Badge removed on verify stock, show items, or see details actions
+    - **JB**: Badge removed on show items or see details actions
+  - Red badge counters on all tabs now reflect actual unseen request counts
+  - Badge counts dynamically update when requests are marked as viewed
+  - Applied to my-requests.tsx (Sales & Stockist) and jb-requests.tsx (JB) components
+
+- **Project Documentation**:
+  - Created comprehensive project lifecycle breakdown document (PROJECT_BREAKDOWN.csv)
+  - Created Indonesian version of project breakdown (PROJECT_BREAKDOWN_ID.csv)
+  - Documented 432 tasks across all SDLC phases:
+    - Design phase (71 tasks, ~450 hours)
+    - Development phase (175 tasks, ~850 hours)
+    - Testing phase (101 tasks, ~500 hours)
+    - Bug Fix phase (11 batches, ~216 hours)
+    - UAT phase (30 tasks, ~228 hours)
+    - Deployment phase (44 tasks, ~300+ hours)
+  - Each task includes: ID, name, description, dependencies, estimated hours, user role, priority, and status
+  - Organized by Phase > Category > Module hierarchy
+  - Reflects current implementation status (frontend mostly completed, backend not started)
 
 - Standardized notification message format across all notification types
 - Supplier now receives their own order change request notifications

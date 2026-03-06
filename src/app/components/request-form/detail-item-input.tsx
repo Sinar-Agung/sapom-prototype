@@ -176,39 +176,43 @@ export function DetailItemInput({
                 <Ruler className="h-3 w-3 text-blue-600" />
                 Ukuran
               </Label>
-              <div className="flex items-center gap-1">
-                <Combobox
-                  value={detailInput.ukuran}
-                  onValueChange={(value) =>
-                    onDetailInputChange({
-                      ...detailInput,
-                      ukuran: value,
-                    })
-                  }
-                  options={UKURAN_KALUNG_OPTIONS}
-                  placeholder="Ukuran"
-                  searchPlaceholder="Search size..."
-                  emptyText="Size not found."
-                  allowCustomValue={false}
-                  className="w-full"
-                  disabled={isDisabled}
-                />
-                {detailInput.ukuran === "other" && (
-                  <InputWithCheck
-                    type="number"
-                    step="0.01"
-                    className="h-9 sm:h-8 text-sm w-16"
-                    value={detailInput.ukuranCustom}
-                    onChange={(e) =>
+              <div>
+                <div className="flex items-center gap-1">
+                  <Combobox
+                    value={detailInput.ukuran}
+                    onValueChange={(value) =>
                       onDetailInputChange({
                         ...detailInput,
-                        ukuranCustom: e.target.value,
+                        ukuran: value,
                       })
                     }
-                    placeholder="cm"
+                    options={UKURAN_KALUNG_OPTIONS}
+                    placeholder="Ukuran"
+                    searchPlaceholder="Search size..."
+                    emptyText="Size not found."
+                    allowCustomValue={false}
+                    className="w-full"
                     disabled={isDisabled}
                   />
-                )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {detailInput.ukuran === "other" && (
+                    <InputWithCheck
+                      type="number"
+                      step="0.01"
+                      className="h-9 sm:h-8 text-sm w-16"
+                      value={detailInput.ukuranCustom}
+                      onChange={(e) =>
+                        onDetailInputChange({
+                          ...detailInput,
+                          ukuranCustom: e.target.value,
+                        })
+                      }
+                      placeholder="cm"
+                      disabled={isDisabled}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           ) : jenisProduk === "gelang-kaku" ? (

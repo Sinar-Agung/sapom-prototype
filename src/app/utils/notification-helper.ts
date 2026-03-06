@@ -112,7 +112,7 @@ export const upsertRequestExpiringNotification = (
     readBy: [],
   };
 
-  notifications.push(notification);
+  notifications.unshift(notification); // Add at the beginning for newest first
   saveNotifications(notifications);
 };
 
@@ -287,7 +287,7 @@ export const upsertETAReminderForStockist = (
     originator: request.createdBy, // Add originator
     readBy: [],
   };
-  notifications.push(reminder);
+  notifications.unshift(reminder); // Add at the beginning for newest first
   saveNotifications(notifications);
 };
 /**
@@ -315,15 +315,33 @@ import { findUserByUsername, getFullNameFromUsername } from "./user-data";
 
 const STORAGE_KEY = "notifications";
 
+// Sort existing notifications in localStorage (utility function)
+export const sortExistingNotifications = (): void => {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) return;
+  
+  const notifications = JSON.parse(stored);
+  // Sort by timestamp (newest first)
+  const sorted = notifications.sort((a: Notification, b: Notification) => b.timestamp - a.timestamp);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
+  console.log(`✅ Sorted ${sorted.length} existing notifications (newest to oldest)`);
+};
+
 // Get all notifications from localStorage
 export const getAllNotifications = (): Notification[] => {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+  if (!stored) return [];
+  
+  const notifications = JSON.parse(stored);
+  // Always return sorted by timestamp (newest first)
+  return notifications.sort((a: Notification, b: Notification) => b.timestamp - a.timestamp);
 };
 
 // Save notifications to localStorage
 const saveNotifications = (notifications: Notification[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+  // Sort by timestamp (newest first) before saving
+  const sorted = [...notifications].sort((a, b) => b.timestamp - a.timestamp);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
 };
 
 // Get notifications for a specific user
@@ -594,7 +612,7 @@ export const createNotification = (
   });
 
   const notifications = getAllNotifications();
-  notifications.push(notification);
+  notifications.unshift(notification); // Add at the beginning for newest first
   saveNotifications(notifications);
 
   return notification;

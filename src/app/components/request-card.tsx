@@ -26,6 +26,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
+import { NewBadge } from "./new-badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -55,6 +56,7 @@ interface RequestCardProps {
   onCancelOrder?: (orderId: string) => void;
   onViewRequestDetails?: (order: Request, tab: string) => void;
   onSeeDetail?: (order: Request, tab: string) => void;
+  currentUser?: string;
 }
 
 export function RequestCard({
@@ -69,7 +71,11 @@ export function RequestCard({
   onCancelOrder,
   onViewRequestDetails,
   onSeeDetail,
+  currentUser,
 }: RequestCardProps) {
+  // Check if current user has viewed this request
+  const isUnviewed = currentUser && !order.viewedBy?.includes(currentUser);
+  
   const formatDate = (isoString: string) => {
     if (!isoString) return "";
     return new Date(isoString).toLocaleDateString("id-ID", {
@@ -154,13 +160,16 @@ export function RequestCard({
 
   return (
     <Card className="p-3 sm:p-4 relative">
-      {/* Top Right - Status (Desktop only) */}
-      <div className="hidden sm:block absolute top-4 right-4">
+      {/* Top Right -Status and New Badge (Desktop only) */}
+      <div className="hidden sm:flex absolute top-4 right-4 gap-2">
         <span
           className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
         >
           {order.status || "Open"}
         </span>
+        {isUnviewed && (
+          <NewBadge className="w-8 h-8 flex-shrink-0 animate-pulse-scale" />
+        )}
       </div>
 
       <div className="flex gap-2 sm:gap-4">
@@ -210,6 +219,10 @@ export function RequestCard({
               >
                 {order.status || "Open"}
               </span>
+              {/* New badge - Mobile only */}
+              {isUnviewed && (
+                <NewBadge className="sm:hidden w-6 h-6 flex-shrink-0 animate-pulse-scale" />
+              )}
             </div>
           </div>
 

@@ -20,12 +20,14 @@ import { Navigation } from "./components/navigation";
 import { Notifications } from "./components/notifications";
 import { OrderDetails } from "./components/order-details";
 import { OrderEditForm } from "./components/order-edit-form";
+import { QuestionForm } from "./components/question-form";
 import { Register } from "./components/register";
 import { RequestDetails } from "./components/request-details";
 import { RequestForm } from "./components/request-form";
 import { SalesOrders } from "./components/sales-orders";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
+import { StockistQuestions } from "./components/stockist-questions";
 import { SupplierHome } from "./components/supplier-home";
 import { SupplierOrders } from "./components/supplier-orders";
 import {
@@ -48,6 +50,7 @@ import {
   checkAndExpireRequests,
   checkAndNotifyExpiringRequests,
   notifyOrderStatusChanged,
+  sortExistingNotifications,
 } from "./utils/notification-helper";
 import {
   authenticateUser,
@@ -127,6 +130,7 @@ export default function App() {
     initializeMockData();
     initializeMockNotifications();
     initializeUserData();
+    sortExistingNotifications(); // Sort existing notifications on app load
   }, []);
 
   // Check for expiring requests when user is authenticated
@@ -740,6 +744,8 @@ export default function App() {
 
   const renderContent = () => {
     switch (currentPage) {
+      case "pertanyaan":
+        return <QuestionForm />;
       case "tambah-pesanan":
         return (
           <RequestForm
@@ -772,6 +778,8 @@ export default function App() {
             onClearJustCreated={() => setJustCreatedRequest(false)}
           />
         );
+      case "stockist-questions":
+        return <StockistQuestions />;
       case "sales-orders":
         return (
           <SalesOrders
