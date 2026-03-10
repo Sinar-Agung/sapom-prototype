@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Order Tabs Translations**: Added i18n support for order filtering tabs
+  - Added `orderTabs` section to both en.json and id.json locales
+  - Translations for: All, Incoming, In Review, Production, Rejected, Delivered
+  - Supports future order filtering functionality
+
 - **Sales Question Management System**: Complete question/inquiry management for sales users
   - Created new `sales-questions.tsx` component with two-tab interface
   - **Pending Questions tab**: Shows unanswered questions with create and edit capabilities
@@ -82,6 +87,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+**Request Form Validation**:
+
+- Fixed request form validation logic for Basic vs Model products
+- Corrected `isFormValid` calculation to properly check jenisProduk for Basic products
+- Fixed `isSubmitButtonDisabled` logic to match validation requirements
+- Basic products now correctly require: kategoriBarang, jenisProduk, and namaBasic
+- Model products now correctly require: kategoriBarang and fotoBarang (namaProduk optional)
+
 **Verify Stock Page**:
 
 - Available PCs now correctly load previously saved draft values from localStorage
@@ -104,6 +117,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supplier receives notification when they request order changes (same as JB)
 
 ### Changed
+
+**Navigation**:
+
+- Temporarily disabled "Questions/Inquiry" navigation items for Sales and Stockist roles
+- Navigation items commented out pending feature completion
+- Updated English locale terminology from "Questions" to "Inquiry"
 
 **Profile Icon**:
 

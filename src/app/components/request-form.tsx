@@ -526,10 +526,9 @@ export function RequestForm(props: RequestFormProps) {
     formData.pabrik.id &&
     formData.waktuKirim &&
     formData.kategoriBarang &&
-    formData.jenisProduk &&
     (formData.kategoriBarang === "basic"
-      ? formData.namaBasic // For Basic, namaBasic must be filled (shows auto image)
-      : formData.fotoBarang); // For Model, only fotoBarang is required (namaProduk is optional)
+      ? formData.jenisProduk && formData.namaBasic // For Basic, jenisProduk and namaBasic are required
+      : formData.fotoBarang); // For Model, only pabrik, waktuKirim, kategoriBarang, and fotoBarang are required
 
   // Disable all detail input controls when dialogs are open or when form is not ready
   const isDetailInputDisabled =
@@ -540,9 +539,8 @@ export function RequestForm(props: RequestFormProps) {
     !formData.pabrik.id ||
     !formData.waktuKirim ||
     !formData.kategoriBarang ||
-    !formData.jenisProduk ||
     (formData.kategoriBarang === "basic"
-      ? !formData.namaBasic
+      ? !formData.jenisProduk || !formData.namaBasic
       : !formData.fotoBarang) ||
     detailItems.length === 0;
 

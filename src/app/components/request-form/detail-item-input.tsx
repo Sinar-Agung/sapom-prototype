@@ -168,7 +168,7 @@ export function DetailItemInput({
               />
             </div>
           ) : jenisProduk === "kalung" ? (
-            <div className="w-[140px]">
+            <div className="flex-shrink-0">
               <Label
                 htmlFor="ukuran"
                 className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
@@ -176,43 +176,39 @@ export function DetailItemInput({
                 <Ruler className="h-3 w-3 text-blue-600" />
                 Ukuran
               </Label>
-              <div>
-                <div className="flex items-center gap-1">
-                  <Combobox
-                    value={detailInput.ukuran}
-                    onValueChange={(value) =>
+              <div className="flex items-center gap-1">
+                <Combobox
+                  value={detailInput.ukuran}
+                  onValueChange={(value) =>
+                    onDetailInputChange({
+                      ...detailInput,
+                      ukuran: value,
+                    })
+                  }
+                  options={UKURAN_KALUNG_OPTIONS}
+                  placeholder="Ukuran"
+                  searchPlaceholder="Search size..."
+                  emptyText="Size not found."
+                  allowCustomValue={false}
+                  className="w-[150px]"
+                  disabled={isDisabled}
+                />
+                {detailInput.ukuran === "other" && (
+                  <InputWithCheck
+                    type="number"
+                    step="0.01"
+                    className="h-9 sm:h-8 text-sm w-[100px]"
+                    value={detailInput.ukuranCustom}
+                    onChange={(e) =>
                       onDetailInputChange({
                         ...detailInput,
-                        ukuran: value,
+                        ukuranCustom: e.target.value,
                       })
                     }
-                    options={UKURAN_KALUNG_OPTIONS}
-                    placeholder="Ukuran"
-                    searchPlaceholder="Search size..."
-                    emptyText="Size not found."
-                    allowCustomValue={false}
-                    className="w-full"
+                    placeholder="cm"
                     disabled={isDisabled}
                   />
-                </div>
-                <div className="flex items-center gap-1">
-                  {detailInput.ukuran === "other" && (
-                    <InputWithCheck
-                      type="number"
-                      step="0.01"
-                      className="h-9 sm:h-8 text-sm w-16"
-                      value={detailInput.ukuranCustom}
-                      onChange={(e) =>
-                        onDetailInputChange({
-                          ...detailInput,
-                          ukuranCustom: e.target.value,
-                        })
-                      }
-                      placeholder="cm"
-                      disabled={isDisabled}
-                    />
-                  )}
-                </div>
+                )}
               </div>
             </div>
           ) : jenisProduk === "gelang-kaku" ? (
@@ -241,7 +237,7 @@ export function DetailItemInput({
               />
             </div>
           ) : jenisProduk === "cincin" ? (
-            <div className="w-[100px]">
+            <div className="w-[200px]">
               <Label
                 htmlFor="ukuran"
                 className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
@@ -284,12 +280,16 @@ export function DetailItemInput({
               type="text"
               className="h-9 sm:h-8 text-sm w-full"
               value={detailInput.berat}
-              onChange={(e) =>
-                onDetailInputChange({
-                  ...detailInput,
-                  berat: e.target.value,
-                })
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow numbers, commas, dashes, and spaces (no decimal points)
+                if (value === "" || /^[0-9,\-\s]+$/.test(value)) {
+                  onDetailInputChange({
+                    ...detailInput,
+                    berat: value,
+                  });
+                }
+              }}
               placeholder="2, 4, 7-9"
               disabled={isDisabled}
             />

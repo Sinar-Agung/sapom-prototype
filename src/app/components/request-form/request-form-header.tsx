@@ -101,7 +101,7 @@ export function RequestFormHeader({
       <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-x-4 gap-y-3">
         {/* Pabrik/Supplier */}
         <Label htmlFor="pabrik" className="text-xs md:pt-2">
-          Pabrik/Supplier
+          Pabrik/Supplier <span className="text-red-500">*</span>
         </Label>
         <Combobox
           value={formData.pabrik.id}
@@ -171,7 +171,7 @@ export function RequestFormHeader({
 
         {/* Delivery Time (ETA) */}
         <Label htmlFor="waktuKirim" className="text-xs md:pt-2">
-          Delivery Time (ETA)
+          Delivery Time (ETA) <span className="text-red-500">*</span>
         </Label>
         <DatePicker
           value={formData.waktuKirim}
@@ -189,7 +189,9 @@ export function RequestFormHeader({
         />
 
         {/* Product Category */}
-        <Label className="text-xs md:pt-2">Product Category</Label>
+        <Label className="text-xs md:pt-2">
+          Product Category <span className="text-red-500">*</span>
+        </Label>
         <RadioGroup
           value={formData.kategoriBarang}
           onValueChange={onKategoriBarangChange}
@@ -219,7 +221,10 @@ export function RequestFormHeader({
 
         {/* Product Type */}
         <Label htmlFor="jenisProduk" className="text-xs md:pt-2">
-          Product Type
+          Product Type{formData.kategoriBarang === "basic" ? " " : ""}
+          {formData.kategoriBarang === "basic" && (
+            <span className="text-red-500">*</span>
+          )}
         </Label>
         <Combobox
           value={formData.jenisProduk}
@@ -235,7 +240,7 @@ export function RequestFormHeader({
         {formData.kategoriBarang === "basic" ? (
           <>
             <Label htmlFor="namaBasic" className="text-xs md:pt-2">
-              Basic Name
+              Basic Name <span className="text-red-500">*</span>
             </Label>
             <Combobox
               value={formData.namaBasic}

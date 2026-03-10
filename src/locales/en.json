@@ -49,7 +49,7 @@
     "settings": "Settings",
     "notifications": "Notifications",
     "inbound": "Inbound",
-    "questions": "Questions",
+    "questions": "Inquiry",
     "newRequest": "New Request"
   },
   "settings": {
@@ -190,6 +190,14 @@
     "partiallyDelivered": "Partially Delivered",
     "delivered": "Delivered",
     "cancelled": "Cancelled"
+  },
+  "orderTabs": {
+    "all": "All",
+    "incoming": "Incoming",
+    "inReview": "In Review",
+    "production": "Production",
+    "rejected": "Rejected",
+    "delivered": "Delivered"
   },
   "language": {
     "english": "English",

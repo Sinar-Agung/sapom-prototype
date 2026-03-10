@@ -191,6 +191,14 @@
     "delivered": "Dikirim",
     "cancelled": "Dibatalkan"
   },
+  "orderTabs": {
+    "all": "Semua",
+    "incoming": "Masuk",
+    "inReview": "Dalam Peninjauan",
+    "production": "Produksi",
+    "rejected": "Ditolak",
+    "delivered": "Dikirim"
+  },
   "language": {
     "english": "English",
     "indonesian": "Bahasa Indonesia"
