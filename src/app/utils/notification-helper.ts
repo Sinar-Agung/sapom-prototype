@@ -445,6 +445,31 @@ export const getNotificationsForUser = (
           }
         }
 
+        // Sales-specific filtering for ALL request notifications
+        if (userRole === "sales" && notification.entityType === "request") {
+          // Sales users should only see notifications for their own requests
+          if (notification.originator) {
+            if (notification.originator !== username) {
+              console.log(
+                `Filtering request notification ${notification.id} for sales ${username}:`,
+                {
+                  notificationOriginator: notification.originator,
+                  username: username,
+                  matches: notification.originator === username,
+                },
+              );
+              return false; // Different sales user's request, don't show
+            }
+          } else {
+            // No originator field - this shouldn't happen for request notifications
+            // For safety, don't show request notifications without proper originator
+            console.warn(
+              `Request notification ${notification.id} missing originator field`,
+            );
+            return false;
+          }
+        }
+
         return true;
       }
 

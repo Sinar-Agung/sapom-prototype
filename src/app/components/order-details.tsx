@@ -46,6 +46,7 @@ interface OrderDetailsProps {
   reviewMode?: boolean;
   onApproveRevision?: (orderId: string) => void;
   onCancelOrder?: (orderId: string) => void;
+  onUpdateOrder?: (order: Order) => void;
 }
 
 export function OrderDetails({
@@ -54,6 +55,7 @@ export function OrderDetails({
   reviewMode = false,
   onApproveRevision,
   onCancelOrder,
+  onUpdateOrder,
 }: OrderDetailsProps) {
   const [relatedRequest, setRelatedRequest] = useState<Request | null>(null);
   const [isRequestDetailsOpen, setIsRequestDetailsOpen] = useState(false);
@@ -387,13 +389,17 @@ export function OrderDetails({
               Mark Stock Ready
             </Button>
             <Button
-              onClick={() =>
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "Change Requested",
-                  "You've requested a change for this Order",
-                )
-              }
+              onClick={() => {
+                if (onUpdateOrder) {
+                  onUpdateOrder(currentOrder);
+                } else {
+                  handleUpdateStatusWithToast(
+                    currentOrder.id,
+                    "Change Requested",
+                    "You've requested a change for this Order",
+                  );
+                }
+              }}
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
               Request Change
@@ -437,13 +443,17 @@ export function OrderDetails({
             Mark Stock Ready
           </Button>
           <Button
-            onClick={() =>
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "Change Requested",
-                "You've requested a change for this Order",
-              )
-            }
+            onClick={() => {
+              if (onUpdateOrder) {
+                onUpdateOrder(currentOrder);
+              } else {
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Change Requested",
+                  "You've requested a change for this Order",
+                );
+              }
+            }}
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             Request Change

@@ -25,6 +25,7 @@ import { Register } from "./components/register";
 import { RequestDetails } from "./components/request-details";
 import { RequestForm } from "./components/request-form";
 import { SalesOrders } from "./components/sales-orders";
+import { SalesQuestions } from "./components/sales-questions";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
 import { StockistQuestions } from "./components/stockist-questions";
@@ -124,6 +125,7 @@ export default function App() {
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
   const [cameFromNotifications, setCameFromNotifications] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<any>(null);
 
   // Initialize mock data and user data on first load
   useEffect(() => {
@@ -203,6 +205,21 @@ export default function App() {
     setEditingOrder(order);
     setFormMode("duplicate");
     setCurrentPage("tambah-pesanan");
+  };
+
+  const handleCreateNewQuestion = () => {
+    setEditingQuestion(null);
+    setCurrentPage("pertanyaan-baru");
+  };
+
+  const handleEditQuestion = (question: any) => {
+    setEditingQuestion(question);
+    setCurrentPage("pertanyaan-baru");
+  };
+
+  const handleQuestionSaveComplete = () => {
+    setEditingQuestion(null);
+    setCurrentPage("pertanyaan");
   };
 
   const handleRequestDetails = (order: any, currentTab: string) => {
@@ -745,7 +762,19 @@ export default function App() {
   const renderContent = () => {
     switch (currentPage) {
       case "pertanyaan":
-        return <QuestionForm />;
+        return (
+          <SalesQuestions
+            onCreateNew={handleCreateNewQuestion}
+            onEditQuestion={handleEditQuestion}
+          />
+        );
+      case "pertanyaan-baru":
+        return (
+          <QuestionForm
+            onSaveComplete={handleQuestionSaveComplete}
+            initialQuestion={editingQuestion}
+          />
+        );
       case "tambah-pesanan":
         return (
           <RequestForm
@@ -828,6 +857,7 @@ export default function App() {
         return (
           <SupplierOrders
             onSeeDetail={handleSeeOrderDetail}
+            onUpdateOrder={handleUpdateOrder}
             initialTab={previousOrdersTab}
           />
         );
@@ -910,6 +940,7 @@ export default function App() {
             reviewMode={isReviewMode}
             onApproveRevision={handleApproveRevision}
             onCancelOrder={handleCancelOrderFromReview}
+            onUpdateOrder={handleUpdateOrder}
           />
         );
       default:

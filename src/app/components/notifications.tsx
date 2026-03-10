@@ -34,6 +34,7 @@ import {
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { getUnreadCountForUser } from "@/app/utils/notification-helper";
 
 interface NotificationsProps {
   onNavigateToRequest?: (requestId: string) => void;
@@ -296,6 +297,8 @@ export function Notifications({
       !n.readBy.includes(currentUser) && n.eventType !== "request_expiring",
   ).length;
 
+  const unreadCountHeader = getUnreadCountForUser(currentUser, accountType);
+
   const expiringCount = nonArchivedNotifications.filter(
     (n) => n.eventType === "request_expiring",
   ).length;
@@ -387,15 +390,42 @@ export function Notifications({
     });
   };
 
+  const getThumbnailImage = (notification: Notification): string | null => {
+    try {
+      if (notification.entityType === "request") {
+        const requestsJson = localStorage.getItem("requests");
+        if (requestsJson) {
+          const requests = JSON.parse(requestsJson);
+          const request = requests.find((r: any) => r.id === notification.entityId);
+          if (request?.fotoBarangBase64) {
+            return request.fotoBarangBase64;
+          }
+        }
+      } else if (notification.entityType === "order") {
+        const ordersJson = localStorage.getItem("orders");
+        if (ordersJson) {
+          const orders = JSON.parse(ordersJson);
+          const order = orders.find((o: any) => o.id === notification.entityId);
+          if (order?.fotoBarangBase64) {
+            return order.fotoBarangBase64;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error getting thumbnail image:", error);
+    }
+    return null;
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden space-y-4">
       <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <Bell className={`w-6 h-6 ${isRefreshing ? "animate-pulse" : ""}`} />
           <h1 className="text-xl font-semibold">Notifications</h1>
-          {unreadCount > 0 && (
+          {unreadCountHeader > 0 && (
             <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-              {unreadCount}
+              {unreadCountHeader}
             </span>
           )}
           {isRefreshing && (
@@ -590,6 +620,8 @@ export function Notifications({
                     }
                   }
 
+                  const thumbnailImage = getThumbnailImage(notification);
+
                   return (
                     <Card
                       key={notification.id}
@@ -603,6 +635,15 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
+                        {thumbnailImage && (
+                          <div className="flex-shrink-0">
+                            <img
+                              src={thumbnailImage}
+                              alt="Product"
+                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
+                            />
+                          </div>
+                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>
@@ -777,6 +818,8 @@ export function Notifications({
                     displayMessage = notification.message;
                   }
 
+                  const thumbnailImage = getThumbnailImage(notification);
+
                   return (
                     <Card
                       key={notification.id}
@@ -790,6 +833,15 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
+                        {thumbnailImage && (
+                          <div className="flex-shrink-0">
+                            <img
+                              src={thumbnailImage}
+                              alt="Product"
+                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
+                            />
+                          </div>
+                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>
@@ -948,6 +1000,8 @@ export function Notifications({
                   const isExpired =
                     notification.eventType === "request_expired";
 
+                  const thumbnailImage = getThumbnailImage(notification);
+
                   return (
                     <Card
                       key={notification.id}
@@ -963,6 +1017,15 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
+                        {thumbnailImage && (
+                          <div className="flex-shrink-0">
+                            <img
+                              src={thumbnailImage}
+                              alt="Product"
+                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
+                            />
+                          </div>
+                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>
@@ -1086,7 +1149,6 @@ export function Notifications({
             ) : (
               <div className="space-y-2">
                 {sortedNotifications.map((notification) => {
-                  const isUnread = !notification.readBy.includes(currentUser);
                   const isCurrentUser =
                     notification.triggeredBy === currentUser;
                   const triggeredByName = isCurrentUser
@@ -1094,8 +1156,6 @@ export function Notifications({
                     : getFullNameFromUsername(notification.triggeredBy);
                   const isExpiring =
                     notification.eventType === "request_expiring";
-                  const isExpired =
-                    notification.eventType === "request_expired";
 
                   // Generalize 'You <action>' for all event types
                   let displayMessage = notification.message;
@@ -1166,6 +1226,8 @@ export function Notifications({
                     }
                   }
 
+                  const thumbnailImage = getThumbnailImage(notification);
+
                   return (
                     <Card
                       key={notification.id}
@@ -1173,6 +1235,15 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
+                        {thumbnailImage && (
+                          <div className="flex-shrink-0">
+                            <img
+                              src={thumbnailImage}
+                              alt="Product"
+                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
+                            />
+                          </div>
+                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>

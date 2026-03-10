@@ -20,8 +20,8 @@ interface DetailItemsDisplayProps {
   relocatingIds: Set<string>;
   editingDetailId: string | null;
   onRowClick: (id: string) => void;
-  onEdit: (item: DetailBarangItem) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (item: DetailBarangItem) => void;
+  onDelete?: (id: string) => void;
   onNotesClick: (itemId: string, x: number, y: number) => void;
   rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
   cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
@@ -72,6 +72,8 @@ export function DetailItemsDisplay({
   const maxHeightClass = isInputFormExpanded
     ? "max-h-[300px] sm:max-h-[250px]" // Shorter when form is expanded
     : "max-h-[600px] sm:max-h-[250px]"; // Taller when form is collapsed
+
+  const hasActions = onEdit !== undefined || onDelete !== undefined;
 
   return (
     <div
@@ -184,32 +186,38 @@ export function DetailItemsDisplay({
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(item);
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs flex-1"
-                        disabled={editingDetailId !== null && !isEditing}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(item.id);
-                        }}
-                        variant="destructive"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        disabled={editingDetailId !== null && !isEditing}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
+                    {hasActions && (
+                      <div className="flex gap-2">
+                        {onEdit && (
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(item);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs flex-1"
+                            disabled={editingDetailId !== null && !isEditing}
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        {onDelete && (
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(item.id);
+                            }}
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            disabled={editingDetailId !== null && !isEditing}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -232,14 +240,16 @@ export function DetailItemsDisplay({
               <th className="border p-2 text-left w-[200px] min-w-[200px] max-w-[200px] bg-gray-100">
                 Notes
               </th>
-              <th className="border p-2 text-center bg-gray-100">Aksi</th>
+              {hasActions && (
+                <th className="border p-2 text-center bg-gray-100">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody ref={tbodyRef}>
             {items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={hasActions ? 8 : 7}
                   className="border p-4 text-center text-gray-500"
                 >
                   No data yet. Please add product details.
@@ -315,34 +325,40 @@ export function DetailItemsDisplay({
                         {item.notes || "-"}
                       </div>
                     </td>
-                    <td className="border p-2 text-center">
-                      <div className="flex justify-center gap-1">
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(item);
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          disabled={editingDetailId !== null && !isEditing}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(item.id);
-                          }}
-                          variant="destructive"
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          disabled={editingDetailId !== null && !isEditing}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </td>
+                    {hasActions && (
+                      <td className="border p-2 text-center">
+                        <div className="flex justify-center gap-1">
+                          {onEdit && (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(item);
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              disabled={editingDetailId !== null && !isEditing}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                          {onDelete && (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(item.id);
+                              }}
+                              variant="destructive"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              disabled={editingDetailId !== null && !isEditing}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })

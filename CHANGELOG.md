@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sales Question Management System**: Complete question/inquiry management for sales users
+  - Created new `sales-questions.tsx` component with two-tab interface
+  - **Pending Questions tab**: Shows unanswered questions with create and edit capabilities
+  - **Answered Questions tab**: Displays answered questions with timestamps and responses
+  - Integrated question form (`question-form.tsx`) with edit mode support
+  - Questions stored in localStorage with unique IDs and timestamps
+  - Automatic navigation after create/update operations
+  - Added "Questions" menu item to sales navigation
+
+- **Notification Card Enhancements**: Product thumbnails and role-based filtering
+  - Added product thumbnail images to notification cards (positioned on the left)
+  - Implemented `getThumbnailImage()` helper function supporting:
+    - Basic products: Shows nama basic image from mapping
+    - Model products: Shows uploaded product photo via photoId
+  - Added sales-specific notification filtering: Sales users now only see notifications for requests they created
+  - Filter implemented in `filterNotificationsByRole()` in notification-helper.ts
+
+- **Role-Based Order Update Workflow**: Multi-role approval system for order revisions
+  - **Supplier/JB Update Flow**:
+    - "Request Change" button now navigates to order edit form via `onUpdateOrder` callback
+    - Can edit product images (change/delete), product details, and ETA (waktuKirim)
+    - Submit changes → Status set to "Revised - Internal Review"
+    - Notifications sent to JB and Sales for review
+  - **Sales Review Flow**:
+    - Views order updates in read-only mode
+    - Cannot edit images, details, or ETA (all editing UI hidden)
+    - Can only Approve or Reject changes
+    - Mandatory cancellation reason required when rejecting
+    - Approve → Status set to "Order Revised"
+    - Reject → Status set to "Rejected" with reason stored
+  - **Implementation Details**:
+    - Added `userRole` prop to OrderEditForm for permission control
+    - Added `onUpdateOrder` callback chain: App → SupplierOrders → OrderDetails
+    - Conditional rendering for ETA field (editable Input vs read-only text)
+    - Conditional action buttons based on role (Edit/Submit vs Approve/Reject)
+    - Sales review interface with cancel reason textarea and action buttons
+  - **DetailItemsDisplay Component Updates**:
+    - Made `onEdit` and `onDelete` props optional
+    - Conditionally hides action buttons and "Aksi" column when props undefined
+    - Supports read-only view for sales role (no edit/delete capability on detail items)
+
 - **Request Cards "New" Badge System**: Visual indicators for unseen requests with mark-as-viewed tracking
   - Added animated "New" badge to request cards (matching order cards pattern)
   - Badge appears for requests not yet viewed by current user

@@ -15,6 +15,7 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   CUSTOMER_EXPECTATION_OPTIONS,
   JENIS_PRODUK_OPTIONS,
@@ -67,9 +68,19 @@ interface OrderEditFormProps {
   order: Order;
   onBack: () => void;
   onSave: () => void;
+  userRole?: "sales" | "stockist" | "jb" | "supplier";
 }
 
-export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
+export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }: OrderEditFormProps) {
+  const currentUser =
+    sessionStorage.getItem("username") ||
+    localStorage.getItem("username") ||
+    "";
+  
+  const userRole = propUserRole || (sessionStorage.getItem("userRole") ||
+    localStorage.getItem("userRole") ||
+    "sales") as "sales" | "stockist" | "jb" | "supplier";
+
   const [formData, setFormData] = useState({
     kategoriBarang: order.kategoriBarang,
     jenisProduk: order.jenisProduk,
@@ -78,6 +89,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
     fotoBarang: null as File | null,
     photoId: order.photoId || "",
     currentImageData: order.photoId ? getImage(order.photoId) : "",
+    waktuKirim: order.waktuKirim,
   });
 
   const [detailInput, setDetailInput] = useState({
@@ -111,11 +123,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [showCameraPreview, setShowCameraPreview] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-
-  const currentUser =
-    sessionStorage.getItem("username") ||
-    localStorage.getItem("username") ||
-    "";
+  const [cancelReason, setCancelReason] = useState("");
 
   // Sort detail items whenever they change
   useEffect(() => {
@@ -356,6 +364,12 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
   };
 
   const handleSubmit = () => {
+    // Sales role - should not reach here as they have different buttons
+    if (userRole === "sales") {
+      toast.error("Sales users cannot edit orders directly");
+      return;
+    }
+
     // Validation
     if (!formData.kategoriBarang || !formData.jenisProduk) {
       toast.error("Please fill in all required fields");
@@ -403,7 +417,16 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
       },
     };
 
-    // Update the order
+    // Update the order with new status based on role
+    let newStatus = existingOrder.status;
+    if (userRole === "supplier") {
+      // Supplier updates go to JB and Sales for review
+      newStatus = "Revised - Internal Review";
+    } else if (userRole === "jb") {
+      // JB updates go to Sales for approval
+      newStatus = "Revised - Internal Review";
+    }
+
     const updatedOrder: Order = {
       ...existingOrder,
       kategoriBarang: formData.kategoriBarang,
@@ -412,10 +435,11 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
       namaBasic: formData.namaBasic,
       detailItems: detailItems,
       photoId: formData.photoId,
+      waktuKirim: formData.waktuKirim,
       updatedDate: Date.now(),
       updatedBy: currentUser,
       revisionHistory: [...(existingOrder.revisionHistory || []), revision],
-      status: "Revised - Internal Review", // Change status to Revised - Internal Review after update
+      status: newStatus as any,
     };
 
     orders[orderIndex] = updatedOrder;
@@ -429,6 +453,57 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
     toast.success("Order updated successfully");
     onSave();
   };
+
+  const handleApproveRevision = () => {
+    const ordersString = localStorage.getItem("orders");
+    const orders: Order[] = ordersString ? JSON.parse(ordersString) : [];
+
+    const orderIndex = orders.findIndex((o) => o.id === order.id);
+    if (orderIndex === -1) {
+      toast.error("Order not found");
+      return;
+    }
+
+    orders[orderIndex] = {
+      ...orders[orderIndex],
+      status: "Order Revised",
+      updatedDate: Date.now(),
+      updatedBy: currentUser,
+    };
+
+    localStorage.setItem("orders", JSON.stringify(orders));
+    toast.success("Order revision approved");
+    onSave();
+  };
+
+  const handleCancelOrder = () => {
+    if (!cancelReason.trim()) {
+      toast.error("Please provide a reason for cancellation");
+      return;
+    }
+
+    const ordersString = localStorage.getItem("orders");
+    const orders: Order[] = ordersString ? JSON.parse(ordersString) : [];
+
+    const orderIndex = orders.findIndex((o) => o.id === order.id);
+    if (orderIndex === -1) {
+      toast.error("Order not found");
+      return;
+    }
+
+    orders[orderIndex] = {
+      ...orders[orderIndex],
+      status: "Rejected",
+      updatedDate: Date.now(),
+      updatedBy: currentUser,
+      // Store cancel reason in a notes field or metadata
+    };
+
+    localStorage.setItem("orders", JSON.stringify(orders));
+    toast.success("Order revision rejected: " + cancelReason);
+    onSave();
+  };
+
 
   const pabrikLabel = getLabelFromValue(
     [
@@ -498,9 +573,20 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
               <Label className="text-gray-600 font-bold text-base">
                 Delivery Time (ETA)
               </Label>
-              <p className="font-medium mt-1">
-                {new Date(order.waktuKirim).toLocaleDateString("id-ID")}
-              </p>
+              {userRole === "supplier" || userRole === "jb" ? (
+                <Input
+                  type="date"
+                  value={formData.waktuKirim}
+                  onChange={(e) =>
+                    setFormData({ ...formData, waktuKirim: e.target.value })
+                  }
+                  className="mt-1"
+                />
+              ) : (
+                <p className="font-medium mt-1">
+                  {new Date(formData.waktuKirim).toLocaleDateString("id-ID")}
+                </p>
+              )}
             </div>
           </div>
         </Card>
@@ -556,7 +642,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
             {/* Conditional: Product Photo - Show preview for Basic, show uploader+preview for Model */}
             {formData.kategoriBarang === "basic" && formData.namaBasic ? (
               <>
-                <Label className="text-xs md:pt-2">Product Photo</Label>
+                <Label className="text-gray-600 font-bold text-base">Product Photo</Label>
                 <div className="border rounded-md p-2 bg-gray-50 relative">
                   <img
                     src={
@@ -566,33 +652,35 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
                     alt={formData.namaBasic}
                     className="w-full sm:w-48 h-48 object-cover rounded"
                   />
-                  <div className="absolute top-3 right-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="h-8 px-3 bg-white/90 hover:bg-white shadow-md"
-                        >
-                          <Camera className="w-4 h-4 sm:mr-1" />
-                          <span className="hidden sm:inline">Change Image</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => fileInputGalleryRef.current?.click()}
-                        >
-                          <ImagePlus className="w-4 h-4 mr-2" />
-                          Choose from Gallery
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleTakePhotoClick}>
-                          <Camera className="w-4 h-4 mr-2" />
-                          Take Photo
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  {userRole !== "sales" && (
+                    <div className="absolute top-3 right-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 px-3 bg-white/90 hover:bg-white shadow-md"
+                          >
+                            <Camera className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Change Image</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => fileInputGalleryRef.current?.click()}
+                          >
+                            <ImagePlus className="w-4 h-4 mr-2" />
+                            Choose from Gallery
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleTakePhotoClick}>
+                            <Camera className="w-4 h-4 mr-2" />
+                            Take Photo
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
               </>
             ) : formData.kategoriBarang === "model" ? (
@@ -609,48 +697,50 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
                         alt="Preview"
                         className="w-full sm:w-48 h-48 object-cover rounded border"
                       />
-                      <div className="absolute bottom-2 right-2 flex gap-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="h-8 px-3 bg-white/90 hover:bg-white shadow-md"
-                            >
-                              <Camera className="w-4 h-4 sm:mr-1" />
-                              <span className="hidden sm:inline">
-                                Change Image
-                              </span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                fileInputGalleryRef.current?.click()
-                              }
-                            >
-                              <ImagePlus className="w-4 h-4 mr-2" />
-                              Choose from Gallery
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleTakePhotoClick}>
-                              <Camera className="w-4 h-4 mr-2" />
-                              Take Photo
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="h-8 w-8 p-0 shadow-md"
-                          onClick={handleRemovePhoto}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      {userRole !== "sales" && (
+                        <div className="absolute bottom-2 right-2 flex gap-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-8 px-3 bg-white/90 hover:bg-white shadow-md"
+                              >
+                                <Camera className="w-4 h-4 sm:mr-1" />
+                                <span className="hidden sm:inline">
+                                  Change Image
+                                </span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  fileInputGalleryRef.current?.click()
+                                }
+                              >
+                                <ImagePlus className="w-4 h-4 mr-2" />
+                                Choose from Gallery
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={handleTakePhotoClick}>
+                                <Camera className="w-4 h-4 mr-2" />
+                                Take Photo
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="h-8 w-8 p-0 shadow-md"
+                            onClick={handleRemovePhoto}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  ) : (
+                  ) : userRole !== "sales" ? (
                     <Input
                       id="fotoBarang"
                       type="file"
@@ -659,7 +749,7 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
                       className="h-9 sm:h-8 text-sm"
                       onChange={handlePhotoChange}
                     />
-                  )}
+                  ): null}
                 </div>
               </>
             ) : null}
@@ -689,28 +779,30 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
         <Card className="p-4">
           <h2 className="font-semibold mb-4">Product Details</h2>
 
-          <DetailItemInput
-            kategoriBarang={formData.kategoriBarang}
-            jenisProduk={formData.jenisProduk}
-            detailInput={detailInput}
-            onDetailInputChange={setDetailInput}
-            onAdd={handleAddDetail}
-            editingDetailId={editingDetailId}
-            isDisabled={false}
-            isAddButtonDisabled={false}
-            onCancel={() => {
-              setEditingDetailId(null);
-              setDetailInput({
-                kadar: "",
-                warna: "",
-                ukuran: "",
-                ukuranCustom: "",
-                berat: "",
-                pcs: "",
-                notes: "",
-              });
-            }}
-          />
+          {userRole !== "sales" && (
+            <DetailItemInput
+              kategoriBarang={formData.kategoriBarang}
+              jenisProduk={formData.jenisProduk}
+              detailInput={detailInput}
+              onDetailInputChange={setDetailInput}
+              onAdd={handleAddDetail}
+              editingDetailId={editingDetailId}
+              isDisabled={false}
+              isAddButtonDisabled={false}
+              onCancel={() => {
+                setEditingDetailId(null);
+                setDetailInput({
+                  kadar: "",
+                  warna: "",
+                  ukuran: "",
+                  ukuranCustom: "",
+                  berat: "",
+                  pcs: "",
+                  notes: "",
+                });
+              }}
+            />
+          )}
 
           <div className="mt-4">
             <DetailItemsDisplay
@@ -727,20 +819,59 @@ export function OrderEditForm({ order, onBack, onSave }: OrderEditFormProps) {
               getWarnaColor={getWarnaColor}
               getWarnaLabel={getWarnaLabel}
               getUkuranDisplay={getUkuranDisplay}
-              onEdit={handleEditDetail}
-              onDelete={handleDeleteDetail}
+              onEdit={userRole !== "sales" ? handleEditDetail : undefined}
+              onDelete={userRole !== "sales" ? handleDeleteDetail : undefined}
               newlyAddedIds={newlyAddedIds}
             />
           </div>
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={onBack}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>Submit Changes</Button>
-        </div>
+        {userRole === "sales" ? (
+          <Card className="p-4">
+            <h3 className="font-semibold text-lg mb-4">Review Order Changes</h3>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="cancelReason">
+                  Cancellation Reason {" "}
+                  <span className="text-sm text-gray-500">(Required if rejecting)</span>
+                </Label>
+                <Textarea
+                  id="cancelReason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Please provide a reason if you reject this order revision..."
+                  rows={4}
+                  className="mt-2"
+                />
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="outline" onClick={onBack}>
+                  Back
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelOrder}
+                >
+                  Reject Changes
+                </Button>
+                <Button
+                  onClick={handleApproveRevision}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Approve Changes
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={onBack}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit}>Submit Changes</Button>
+          </div>
+        )}
       </div>
 
       {/* Camera Preview Dialog */}

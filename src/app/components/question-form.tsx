@@ -25,14 +25,40 @@ interface QuestionFormData {
   images: string[]; // Base64 encoded images
 }
 
-export function QuestionForm() {
+interface Question {
+  id: string;
+  createdDate: number;
+  createdBy: string;
+  pabrik: { id: string; name: string };
+  namaBarang: string;
+  kadar: string;
+  warna: string;
+  notes: string;
+  images: string[];
+  status: "pending" | "answered";
+  answer?: {
+    available: boolean;
+    answeredBy: string;
+    answeredDate: number;
+  };
+}
+
+interface QuestionFormProps {
+  onSaveComplete?: () => void;
+  initialQuestion?: Question;
+}
+
+export function QuestionForm({ onSaveComplete, initialQuestion }: QuestionFormProps) {
+  const isEditMode = !!initialQuestion;
+  const isAnswered = initialQuestion?.status === "answered";
+
   const [formData, setFormData] = useState<QuestionFormData>({
-    pabrik: { id: "", name: "" },
-    namaBarang: "",
-    kadar: "",
-    warna: "",
-    notes: "",
-    images: [],
+    pabrik: initialQuestion?.pabrik || { id: "", name: "" },
+    namaBarang: initialQuestion?.namaBarang || "",
+    kadar: initialQuestion?.kadar || "",
+    warna: initialQuestion?.warna || "",
+    notes: initialQuestion?.notes || "",
+    images: initialQuestion?.images || [],
   });
 
   const currentUser =
@@ -100,37 +126,67 @@ export function QuestionForm() {
       return;
     }
 
+    // Don't allow editing answered questions
+    if (isAnswered) {
+      toast.error("Cannot edit an answered question");
+      return;
+    }
+
     // Save question to localStorage
     const savedQuestions = localStorage.getItem("questions");
     const questions = savedQuestions ? JSON.parse(savedQuestions) : [];
 
-    const newQuestion = {
-      id: `question-${Date.now()}`,
-      createdDate: Date.now(),
-      createdBy: currentUser,
-      pabrik: formData.pabrik,
-      namaBarang: formData.namaBarang,
-      kadar: formData.kadar,
-      warna: formData.warna,
-      notes: formData.notes,
-      images: formData.images,
-      status: "pending", // pending, answered
-    };
+    if (isEditMode && initialQuestion) {
+      // Update existing question
+      const questionIndex = questions.findIndex((q: Question) => q.id === initialQuestion.id);
+      if (questionIndex !== -1) {
+        questions[questionIndex] = {
+          ...questions[questionIndex],
+          pabrik: formData.pabrik,
+          namaBarang: formData.namaBarang,
+          kadar: formData.kadar,
+          warna: formData.warna,
+          notes: formData.notes,
+          images: formData.images,
+        };
+        toast.success("Question updated successfully!");
+      }
+    } else {
+      // Create new question
+      const newQuestion = {
+        id: `question-${Date.now()}`,
+        createdDate: Date.now(),
+        createdBy: currentUser,
+        pabrik: formData.pabrik,
+        namaBarang: formData.namaBarang,
+        kadar: formData.kadar,
+        warna: formData.warna,
+        notes: formData.notes,
+        images: formData.images,
+        status: "pending", // pending, answered
+      };
+      questions.push(newQuestion);
+      toast.success("Question submitted successfully!");
+    }
 
-    questions.push(newQuestion);
     localStorage.setItem("questions", JSON.stringify(questions));
 
-    toast.success("Question submitted successfully!");
+    // Reset form if not in edit mode
+    if (!isEditMode) {
+      setFormData({
+        pabrik: { id: "", name: "" },
+        namaBarang: "",
+        kadar: "",
+        warna: "",
+        notes: "",
+        images: [],
+      });
+    }
 
-    // Reset form
-    setFormData({
-      pabrik: { id: "", name: "" },
-      namaBarang: "",
-      kadar: "",
-      warna: "",
-      notes: "",
-      images: [],
-    });
+    // Call callback for navigation
+    if (onSaveComplete) {
+      onSaveComplete();
+    }
   };
 
   const handleClear = () => {
@@ -147,9 +203,20 @@ export function QuestionForm() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 md:pb-6">
       <Card className="p-6">
-        <h2 className="text-2xl font-bold mb-6">Pertanyaan</h2>
+        <h2 className="text-2xl font-bold mb-6">
+          {isEditMode ? "Edit Pertanyaan" : "Pertanyaan Baru"}
+        </h2>
+        {isAnswered && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>Perhatian:</strong> Pertanyaan ini sudah dijawab dan tidak dapat diedit.
+            </p>
+          </div>
+        )}
         <p className="text-gray-600 mb-6">
-          Kirim pertanyaan Anda kepada supplier dengan melampirkan informasi produk, gambar, dan catatan.
+          {isEditMode
+            ? "Edit informasi pertanyaan Anda."
+            : "Kirim pertanyaan Anda kepada supplier dengan melampirkan informasi produk, gambar, dan catatan."}
         </p>
 
         <div className="space-y-6">
@@ -161,6 +228,7 @@ export function QuestionForm() {
             <Select
               value={formData.pabrik.id}
               onValueChange={handlePabrikChange}
+              disabled={isAnswered}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Pilih Pabrik" />
@@ -187,6 +255,7 @@ export function QuestionForm() {
                 setFormData({ ...formData, namaBarang: e.target.value })
               }
               placeholder="Masukkan nama barang"
+              disabled={isAnswered}
             />
           </div>
 
@@ -208,6 +277,7 @@ export function QuestionForm() {
                 emptyMessage="Purity not found."
                 allowCustomValue={false}
                 className="w-full"
+                disabled={isAnswered}
               />
             </div>
 
@@ -227,6 +297,7 @@ export function QuestionForm() {
                 emptyMessage="Color not found."
                 allowCustomValue={false}
                 className="w-full"
+                disabled={isAnswered}
               />
             </div>
           </div>
@@ -242,7 +313,7 @@ export function QuestionForm() {
 
             <div className="space-y-4">
               {/* Upload Button */}
-              {formData.images.length < 5 && (
+              {formData.images.length < 5 && !isAnswered && (
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-10 h-10 mb-2 text-gray-400" />
@@ -273,13 +344,15 @@ export function QuestionForm() {
                         alt={`Upload ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        type="button"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      {!isAnswered && (
+                        <button
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          type="button"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -310,6 +383,7 @@ export function QuestionForm() {
               placeholder="Tulis catatan Anda di sini..."
               rows={6}
               className="resize-none"
+              disabled={isAnswered}
             />
             <p className="text-sm text-gray-500 mt-1">
               {formData.notes.length} characters
@@ -322,27 +396,29 @@ export function QuestionForm() {
               onClick={handleSubmit}
               className="flex-1"
               disabled={
-                !formData.pabrik.id &&
+                isAnswered ||
+                (!formData.pabrik.id &&
                 !formData.namaBarang.trim() &&
                 !formData.kadar &&
                 !formData.warna &&
                 !formData.notes.trim() &&
-                formData.images.length === 0
+                formData.images.length === 0)
               }
             >
-              Kirim Pertanyaan
+              {isEditMode ? "Simpan Perubahan" : "Kirim Pertanyaan"}
             </Button>
             <Button
               onClick={handleClear}
               variant="outline"
               className="flex-1"
               disabled={
-                !formData.pabrik.id &&
+                isAnswered ||
+                (!formData.pabrik.id &&
                 !formData.namaBarang &&
                 !formData.kadar &&
                 !formData.warna &&
                 !formData.notes &&
-                formData.images.length === 0
+                formData.images.length === 0)
               }
             >
               Clear
@@ -354,7 +430,7 @@ export function QuestionForm() {
       {/* Info Card */}
       <Card className="p-4 bg-blue-50 border-blue-200">
         <p className="text-sm text-blue-900">
-          <strong>Catatan:</strong> Semua field bersifat opsional. Isi minimal satu field untuk mengirim pertanyaan. Pertanyaan Anda akan dikirim langsung ke supplier yang dipilih.
+          <strong>Catatan:</strong> Semua field bersifat opsional. Isi minimal satu field untuk {isEditMode ? "mengupdate" : "mengirim"} pertanyaan. {!isEditMode && "Pertanyaan Anda akan dikirim langsung ke supplier yang dipilih."}
         </p>
       </Card>
     </div>

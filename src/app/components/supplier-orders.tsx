@@ -2,6 +2,7 @@ import { Order } from "@/app/types/order";
 import { notifyOrderStatusChanged } from "@/app/utils/notification-helper";
 import { Package } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { OrderCard } from "./order-card";
 import { Card } from "./ui/card";
@@ -9,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface SupplierOrdersProps {
   onSeeDetail?: (order: Order, currentTab?: string) => void;
+  onUpdateOrder?: (order: Order, currentTab?: string) => void;
   initialTab?: string;
 }
 
@@ -25,8 +27,10 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
 
 export function SupplierOrders({
   onSeeDetail,
+  onUpdateOrder,
   initialTab = "all",
 }: SupplierOrdersProps) {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState(() => {
     const saved = sessionStorage.getItem("supplierOrderActiveTab");
@@ -127,7 +131,6 @@ export function SupplierOrders({
 
   // Reload data when tab changes
   useEffect(() => {
-    loadOrders();
   }, [activeTab]);
 
   const loadOrders = () => {
@@ -207,124 +210,115 @@ export function SupplierOrders({
     return true;
   });
 
-  // Calculate filtered counts for each tab based on orderNo filter
+  // Calculate filtered counts for each consolidated tab based on orderNo filter
   const allCount = orderNoFiltered.length;
-  const filteredNewCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "New",
+  
+  // Incoming: New + Viewed
+  const filteredIncomingCount = orderNoFiltered.filter(
+    (order: Order) => order.status === "New" || order.status === "Viewed",
   ).length;
-  const filteredViewedCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Viewed",
+  
+  // In Review: Change Requested + Revised - Internal Review + Order Revised
+  const filteredInReviewCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Change Requested" ||
+      order.status === "Revised - Internal Review" ||
+      order.status === "Order Revised",
   ).length;
-  const filteredChangeRequestedCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Change Requested",
+  
+  // Production: Stock Ready + In Production
+  const filteredProductionCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Stock Ready" ||
+      order.status === "In Production",
   ).length;
-  const filteredRevisedInternalReviewCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Revised - Internal Review",
+  
+  // Rejected: Unable to Fulfill + Cancelled
+  const filteredRejectedCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Unable to Fulfill" ||
+      order.status === "Cancelled",
   ).length;
-  const filteredOrderRevisedCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Order Revised",
-  ).length;
-  const filteredStockReadyCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Stock Ready",
-  ).length;
-  const filteredInProductionCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "In Production",
-  ).length;
-  const filteredUnableCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Unable to Fulfill",
-  ).length;
-  const filteredCancelledCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Cancelled",
-  ).length;
-  const filteredPartiallyDeliveredCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Partially Delivered",
-  ).length;
-  const filteredFullyDeliveredCount = orderNoFiltered.filter(
-    (order: Order) => order.status === "Fully Delivered",
+  
+  // Delivered: Partially Delivered + Fully Delivered
+  const filteredDeliveredCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Partially Delivered" ||
+      order.status === "Fully Delivered",
   ).length;
 
-  // Calculate unseen counts (orders not viewed by current user)
+  // Calculate unseen counts for consolidated tabs (orders not viewed by current user)
   const unseenAllCount = orderNoFiltered.filter(
     (order: Order) => !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenNewCount = orderNoFiltered.filter(
+  
+  // Incoming unseen count
+  const unseenIncomingCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "New" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenViewedCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Viewed" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenChangeRequestedCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Change Requested" &&
+      (order.status === "New" || order.status === "Viewed") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenRevisedInternalReviewCount = orderNoFiltered.filter(
+  
+  // In Review unseen count
+  const unseenInReviewCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Revised - Internal Review" &&
+      (order.status === "Change Requested" ||
+       order.status === "Revised - Internal Review" ||
+       order.status === "Order Revised") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenOrderRevisedCount = orderNoFiltered.filter(
+  
+  // Production unseen count
+  const unseenProductionCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Order Revised" &&
+      (order.status === "Stock Ready" ||
+       order.status === "In Production") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenStockReadyCount = orderNoFiltered.filter(
+  
+  // Rejected unseen count
+  const unseenRejectedCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Stock Ready" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenInProductionCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "In Production" &&
+      (order.status === "Unable to Fulfill" ||
+       order.status === "Cancelled") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenUnableCount = orderNoFiltered.filter(
+  
+  // Delivered unseen count
+  const unseenDeliveredCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Unable to Fulfill" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenCancelledCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Cancelled" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenPartiallyDeliveredCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Partially Delivered" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenFullyDeliveredCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Fully Delivered" &&
+      (order.status === "Partially Delivered" ||
+       order.status === "Fully Delivered") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
 
-  // Filter by active tab
+  // Filter by active tab with consolidated tabs
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
     if (activeTab === "all") {
       return true;
-    } else if (activeTab === "new") {
-      return order.status === "New";
-    } else if (activeTab === "viewed") {
-      return order.status === "Viewed";
-    } else if (activeTab === "change-requested") {
-      return order.status === "Change Requested";
-    } else if (activeTab === "revised-internal-review") {
-      return order.status === "Revised - Internal Review";
-    } else if (activeTab === "order-revised") {
-      return order.status === "Order Revised";
-    } else if (activeTab === "stock-ready") {
-      return order.status === "Stock Ready";
-    } else if (activeTab === "in-production") {
-      return order.status === "In Production";
-    } else if (activeTab === "unable") {
-      return order.status === "Unable to Fulfill";
-    } else if (activeTab === "cancelled") {
-      return order.status === "Cancelled";
-    } else if (activeTab === "partially-delivered") {
-      return order.status === "Partially Delivered";
-    } else if (activeTab === "fully-delivered") {
-      return order.status === "Fully Delivered";
+    } else if (activeTab === "incoming") {
+      return order.status === "New" || order.status === "Viewed";
+    } else if (activeTab === "in-review") {
+      return (
+        order.status === "Change Requested" ||
+        order.status === "Revised - Internal Review" ||
+        order.status === "Order Revised"
+      );
+    } else if (activeTab === "production") {
+      return (
+        order.status === "Stock Ready" ||
+        order.status === "In Production"
+      );
+    } else if (activeTab === "rejected") {
+      return (
+        order.status === "Unable to Fulfill" ||
+        order.status === "Cancelled"
+      );
+    } else if (activeTab === "delivered") {
+      return (
+        order.status === "Partially Delivered" ||
+        order.status === "Fully Delivered"
+      );
     }
     return false;
   });
@@ -426,7 +420,7 @@ export function SupplierOrders({
             }
           >
             <span className="flex items-center gap-1.5">
-              All ({allCount})
+              {t("orderTabs.all")} ({allCount})
               {unseenAllCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
                   {unseenAllCount}
@@ -435,180 +429,82 @@ export function SupplierOrders({
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="new"
+            value="incoming"
             className={
-              activeTab === "new" ? "text-blue-600 border-blue-600" : ""
+              activeTab === "incoming" ? "text-blue-600 border-blue-600" : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              New ({filteredNewCount})
-              {unseenNewCount > 0 && (
+              {t("orderTabs.incoming")} ({filteredIncomingCount})
+              {unseenIncomingCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenNewCount}
+                  {unseenIncomingCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="viewed"
+            value="in-review"
             className={
-              activeTab === "viewed" ? "text-purple-600 border-purple-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Viewed ({filteredViewedCount})
-              {unseenViewedCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenViewedCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="change-requested"
-            className={
-              activeTab === "change-requested"
+              activeTab === "in-review"
                 ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Change Requested ({filteredChangeRequestedCount})
-              {unseenChangeRequestedCount > 0 && (
+              {t("orderTabs.inReview")} ({filteredInReviewCount})
+              {unseenInReviewCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenChangeRequestedCount}
+                  {unseenInReviewCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="revised-internal-review"
+            value="production"
             className={
-              activeTab === "revised-internal-review"
-                ? "text-amber-600 border-amber-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Revised - Internal Review ({filteredRevisedInternalReviewCount})
-              {unseenRevisedInternalReviewCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenRevisedInternalReviewCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="order-revised"
-            className={
-              activeTab === "order-revised"
+              activeTab === "production"
                 ? "text-green-600 border-green-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Order Revised ({filteredOrderRevisedCount})
-              {unseenOrderRevisedCount > 0 && (
+              {t("orderTabs.production")} ({filteredProductionCount})
+              {unseenProductionCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenOrderRevisedCount}
+                  {unseenProductionCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="stock-ready"
+            value="rejected"
             className={
-              activeTab === "stock-ready"
-                ? "text-green-600 border-green-600"
+              activeTab === "rejected" ? "text-red-600 border-red-600" : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              {t("orderTabs.rejected")} ({filteredRejectedCount})
+              {unseenRejectedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenRejectedCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="delivered"
+            className={
+              activeTab === "delivered"
+                ? "text-emerald-600 border-emerald-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Stock Ready ({filteredStockReadyCount})
-              {unseenStockReadyCount > 0 && (
+              {t("orderTabs.delivered")} ({filteredDeliveredCount})
+              {unseenDeliveredCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenStockReadyCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="in-production"
-            className={
-              activeTab === "in-production"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              In Production ({filteredInProductionCount})
-              {unseenInProductionCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenInProductionCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="unable"
-            className={
-              activeTab === "unable" ? "text-red-600 border-red-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Unable to Fulfill ({filteredUnableCount})
-              {unseenUnableCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenUnableCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="cancelled"
-            className={
-              activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Cancelled ({filteredCancelledCount})
-              {unseenCancelledCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenCancelledCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="partially-delivered"
-            className={
-              activeTab === "partially-delivered"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Partially Delivered ({filteredPartiallyDeliveredCount})
-              {unseenPartiallyDeliveredCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenPartiallyDeliveredCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="fully-delivered"
-            className={
-              activeTab === "fully-delivered"
-                ? "text-green-600 border-green-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Fully Delivered ({filteredFullyDeliveredCount})
-              {unseenFullyDeliveredCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenFullyDeliveredCount}
+                  {unseenDeliveredCount}
                 </span>
               )}
             </span>
@@ -623,19 +519,17 @@ export function SupplierOrders({
                 <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-lg font-medium mb-1">No orders found</p>
                 <p className="text-sm">
-                  {activeTab === "new"
-                    ? "You don't have any new orders yet."
-                    : activeTab === "viewed"
-                      ? "No viewed orders."
-                      : activeTab === "in-production"
+                  {activeTab === "incoming"
+                    ? "You don't have any incoming orders yet."
+                    : activeTab === "in-review"
+                      ? "No orders under review."
+                      : activeTab === "production"
                         ? "No orders in production."
-                        : activeTab === "request-change"
-                          ? "No orders requesting changes."
-                          : activeTab === "stock-ready"
-                            ? "No orders marked as stock ready."
-                            : activeTab === "unable"
-                              ? "No orders marked as unable to fulfill."
-                              : "No orders found."}
+                        : activeTab === "rejected"
+                          ? "No rejected or cancelled orders."
+                          : activeTab === "delivered"
+                            ? "No delivered orders."
+                            : "No orders found."}
                 </p>
               </div>
             </Card>
