@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sales Inquiry/Questions Feature**: Complete question management system for sales users
+  - Created new `SalesQuestions` component for sales users to view their questions
+  - Created new `Question` type definition in `src/app/types/question.ts`
+  - Added question form for sales users to submit inquiries to stockists
+  - Implemented question listing with status indicators (pending/answered)
+  - Added visual feedback with badges for question status
+  - Integrated question navigation in main navigation menu
+  - Displays question details including:
+    - Factory (pabrik), product name, kadar, warna
+    - Images uploaded with question
+    - Detail items with specifications
+    - Stockist answers with available quantities
+  - Questions filtered by current user and sorted by latest first
+  - Auto-refresh when window regains focus
+  - Smooth UI with proper loading states and empty states
+  - Mobile-responsive split-view design
+
 - **Request Cards "New" Badge System**: Visual indicators for unseen requests with mark-as-viewed tracking
   - Added animated "New" badge to request cards (matching order cards pattern)
   - Badge appears for requests not yet viewed by current user

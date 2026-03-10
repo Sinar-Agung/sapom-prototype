@@ -25,6 +25,7 @@ import { Register } from "./components/register";
 import { RequestDetails } from "./components/request-details";
 import { RequestForm } from "./components/request-form";
 import { SalesOrders } from "./components/sales-orders";
+import { SalesQuestions } from "./components/sales-questions";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
 import { StockistQuestions } from "./components/stockist-questions";
@@ -744,7 +745,15 @@ export default function App() {
 
   const renderContent = () => {
     switch (currentPage) {
+      case "my-questions":
+        // Sales users see their list of questions
+        return <SalesQuestions />;
+      case "stockist-questions":
+        // Stockist users see questions to answer
+        return <StockistQuestions />;
       case "pertanyaan":
+      case "question-form":
+        // Question form page
         return <QuestionForm />;
       case "tambah-pesanan":
         return (

@@ -5,32 +5,17 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import { Textarea } from "@/app/components/ui/textarea";
+import type { Question, QuestionItem } from "@/app/types/question";
 import { ArrowLeft, CheckCircle2, Image as ImageIcon, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
-interface Question {
-  id: string;
-  createdDate: number;
-  createdBy: string;
-  pabrik: { id: string; name: string };
-  namaBarang: string;
-  kadar: string;
-  warna: string;
-  notes: string;
-  images: string[];
-  status: "pending" | "answered";
-  answer?: {
-    available: boolean;
-    answeredBy: string;
-    answeredDate: number;
-  };
-}
 
 export function StockistQuestions() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "answered">("pending");
+  const [answerNotes, setAnswerNotes] = useState("");
+  const [answerItems, setAnswerItems] = useState<QuestionItem[]>([]);
 
   const currentUser =
     localStorage.getItem("username") ||
@@ -41,6 +26,21 @@ export function StockistQuestions() {
     loadQuestions();
   }, []);
 
+  useEffect(() => {
+    // Initialize answer items when a question is selected
+    if (selectedQuestion && selectedQuestion.items) {
+      setAnswerItems(
+        selectedQuestion.items.map((item) => ({
+          ...item,
+          availablePcs: item.availablePcs || "",
+        }))
+      );
+    } else {
+      setAnswerItems([]);
+    }
+    setAnswerNotes("");
+  }, [selectedQuestion]);
+
   const loadQuestions = () => {
     const savedQuestions = localStorage.getItem("questions");
     if (savedQuestions) {
@@ -49,8 +49,25 @@ export function StockistQuestions() {
     }
   };
 
-  const handleAnswerQuestion = (available: boolean) => {
+  const handleItemAvailableChange = (itemId: string, value: string) => {
+    setAnswerItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, availablePcs: value } : item
+      )
+    );
+  };
+
+  const handleAnswerQuestion = () => {
     if (!selectedQuestion) return;
+
+    // Validate that all items have available pcs if there are items
+    if (answerItems.length > 0) {
+      const hasEmptyPcs = answerItems.some((item) => !item.availablePcs || item.availablePcs.trim() === "");
+      if (hasEmptyPcs) {
+        toast.error("Mohon isi semua jumlah pcs tersedia");
+        return;
+      }
+    }
 
     const updatedQuestions = questions.map((q) =>
       q.id === selectedQuestion.id
@@ -58,9 +75,10 @@ export function StockistQuestions() {
             ...q,
             status: "answered" as const,
             answer: {
-              available,
               answeredBy: currentUser,
               answeredDate: Date.now(),
+              notes: answerNotes,
+              items: answerItems.length > 0 ? answerItems : undefined,
             },
           }
         : q
@@ -69,13 +87,11 @@ export function StockistQuestions() {
     setQuestions(updatedQuestions);
     localStorage.setItem("questions", JSON.stringify(updatedQuestions));
     
-    toast.success(
-      available
-        ? "Pertanyaan dijawab: Barang tersedia"
-        : "Pertanyaan dijawab: Barang tidak tersedia"
-    );
+    toast.success("Pertanyaan berhasil dijawab");
 
     setSelectedQuestion(null);
+    setAnswerNotes("");
+    setAnswerItems([]);
   };
 
   const pendingQuestions = questions.filter((q) => q.status === "pending");
@@ -228,21 +244,76 @@ export function StockistQuestions() {
               </div>
             )}
 
-            {/* Answer Status */}
+            {/* Items Table - if question has items */}
+            {selectedQuestion.items && selectedQuestion.items.length > 0 && (
+              <div>
+                <Label className="mb-2 block text-gray-600">Detail Barang</Label>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Kadar</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Warna</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Ukuran</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Berat</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold">Pcs Diminta</th>
+                        {selectedQuestion.status === "answered" && (
+                          <th className="px-4 py-2 text-left text-xs font-semibold">Pcs Tersedia</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedQuestion.items.map((item, index) => {
+                        const answeredItem = selectedQuestion.answer?.items?.find(
+                          (i) => i.id === item.id
+                        );
+                        return (
+                          <tr key={item.id} className="border-t">
+                            <td className="px-4 py-2 text-sm">
+                              <Badge className={getKadarColor(item.kadar)} variant="secondary">
+                                {item.kadar.toUpperCase()}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2 text-sm">
+                              <Badge className={getWarnaColor(item.warna)} variant="secondary">
+                                {item.warna.toUpperCase()}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2 text-sm">{item.ukuran}</td>
+                            <td className="px-4 py-2 text-sm">{item.berat}g</td>
+                            <td className="px-4 py-2 text-sm">{item.pcs} pcs</td>
+                            {selectedQuestion.status === "answered" && (
+                              <td className="px-4 py-2 text-sm">
+                                <span className={`font-semibold ${
+                                  answeredItem?.availablePcs === "0" ? "text-red-600" : "text-green-600"
+                                }`}>
+                                  {answeredItem?.availablePcs || "0"} pcs
+                                </span>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Answer Status - for answered questions */}
             {selectedQuestion.status === "answered" && selectedQuestion.answer && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start gap-3">
-                  {selectedQuestion.answer.available ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                  )}
+                  <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
                     <p className="font-semibold text-gray-900">
-                      {selectedQuestion.answer.available
-                        ? "Barang Tersedia"
-                        : "Barang Tidak Tersedia"}
+                      Sudah Dijawab
                     </p>
+                    {selectedQuestion.answer.notes && (
+                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                        {selectedQuestion.answer.notes}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-600 mt-1">
                       Dijawab oleh: {selectedQuestion.answer.answeredBy} •{" "}
                       {formatDate(selectedQuestion.answer.answeredDate)}
@@ -252,23 +323,86 @@ export function StockistQuestions() {
               </div>
             )}
 
-            {/* Action Buttons - Only show for pending questions */}
+            {/* Answer Form - Only show for pending questions */}
             {selectedQuestion.status === "pending" && (
-              <div className="flex gap-3 pt-4 border-t">
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-semibold text-lg">Jawaban</h3>
+                
+                {/* Answer Items - if question has items */}
+                {answerItems.length > 0 && (
+                  <div>
+                    <Label className="mb-2 block">Jumlah Pcs Tersedia</Label>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-semibold">Barang</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold">Diminta</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold">Tersedia</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {answerItems.map((item, index) => (
+                            <tr key={item.id} className="border-t">
+                              <td className="px-4 py-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <Badge className={getKadarColor(item.kadar)} variant="secondary">
+                                    {item.kadar.toUpperCase()}
+                                  </Badge>
+                                  <Badge className={getWarnaColor(item.warna)} variant="secondary">
+                                    {item.warna.toUpperCase()}
+                                  </Badge>
+                                  <span className="text-gray-600">
+                                    {item.ukuran} • {item.berat}g
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-sm font-semibold">
+                                {item.pcs} pcs
+                              </td>
+                              <td className="px-4 py-2">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={item.availablePcs}
+                                  onChange={(e) =>
+                                    handleItemAvailableChange(item.id, e.target.value)
+                                  }
+                                  placeholder="0"
+                                  className="w-24"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Answer Notes */}
+                <div>
+                  <Label htmlFor="answer-notes" className="mb-2 block">
+                    Catatan Tambahan (Opsional)
+                  </Label>
+                  <Textarea
+                    id="answer-notes"
+                    value={answerNotes}
+                    onChange={(e) => setAnswerNotes(e.target.value)}
+                    placeholder="Tambahkan catatan tambahan jika diperlukan..."
+                    rows={4}
+                    className="resize-none"
+                  />
+                </div>
+
+                {/* Action Button */}
                 <Button
-                  onClick={() => handleAnswerQuestion(false)}
-                  variant="outline"
-                  className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Tidak Ada
-                </Button>
-                <Button
-                  onClick={() => handleAnswerQuestion(true)}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={handleAnswerQuestion}
+                  className="w-full"
+                  size="lg"
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Ada
+                  Kirim Jawaban
                 </Button>
               </div>
             )}

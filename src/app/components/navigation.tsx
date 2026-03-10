@@ -95,7 +95,7 @@ export function Navigation({
       return [
         { id: "home", label: t("navigation.home"), icon: Home },
         {
-          id: "pertanyaan",
+          id: "my-questions",
           label: t("navigation.questions"),
           icon: HelpCircle,
         },
