@@ -26,6 +26,16 @@ import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { DetailItemsTable } from "./ui/detail-items-table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -55,7 +65,6 @@ export function OrderDetails({
   reviewMode = false,
   onApproveRevision,
   onCancelOrder,
-  onUpdateOrder,
 }: OrderDetailsProps) {
   const [relatedRequest, setRelatedRequest] = useState<Request | null>(null);
   const [isRequestDetailsOpen, setIsRequestDetailsOpen] = useState(false);
@@ -64,6 +73,8 @@ export function OrderDetails({
     new Set(),
   );
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const userRole = (sessionStorage.getItem("userRole") ||
     localStorage.getItem("userRole") ||
     "sales") as "sales" | "stockist" | "jb" | "supplier";
@@ -360,6 +371,66 @@ export function OrderDetails({
         title="Order Items"
       />
 
+      {/* Revision Details Card - Show for all users if there are revisions */}
+      {order.revisionHistory && order.revisionHistory.length > 0 && (
+        <Card className="p-4 mb-4 bg-blue-50 border-blue-200">
+          <h3 className="font-semibold text-lg mb-3 text-blue-900">Revision History</h3>
+          <div className="space-y-3">
+            {order.revisionHistory.map((revision, index) => {
+              const etaChanged = revision.previousValues.waktuKirim !== revision.changes.waktuKirim;
+              const isLatest = index === order.revisionHistory!.length - 1;
+              
+              return (
+                <div 
+                  key={revision.revisionNumber} 
+                  className={`p-3 rounded border ${isLatest ? 'bg-white border-blue-300' : 'bg-gray-50 border-gray-200'}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm">
+                      Revision #{revision.revisionNumber}
+                      {isLatest && <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">Latest</span>}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(revision.timestamp).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-2">
+                    Updated by: <span className="font-medium">{revision.updatedBy}</span>
+                  </p>
+                  
+                  {etaChanged && (
+                    <div className="bg-yellow-50 p-2 rounded border border-yellow-200 mb-2">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">ETA Changed:</p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-red-600 line-through">
+                          {revision.previousValues.waktuKirim 
+                            ? new Date(revision.previousValues.waktuKirim).toLocaleDateString("id-ID")
+                            : "-"}
+                        </span>
+                        <span className="text-gray-500">→</span>
+                        <span className="text-green-600 font-semibold">
+                          {revision.changes.waktuKirim 
+                            ? new Date(revision.changes.waktuKirim).toLocaleDateString("id-ID")
+                            : "-"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {revision.revisionNotes && (
+                    <div className="bg-white p-2 rounded border border-gray-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Notes:</p>
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{revision.revisionNotes}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       {/* Supplier Action Buttons */}
       {userRole === "supplier" &&
         (currentOrder.status === "New" || currentOrder.status === "Viewed") && (
@@ -390,15 +461,11 @@ export function OrderDetails({
             </Button>
             <Button
               onClick={() => {
-                if (onUpdateOrder) {
-                  onUpdateOrder(currentOrder);
-                } else {
-                  handleUpdateStatusWithToast(
-                    currentOrder.id,
-                    "Change Requested",
-                    "You've requested a change for this Order",
-                  );
-                }
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Change Requested",
+                  "You've requested a change for this Order",
+                );
               }}
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
@@ -444,15 +511,11 @@ export function OrderDetails({
           </Button>
           <Button
             onClick={() => {
-              if (onUpdateOrder) {
-                onUpdateOrder(currentOrder);
-              } else {
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "Change Requested",
-                  "You've requested a change for this Order",
-                );
-              }
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "Change Requested",
+                "You've requested a change for this Order",
+              );
             }}
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
@@ -1137,7 +1200,7 @@ export function OrderDetails({
             <div className="flex gap-3 justify-end max-w-7xl mx-auto">
               <Button
                 variant="outline"
-                onClick={() => onCancelOrder(order.id)}
+                onClick={() => setShowCancelDialog(true)}
                 className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
               >
                 Cancel Order
@@ -1152,6 +1215,56 @@ export function OrderDetails({
           </div>
         </div>
       )}
+
+      {/* Cancel Order Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Order</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for cancelling this order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cancel-reason">Reason for Cancellation *</Label>
+            <Textarea
+              id="cancel-reason"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Enter the reason for cancelling this order..."
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCancelDialog(false);
+                setCancelReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!cancelReason.trim()) {
+                  toast.error("Please provide a reason for cancellation");
+                  return;
+                }
+                if (onCancelOrder) {
+                  onCancelOrder(order.id);
+                }
+                setShowCancelDialog(false);
+                setCancelReason("");
+              }}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!cancelReason.trim()}
+            >
+              Cancel Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

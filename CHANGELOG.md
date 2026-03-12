@@ -9,6 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Docker Containerization**: Complete production and development containerization setup
+  - Created multi-stage `Dockerfile` for optimized production build (~25MB final image)
+  - Created `Dockerfile.dev` for development environment with hot reload
+  - Added `docker-compose.yml` with profiles for dev/prod environment separation
+  - Added `nginx.conf` with SPA routing, gzip compression, caching, and security headers
+  - Added `.dockerignore` for build context optimization
+  - Added `.env.example` template for environment configuration
+  - **Helper Scripts**:
+    - `docker.sh`: Linux/Mac helper with 16 commands (build, run, logs, shell, clean, health, status)
+    - `docker.bat`: Windows helper with same functionality
+    - `Makefile`: Automation targets with colored output and help system
+  - **Documentation**:
+    - `README.Docker.md`: Comprehensive guide (320+ lines) covering quick start, commands, troubleshooting, CI/CD
+    - `QUICKSTART.md`: Quick reference guide for getting started in under 5 minutes
+  - **Features**:
+    - Production: nginx:alpine serving optimized build on port 8080
+    - Development: Vite dev server with volume mounts on port 5173
+    - Health checks for production containers
+    - Cross-platform support (Linux/Mac/Windows)
+    - CI/CD ready structure
+
+- **Order Management Consolidated Tabs**: Standardized tab interface across all user roles
+  - Consolidated 13 individual status tabs into 6 logical groups matching supplier view
+  - **Tab Structure** (Sales, JB, Supplier):
+    - **All**: Shows all orders with total count
+    - **Incoming**: Groups "Incoming", "Approved - Pending SO", "Forwarded to Supplier"
+    - **In Review**: Groups "In Review", "Change Requested", "Revised - Internal Review"
+    - **Production**: Groups "Order Revised", "Waktu Kirim Confirmed", "Production in Progress", "Production Completed"
+    - **Rejected**: Shows rejected orders
+    - **Delivered**: Shows delivered orders
+  - Updated filtered count calculations to group related statuses
+  - Simplified filter logic using status arrays for each tab
+  - Applied to: `sales-orders.tsx`, `jb-order.tsx`, `supplier-orders.tsx`
+  - Badge counts reflect unseen orders in each consolidated group
+
+### Changed
+
+- **Supplier Change Request Workflow**: Improved change request handling
+  - **Supplier**: "Request Change" button now changes status to "Change Requested" without opening form
+  - **Supplier**: "Update Order" button appears in order list when status is "Change Requested"
+  - **JB**: "Update Order" button shown based on order status (not tab-based)
+  - Order status change happens immediately without navigation
+  - Updated components: `order-details.tsx`, `supplier-orders.tsx`, `jb-order.tsx`, `order-card.tsx`
+
+- **Sales Review Mode for Revised Orders**: Enhanced approval workflow with mandatory cancel reason
+  - Sales users see approve/cancel buttons for "Revised - Internal Review" status
+  - **Cancel Action** now requires mandatory reason/note via dialog
+    - Added cancel dialog with textarea for reason input
+    - Validation prevents cancel without reason
+    - Reason stored with order when canceled
+  - **Approve Action** processes revision as before
+  - Updated `sales-orders.tsx` to show `onReviewRevision` callback for "Revised - Internal Review"
+  - Updated `order-details.tsx` with Dialog, Label, Textarea components for cancel workflow
+  - Added state management for `showCancelDialog` and `cancelReason`
+
+### Added
+
 - **Order Tabs Translations**: Added i18n support for order filtering tabs
   - Added `orderTabs` section to both en.json and id.json locales
   - Translations for: All, Incoming, In Review, Production, Rejected, Delivered

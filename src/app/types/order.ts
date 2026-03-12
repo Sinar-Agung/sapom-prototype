@@ -56,6 +56,7 @@ export interface OrderRevision {
   revisionNumber: number;
   timestamp: number;
   updatedBy: string;
+  revisionNotes?: string; // Notes from supplier/JB explaining the changes
   changes: {
     kategoriBarang?: string;
     jenisProduk?: string;
@@ -63,6 +64,7 @@ export interface OrderRevision {
     namaBasic?: string;
     detailItems?: DetailBarangItem[];
     photoId?: string;
+    waktuKirim?: string;
   };
   previousValues: {
     kategoriBarang?: string;
@@ -71,6 +73,7 @@ export interface OrderRevision {
     namaBasic?: string;
     detailItems?: DetailBarangItem[];
     photoId?: string;
+    waktuKirim?: string;
   };
 }
 
@@ -134,6 +137,9 @@ export interface Order {
 
   // Revision history
   revisionHistory?: OrderRevision[];
+  
+  // Revision notes from supplier/JB (latest revision)
+  revisionNotes?: string;
 }
 
 /**

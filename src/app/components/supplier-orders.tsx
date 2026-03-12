@@ -549,6 +549,11 @@ export function SupplierOrders({
                       }
                       onSeeDetail?.(order, activeTab);
                     }}
+                    onUpdateOrder={
+                      order.status === "Change Requested"
+                        ? (order) => onUpdateOrder?.(order, activeTab)
+                        : undefined
+                    }
                     currentUser={currentUser}
                     userRole="supplier"
                   />

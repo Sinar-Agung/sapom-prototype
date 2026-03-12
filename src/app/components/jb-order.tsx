@@ -120,41 +120,22 @@ export function JBOrder({
 
   // Calculate filtered counts for each tab based on orderNo filter
   const allCount = orderNoFiltered.length;
-  const newCount = orderNoFiltered.filter(
-    (order) => order.status === "New",
+  
+  // Consolidated tab counts
+  const filteredIncomingCount = orderNoFiltered.filter(
+    (order) => ["New", "Viewed"].includes(order.status),
   ).length;
-  const viewedCount = orderNoFiltered.filter(
-    (order) => order.status === "Viewed",
+  const filteredInReviewCount = orderNoFiltered.filter(
+    (order) => ["Change Requested", "Revised - Internal Review", "Order Revised"].includes(order.status),
   ).length;
-  const changeRequestedCount = orderNoFiltered.filter(
-    (order) => order.status === "Change Requested",
+  const filteredProductionCount = orderNoFiltered.filter(
+    (order) => ["Stock Ready", "In Production", "Partially Delivered"].includes(order.status),
   ).length;
-  const revisedInternalReviewCount = orderNoFiltered.filter(
-    (order) => order.status === "Revised - Internal Review",
+  const filteredRejectedCount = orderNoFiltered.filter(
+    (order) => ["Unable to Fulfill", "Cancelled", "Rejected"].includes(order.status),
   ).length;
-  const orderRevisedCount = orderNoFiltered.filter(
-    (order) => order.status === "Order Revised",
-  ).length;
-  const stockReadyCount = orderNoFiltered.filter(
-    (order) => order.status === "Stock Ready",
-  ).length;
-  const inProductionCount = orderNoFiltered.filter(
-    (order) => order.status === "In Production",
-  ).length;
-  const unableCount = orderNoFiltered.filter(
-    (order) => order.status === "Unable to Fulfill",
-  ).length;
-  const cancelledCount = orderNoFiltered.filter(
-    (order) => order.status === "Cancelled",
-  ).length;
-  const confirmedByJBCount = orderNoFiltered.filter(
-    (order) => order.status === "Confirmed by JB",
-  ).length;
-  const partiallyDeliveredCount = orderNoFiltered.filter(
-    (order) => order.status === "Partially Delivered",
-  ).length;
-  const fullyDeliveredCount = orderNoFiltered.filter(
-    (order) => order.status === "Fully Delivered",
+  const filteredDeliveredCount = orderNoFiltered.filter(
+    (order) => ["Fully Delivered", "Completed", "Confirmed by JB"].includes(order.status),
   ).length;
 
   // Get current user
@@ -167,60 +148,31 @@ export function JBOrder({
   const unseenAllCount = orderNoFiltered.filter(
     (order: Order) => !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenNewCount = orderNoFiltered.filter(
+  
+  // Consolidated unseen counts
+  const unseenIncomingCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "New" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenViewedCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Viewed" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenChangeRequestedCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Change Requested" &&
+      ["New", "Viewed"].includes(order.status) &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenRevisedInternalReviewCount = orderNoFiltered.filter(
+  const unseenInReviewCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Revised - Internal Review" &&
+      ["Change Requested", "Revised - Internal Review", "Order Revised"].includes(order.status) &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenOrderRevisedCount = orderNoFiltered.filter(
+  const unseenProductionCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Order Revised" &&
+      ["Stock Ready", "In Production", "Partially Delivered"].includes(order.status) &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenStockReadyCount = orderNoFiltered.filter(
+  const unseenRejectedCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Stock Ready" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenInProductionCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "In Production" &&
+      ["Unable to Fulfill", "Cancelled", "Rejected"].includes(order.status) &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenUnableCount = orderNoFiltered.filter(
+  const unseenDeliveredCount = orderNoFiltered.filter(
     (order: Order) =>
-      order.status === "Unable to Fulfill" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenCancelledCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Cancelled" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenConfirmedByJBCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Confirmed by JB" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenPartiallyDeliveredCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Partially Delivered" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenFullyDeliveredCount = orderNoFiltered.filter(
-    (order: Order) =>
-      order.status === "Fully Delivered" &&
+      ["Fully Delivered", "Completed", "Confirmed by JB"].includes(order.status) &&
       !order.viewedBy?.includes(currentUser),
   ).length;
 
@@ -228,30 +180,16 @@ export function JBOrder({
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
     if (activeTab === "all") {
       return true;
-    } else if (activeTab === "new") {
-      return order.status === "New";
-    } else if (activeTab === "viewed") {
-      return order.status === "Viewed";
-    } else if (activeTab === "change-requested") {
-      return order.status === "Change Requested";
-    } else if (activeTab === "revised-internal-review") {
-      return order.status === "Revised - Internal Review";
-    } else if (activeTab === "order-revised") {
-      return order.status === "Order Revised";
-    } else if (activeTab === "stock-ready") {
-      return order.status === "Stock Ready";
-    } else if (activeTab === "in-production") {
-      return order.status === "In Production";
-    } else if (activeTab === "unable") {
-      return order.status === "Unable to Fulfill";
-    } else if (activeTab === "cancelled") {
-      return order.status === "Cancelled";
-    } else if (activeTab === "confirmed") {
-      return order.status === "Confirmed by JB";
-    } else if (activeTab === "partially-delivered") {
-      return order.status === "Partially Delivered";
-    } else if (activeTab === "fully-delivered") {
-      return order.status === "Fully Delivered";
+    } else if (activeTab === "incoming") {
+      return ["New", "Viewed"].includes(order.status);
+    } else if (activeTab === "in-review") {
+      return ["Change Requested", "Revised - Internal Review", "Order Revised"].includes(order.status);
+    } else if (activeTab === "production") {
+      return ["Stock Ready", "In Production", "Partially Delivered"].includes(order.status);
+    } else if (activeTab === "rejected") {
+      return ["Unable to Fulfill", "Cancelled", "Rejected"].includes(order.status);
+    } else if (activeTab === "delivered") {
+      return ["Fully Delivered", "Completed", "Confirmed by JB"].includes(order.status);
     }
     return false;
   });
@@ -335,180 +273,82 @@ export function JBOrder({
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="new"
+            value="incoming"
             className={
-              activeTab === "new" ? "text-blue-600 border-blue-600" : ""
+              activeTab === "incoming" ? "text-blue-600 border-blue-600" : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              New ({newCount})
-              {unseenNewCount > 0 && (
+              Incoming ({filteredIncomingCount})
+              {unseenIncomingCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenNewCount}
+                  {unseenIncomingCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="viewed"
+            value="in-review"
             className={
-              activeTab === "viewed" ? "text-purple-600 border-purple-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Viewed ({viewedCount})
-              {unseenViewedCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenViewedCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="change-requested"
-            className={
-              activeTab === "change-requested"
+              activeTab === "in-review"
                 ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Change Requested ({changeRequestedCount})
-              {unseenChangeRequestedCount > 0 && (
+              In Review ({filteredInReviewCount})
+              {unseenInReviewCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenChangeRequestedCount}
+                  {unseenInReviewCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="revised-internal-review"
+            value="production"
             className={
-              activeTab === "revised-internal-review"
-                ? "text-amber-600 border-amber-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Revised - Internal Review ({revisedInternalReviewCount})
-              {unseenRevisedInternalReviewCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenRevisedInternalReviewCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="order-revised"
-            className={
-              activeTab === "order-revised"
+              activeTab === "production"
                 ? "text-green-600 border-green-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Order Revised ({orderRevisedCount})
-              {unseenOrderRevisedCount > 0 && (
+              Production ({filteredProductionCount})
+              {unseenProductionCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenOrderRevisedCount}
+                  {unseenProductionCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="stock-ready"
+            value="rejected"
             className={
-              activeTab === "stock-ready"
-                ? "text-green-600 border-green-600"
+              activeTab === "rejected" ? "text-red-600 border-red-600" : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              Rejected ({filteredRejectedCount})
+              {unseenRejectedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenRejectedCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="delivered"
+            className={
+              activeTab === "delivered"
+                ? "text-emerald-600 border-emerald-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Stock Ready ({stockReadyCount})
-              {unseenStockReadyCount > 0 && (
+              Delivered ({filteredDeliveredCount})
+              {unseenDeliveredCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenStockReadyCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="in-production"
-            className={
-              activeTab === "in-production"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              In Production ({inProductionCount})
-              {unseenInProductionCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenInProductionCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="unable"
-            className={
-              activeTab === "unable" ? "text-red-600 border-red-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Unable to Fulfill ({unableCount})
-              {unseenUnableCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenUnableCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="cancelled"
-            className={
-              activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Cancelled ({cancelledCount})
-              {unseenCancelledCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenCancelledCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="partially-delivered"
-            className={
-              activeTab === "partially-delivered"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Partially Delivered ({partiallyDeliveredCount})
-              {unseenPartiallyDeliveredCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenPartiallyDeliveredCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="fully-delivered"
-            className={
-              activeTab === "fully-delivered"
-                ? "text-green-600 border-green-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Fully Delivered ({fullyDeliveredCount})
-              {unseenFullyDeliveredCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenFullyDeliveredCount}
+                  {unseenDeliveredCount}
                 </span>
               )}
             </span>
@@ -551,7 +391,7 @@ export function JBOrder({
                   onToggleExpand={() => toggleExpand(order.id)}
                   onSeeDetail={(order) => onSeeDetail?.(order, activeTab)}
                   onUpdateOrder={
-                    activeTab === "change-requested"
+                    order.status === "Change Requested"
                       ? (order) => onUpdateOrder?.(order, activeTab)
                       : undefined
                   }

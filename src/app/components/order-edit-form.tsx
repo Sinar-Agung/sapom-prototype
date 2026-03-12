@@ -1,5 +1,6 @@
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
+import { DatePicker } from "@/app/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -89,7 +90,8 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
     fotoBarang: null as File | null,
     photoId: order.photoId || "",
     currentImageData: order.photoId ? getImage(order.photoId) : "",
-    waktuKirim: order.waktuKirim,
+    waktuKirim: order.waktuKirim ? new Date(order.waktuKirim) : undefined,
+    revisionNotes: order.revisionNotes || "",
   });
 
   const [detailInput, setDetailInput] = useState({
@@ -399,6 +401,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
       revisionNumber: (existingOrder.revisionHistory?.length || 0) + 1,
       timestamp: Date.now(),
       updatedBy: currentUser,
+      revisionNotes: formData.revisionNotes,
       changes: {
         kategoriBarang: formData.kategoriBarang,
         jenisProduk: formData.jenisProduk,
@@ -406,6 +409,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
         namaBasic: formData.namaBasic,
         detailItems: detailItems,
         photoId: formData.photoId,
+        waktuKirim: formData.waktuKirim?.toISOString() || order.waktuKirim,
       },
       previousValues: {
         kategoriBarang: existingOrder.kategoriBarang,
@@ -414,6 +418,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
         namaBasic: existingOrder.namaBasic,
         detailItems: existingOrder.detailItems,
         photoId: existingOrder.photoId,
+        waktuKirim: existingOrder.waktuKirim,
       },
     };
 
@@ -435,7 +440,8 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
       namaBasic: formData.namaBasic,
       detailItems: detailItems,
       photoId: formData.photoId,
-      waktuKirim: formData.waktuKirim,
+      waktuKirim: formData.waktuKirim?.toISOString() || order.waktuKirim,
+      revisionNotes: formData.revisionNotes,
       updatedDate: Date.now(),
       updatedBy: currentUser,
       revisionHistory: [...(existingOrder.revisionHistory || []), revision],
@@ -574,20 +580,42 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
                 Delivery Time (ETA)
               </Label>
               {userRole === "supplier" || userRole === "jb" ? (
-                <Input
-                  type="date"
+                <DatePicker
                   value={formData.waktuKirim}
-                  onChange={(e) =>
-                    setFormData({ ...formData, waktuKirim: e.target.value })
+                  onValueChange={(date) =>
+                    setFormData({ ...formData, waktuKirim: date })
                   }
-                  className="mt-1"
+                  placeholder="Select ETA date..."
+                  className="w-full mt-1"
+                  minDate={(() => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return today;
+                  })()}
                 />
               ) : (
                 <p className="font-medium mt-1">
-                  {new Date(formData.waktuKirim).toLocaleDateString("id-ID")}
+                  {formData.waktuKirim ? formData.waktuKirim.toLocaleDateString("id-ID") : "-"}
                 </p>
               )}
             </div>
+            {(userRole === "supplier" || userRole === "jb") && (
+              <div className="md:col-span-2">
+                <Label htmlFor="revisionNotes" className="text-gray-600 font-bold text-base">
+                  Revision Notes <span className="text-sm text-gray-500">(Optional - visible to JB and Sales)</span>
+                </Label>
+                <Textarea
+                  id="revisionNotes"
+                  value={formData.revisionNotes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, revisionNotes: e.target.value })
+                  }
+                  placeholder="Add any notes about changes made to this order..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+            )}
           </div>
         </Card>
 
@@ -825,6 +853,56 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
             />
           </div>
         </Card>
+
+        {/* Revision Summary for Sales */}
+        {userRole === "sales" && order.revisionHistory && order.revisionHistory.length > 0 && (
+          <Card className="p-4 bg-blue-50 border-blue-200">
+            <h3 className="font-semibold text-lg mb-3 text-blue-900">Revision Details</h3>
+            <div className="space-y-3 text-sm">
+              {(() => {
+                const latestRevision = order.revisionHistory[order.revisionHistory.length - 1];
+                const etaChanged = latestRevision.previousValues.waktuKirim !== latestRevision.changes.waktuKirim;
+                
+                return (
+                  <>
+                    {etaChanged && (
+                      <div className="bg-white p-3 rounded border border-blue-200">
+                        <p className="font-semibold text-gray-700 mb-1">ETA Changed:</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-red-600 line-through">
+                            {latestRevision.previousValues.waktuKirim 
+                              ? new Date(latestRevision.previousValues.waktuKirim).toLocaleDateString("id-ID")
+                              : "-"}
+                          </span>
+                          <span className="text-gray-500">→</span>
+                          <span className="text-green-600 font-semibold">
+                            {latestRevision.changes.waktuKirim 
+                              ? new Date(latestRevision.changes.waktuKirim).toLocaleDateString("id-ID")
+                              : "-"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {latestRevision.revisionNotes && (
+                      <div className="bg-white p-3 rounded border border-blue-200">
+                        <p className="font-semibold text-gray-700 mb-1">Notes from {latestRevision.updatedBy}:</p>
+                        <p className="text-gray-600 whitespace-pre-wrap">{latestRevision.revisionNotes}</p>
+                      </div>
+                    )}
+                    
+                    <div className="bg-white p-3 rounded border border-blue-200">
+                      <p className="text-gray-600">
+                        <span className="font-semibold">Last updated:</span>{" "}
+                        {new Date(latestRevision.timestamp).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </Card>
+        )}
 
         {/* Action Buttons */}
         {userRole === "sales" ? (

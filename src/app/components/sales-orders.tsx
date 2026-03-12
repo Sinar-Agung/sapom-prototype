@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Package, X } from "lucide-react";
+import { Package } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Order } from "../types/order";
@@ -37,7 +37,6 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
 
 export function SalesOrders({
   onSeeDetail,
-  onUpdateOrder,
   onReviewRevision,
   initialTab = "all",
 }: SalesOrdersProps) {
@@ -121,142 +120,125 @@ export function SalesOrders({
     return true;
   });
 
-  // Calculate filtered counts for each tab based on orderNo filter
+  // Calculate filtered counts for consolidated tabs based on orderNo filter
   const allCount = orderNoFiltered.length;
-  const newCount = orderNoFiltered.filter(
-    (order) => order.status === "New",
+  
+  // Incoming: New + Viewed
+  const filteredIncomingCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "New" || order.status === "Viewed",
   ).length;
-  const viewedCount = orderNoFiltered.filter(
-    (order) => order.status === "Viewed",
+  
+  // In Review: Change Requested + Revised - Internal Review + Order Revised
+  const filteredInReviewCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Change Requested" ||
+      order.status === "Revised - Internal Review" ||
+      order.status === "Order Revised",
   ).length;
-  const changeRequestedCount = orderNoFiltered.filter(
-    (order) => order.status === "Change Requested",
+  
+  // Production: In Production + Stock Ready + Partially Delivered
+  const filteredProductionCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Stock Ready" ||
+      order.status === "In Production" ||
+      order.status === "Partially Delivered",
   ).length;
-  const revisedInternalReviewCount = orderNoFiltered.filter(
-    (order) => order.status === "Revised - Internal Review",
+  
+  // Rejected: Unable to Fulfill + Cancelled + Rejected
+  const filteredRejectedCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Unable to Fulfill" ||
+      order.status === "Rejected" ||
+      order.status === "Cancelled",
   ).length;
-  const orderRevisedCount = orderNoFiltered.filter(
-    (order) => order.status === "Order Revised",
-  ).length;
-  const stockReadyCount = orderNoFiltered.filter(
-    (order) => order.status === "Stock Ready",
-  ).length;
-  const inProductionCount = orderNoFiltered.filter(
-    (order) => order.status === "In Production",
-  ).length;
-  const unableFulfillCount = orderNoFiltered.filter(
-    (order) => order.status === "Unable to Fulfill",
-  ).length;
-  const cancelledCount = orderNoFiltered.filter(
-    (order) => order.status === "Cancelled",
-  ).length;
-  const rejectedCount = orderNoFiltered.filter(
-    (order) => order.status === "Rejected",
-  ).length;
-  const confirmedByJBCount = orderNoFiltered.filter(
-    (order) => order.status === "Confirmed by JB",
-  ).length;
-  const partiallyDeliveredCount = orderNoFiltered.filter(
-    (order) => order.status === "Partially Delivered",
-  ).length;
-  const fullyDeliveredCount = orderNoFiltered.filter(
-    (order) => order.status === "Fully Delivered",
+  
+  // Delivered: Fully Delivered + Completed + Confirmed by JB
+  const filteredDeliveredCount = orderNoFiltered.filter(
+    (order: Order) => 
+      order.status === "Fully Delivered" ||
+      order.status === "Completed" ||
+      order.status === "Confirmed by JB",
   ).length;
 
-  // Calculate unseen counts (orders not viewed by current user)
+  // Calculate unseen counts for consolidated tabs (orders not viewed by current user)
   const unseenAllCount = orderNoFiltered.filter(
     (order) => !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenNewCount = orderNoFiltered.filter(
-    (order) => order.status === "New" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenViewedCount = orderNoFiltered.filter(
+  
+  // Incoming unseen count (New + Viewed)
+  const unseenIncomingCount = orderNoFiltered.filter(
     (order) =>
-      order.status === "Viewed" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenChangeRequestedCount = orderNoFiltered.filter(
-    (order) =>
-      order.status === "Change Requested" &&
+      (order.status === "New" || order.status === "Viewed") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenRevisedInternalReviewCount = orderNoFiltered.filter(
+  
+  // In Review unseen count (Change Requested + Revised - Internal Review + Order Revised)
+  const unseenInReviewCount = orderNoFiltered.filter(
     (order) =>
-      order.status === "Revised - Internal Review" &&
+      (order.status === "Change Requested" ||
+       order.status === "Revised - Internal Review" ||
+       order.status === "Order Revised") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenOrderRevisedCount = orderNoFiltered.filter(
+  
+  // Production unseen count (In Production + Stock Ready + Partially Delivered)
+  const unseenProductionCount = orderNoFiltered.filter(
     (order) =>
-      order.status === "Order Revised" &&
+      (order.status === "Stock Ready" ||
+       order.status === "In Production" ||
+       order.status === "Partially Delivered") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenStockReadyCount = orderNoFiltered.filter(
-    (order) =>
-      order.status === "Stock Ready" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenInProductionCount = orderNoFiltered.filter(
-    (order) =>
-      order.status === "In Production" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenUnableFulfillCount = orderNoFiltered.filter(
-    (order) =>
-      order.status === "Unable to Fulfill" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenCancelledCount = orderNoFiltered.filter(
-    (order) =>
-      order.status === "Cancelled" && !order.viewedBy?.includes(currentUser),
-  ).length;
+  
+  // Rejected unseen count (Unable to Fulfill + Cancelled + Rejected)
   const unseenRejectedCount = orderNoFiltered.filter(
     (order) =>
-      order.status === "Rejected" && !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenConfirmedByJBCount = orderNoFiltered.filter(
-    (order) =>
-      order.status === "Confirmed by JB" &&
+      (order.status === "Unable to Fulfill" ||
+       order.status === "Cancelled" ||
+       order.status === "Rejected") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
-  const unseenPartiallyDeliveredCount = orderNoFiltered.filter(
+  
+  // Delivered unseen count (Fully Delivered + Completed + Confirmed by JB)
+  const unseenDeliveredCount = orderNoFiltered.filter(
     (order) =>
-      order.status === "Partially Delivered" &&
-      !order.viewedBy?.includes(currentUser),
-  ).length;
-  const unseenFullyDeliveredCount = orderNoFiltered.filter(
-    (order) =>
-      order.status === "Fully Delivered" &&
+      (order.status === "Fully Delivered" ||
+       order.status === "Completed" ||
+       order.status === "Confirmed by JB") &&
       !order.viewedBy?.includes(currentUser),
   ).length;
 
-  // Filter orders based on active tab from orderNoFiltered
+  // Filter orders based on active tab with consolidated tabs
   let filteredOrders = orderNoFiltered.filter((order: Order) => {
     if (activeTab === "all") {
       return true;
-    } else if (activeTab === "new") {
-      return order.status === "New";
-    } else if (activeTab === "viewed") {
-      return order.status === "Viewed";
-    } else if (activeTab === "change-requested") {
-      return order.status === "Change Requested";
-    } else if (activeTab === "revised-internal-review") {
-      return order.status === "Revised - Internal Review";
-    } else if (activeTab === "order-revised") {
-      return order.status === "Order Revised";
-    } else if (activeTab === "stock-ready") {
-      return order.status === "Stock Ready";
-    } else if (activeTab === "in-production") {
-      return order.status === "In Production";
-    } else if (activeTab === "unable-fulfill") {
-      return order.status === "Unable to Fulfill";
-    } else if (activeTab === "cancelled") {
-      return order.status === "Cancelled";
+    } else if (activeTab === "incoming") {
+      return order.status === "New" || order.status === "Viewed";
+    } else if (activeTab === "in-review") {
+      return (
+        order.status === "Change Requested" ||
+        order.status === "Revised - Internal Review" ||
+        order.status === "Order Revised"
+      );
+    } else if (activeTab === "production") {
+      return (
+        order.status === "Stock Ready" ||
+        order.status === "In Production" ||
+        order.status === "Partially Delivered"
+      );
     } else if (activeTab === "rejected") {
-      return order.status === "Rejected";
-    } else if (activeTab === "confirmed") {
-      return order.status === "Confirmed by JB";
-    } else if (activeTab === "partially-delivered") {
-      return order.status === "Partially Delivered";
-    } else if (activeTab === "fully-delivered") {
-      return order.status === "Fully Delivered";
+      return (
+        order.status === "Rejected" ||
+        order.status === "Unable to Fulfill" ||
+        order.status === "Cancelled"
+      );
+    } else if (activeTab === "delivered") {
+      return (
+        order.status === "Fully Delivered" ||
+        order.status === "Completed" ||
+        order.status === "Confirmed by JB"
+      );
     }
     return true;
   });
@@ -299,20 +281,6 @@ export function SalesOrders({
     return sortDirection === "desc" ? comparison : -comparison;
   });
 
-  const handleConfirmClick = (order: Order) => {
-    setSelectedOrder(order);
-    setActionType("confirm");
-    setActionReason("");
-    setShowActionDialog(true);
-  };
-
-  const handleRejectClick = (order: Order) => {
-    setSelectedOrder(order);
-    setActionType("reject");
-    setActionReason("");
-    setShowActionDialog(true);
-  };
-
   const handleActionSubmit = () => {
     if (!selectedOrder || !actionType) return;
 
@@ -334,7 +302,6 @@ export function SalesOrders({
           ...allOrders[orderIndex],
           status: newStatus,
           updatedDate: Date.now(),
-          rejectionReason: actionType === "reject" ? actionReason : undefined,
         };
 
         localStorage.setItem("orders", JSON.stringify(allOrders));
@@ -396,190 +363,90 @@ export function SalesOrders({
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="new"
+            value="incoming"
             className={
-              activeTab === "new" ? "text-blue-600 border-blue-600" : ""
+              activeTab === "incoming" ? "text-blue-600 border-blue-600" : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              New ({newCount})
-              {unseenNewCount > 0 && (
+              Incoming ({filteredIncomingCount})
+              {unseenIncomingCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenNewCount}
+                  {unseenIncomingCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="viewed"
+            value="in-review"
             className={
-              activeTab === "viewed" ? "text-purple-600 border-purple-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Viewed ({viewedCount})
-              {unseenViewedCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenViewedCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="change-requested"
-            className={
-              activeTab === "change-requested"
+              activeTab === "in-review"
                 ? "text-orange-600 border-orange-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Change Requested ({changeRequestedCount})
-              {unseenChangeRequestedCount > 0 && (
+              In Review ({filteredInReviewCount})
+              {unseenInReviewCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenChangeRequestedCount}
+                  {unseenInReviewCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="revised-internal-review"
+            value="production"
             className={
-              activeTab === "revised-internal-review"
-                ? "text-amber-600 border-amber-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Revised - Internal Review ({revisedInternalReviewCount})
-              {unseenRevisedInternalReviewCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenRevisedInternalReviewCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="order-revised"
-            className={
-              activeTab === "order-revised"
+              activeTab === "production"
                 ? "text-green-600 border-green-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Order Revised ({orderRevisedCount})
-              {unseenOrderRevisedCount > 0 && (
+              Production ({filteredProductionCount})
+              {unseenProductionCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenOrderRevisedCount}
+                  {unseenProductionCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="stock-ready"
+            value="rejected"
             className={
-              activeTab === "stock-ready"
-                ? "text-green-600 border-green-600"
+              activeTab === "rejected" ? "text-red-600 border-red-600" : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              Rejected ({filteredRejectedCount})
+              {unseenRejectedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenRejectedCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="delivered"
+            className={
+              activeTab === "delivered"
+                ? "text-emerald-600 border-emerald-600"
                 : ""
             }
           >
             <span className="flex items-center gap-1.5">
-              Stock Ready ({stockReadyCount})
-              {unseenStockReadyCount > 0 && (
+              Delivered ({filteredDeliveredCount})
+              {unseenDeliveredCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenStockReadyCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="in-production"
-            className={
-              activeTab === "in-production"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              In Production ({inProductionCount})
-              {unseenInProductionCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenInProductionCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="unable-fulfill"
-            className={
-              activeTab === "unable-fulfill"
-                ? "text-red-600 border-red-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Unable to Fulfill ({unableFulfillCount})
-              {unseenUnableFulfillCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenUnableFulfillCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="cancelled"
-            className={
-              activeTab === "cancelled" ? "text-gray-600 border-gray-600" : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Cancelled ({cancelledCount})
-              {unseenCancelledCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenCancelledCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="partially-delivered"
-            className={
-              activeTab === "partially-delivered"
-                ? "text-blue-600 border-blue-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Partially Delivered ({partiallyDeliveredCount})
-              {unseenPartiallyDeliveredCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenPartiallyDeliveredCount}
-                </span>
-              )}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="fully-delivered"
-            className={
-              activeTab === "fully-delivered"
-                ? "text-green-600 border-green-600"
-                : ""
-            }
-          >
-            <span className="flex items-center gap-1.5">
-              Fully Delivered ({fullyDeliveredCount})
-              {unseenFullyDeliveredCount > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                  {unseenFullyDeliveredCount}
+                  {unseenDeliveredCount}
                 </span>
               )}
             </span>
           </TabsTrigger>
         </TabsList>
 
-        {/* Revised - Internal Review Tab */}
-        <TabsContent value="revised-internal-review" className="space-y-4 mt-4">
+        {/* Tab Content */}
+        <TabsContent value={activeTab} className="mt-4">
           {filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
               <OrderCard
@@ -587,74 +454,13 @@ export function SalesOrders({
                 order={order}
                 onToggleExpand={() => toggleExpand(order.id)}
                 isExpanded={expandedOrderId === order.id}
-                onReviewRevision={(order) =>
-                  onReviewRevision?.(order, "revised-internal-review")
+                currentUser={currentUser}
+                onSeeDetail={onSeeDetail}
+                onReviewRevision={
+                  order.status === "Revised - Internal Review"
+                    ? (order) => onReviewRevision?.(order, activeTab)
+                    : undefined
                 }
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-amber-100 p-4">
-                  <Package className="w-8 h-8 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Orders Awaiting Review
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders revised by JB awaiting your review will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Order Revised Tab */}
-        <TabsContent value="order-revised" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-green-100 p-4">
-                  <Check className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Revised Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders you've approved will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* All Tab */}
-        <TabsContent value="all" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
               />
             ))
           ) : (
@@ -668,296 +474,7 @@ export function SalesOrders({
                     No Orders
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    All orders from your requests will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Rejected Tab */}
-        <TabsContent value="rejected" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-red-100 p-4">
-                  <X className="w-8 h-8 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Rejected Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders you've rejected will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Other Tabs */}
-        <TabsContent value="new" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-blue-100 p-4">
-                  <Package className="w-8 h-8 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No New Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    New orders from your requests will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="viewed" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-purple-100 p-4">
-                  <Package className="w-8 h-8 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Viewed Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders viewed by suppliers will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Change Requested Tab */}
-        <TabsContent value="change-requested" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={(order) =>
-                  onSeeDetail?.(order, "change-requested")
-                }
-                onUpdateOrder={(order) =>
-                  onUpdateOrder?.(order, "change-requested")
-                }
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-orange-100 p-4">
-                  <AlertCircle className="w-8 h-8 text-orange-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Change Requests
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders with requested changes will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="in-production" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-blue-100 p-4">
-                  <Package className="w-8 h-8 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Orders In Production
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders currently in production will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="stock-ready" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-green-100 p-4">
-                  <Package className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Stock Ready Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders ready for pickup will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Unable to Fulfill Tab */}
-        <TabsContent value="unable-fulfill" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-red-100 p-4">
-                  <X className="w-8 h-8 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Unfulfillable Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders that cannot be fulfilled will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Cancelled Tab */}
-        <TabsContent value="cancelled" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-gray-100 p-4">
-                  <X className="w-8 h-8 text-gray-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Cancelled Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Cancelled orders will appear here
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="confirmed" className="space-y-4 mt-4">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onToggleExpand={() => toggleExpand(order.id)}
-                isExpanded={expandedOrderId === order.id}
-                onSeeDetail={onSeeDetail}
-                currentUser={currentUser}
-              />
-            ))
-          ) : (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="rounded-full bg-green-100 p-4">
-                  <Package className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    No Confirmed Orders
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Orders confirmed by JB will appear here
+                    Orders will appear here
                   </p>
                 </div>
               </div>
