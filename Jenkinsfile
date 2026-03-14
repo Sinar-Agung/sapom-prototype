@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     tools {
-        nodejs 'NodeJS-20' // Pastikan nama ini sesuai dengan konfigurasi di Jenkins Global Tool Configuration
+        nodejs 'node' // Pastikan nama ini sesuai dengan konfigurasi di Jenkins Global Tool Configuration
     }
     
     environment {
@@ -56,8 +56,8 @@ pipeline {
             steps {
                 echo '📦 Installing dependencies...'
                 // Menggunakan npm ci untuk clean install (lebih cepat dan reliable)
-                sh 'npm ci'
-                
+                sh 'npm install -g pnpm'
+                sh 'pnpm install'
                 echo '✅ Dependencies installed successfully'
             }
         }
