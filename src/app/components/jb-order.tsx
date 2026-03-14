@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 interface JBOrderProps {
   onSeeDetail?: (order: Order, currentTab?: string) => void;
   onUpdateOrder?: (order: Order, currentTab?: string) => void;
+  onReviewRevision?: (order: Order, currentTab?: string) => void;
   initialTab?: string;
 }
 
@@ -26,6 +27,7 @@ const ORDER_SORT_OPTIONS: SortOption[] = [
 export function JBOrder({
   onSeeDetail,
   onUpdateOrder,
+  onReviewRevision,
   initialTab = "all",
 }: JBOrderProps) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -390,9 +392,9 @@ export function JBOrder({
                   isExpanded={expandedOrderId === order.id}
                   onToggleExpand={() => toggleExpand(order.id)}
                   onSeeDetail={(order) => onSeeDetail?.(order, activeTab)}
-                  onUpdateOrder={
-                    order.status === "Change Requested"
-                      ? (order) => onUpdateOrder?.(order, activeTab)
+                  onReviewRevision={
+                    order.status === "Revised - Internal Review"
+                      ? (order) => onReviewRevision?.(order, activeTab)
                       : undefined
                   }
                   currentUser={currentUser}

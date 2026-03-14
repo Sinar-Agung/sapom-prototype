@@ -516,6 +516,10 @@ export function OrderDetails({
                 "Change Requested",
                 "You've requested a change for this Order",
               );
+              // Navigate to In Review tab
+              setTimeout(() => onBack(), 100);
+              // Navigate to In Review tab
+              setTimeout(() => onBack(), 100);
             }}
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
@@ -1122,6 +1126,11 @@ export function OrderDetails({
                                             revision.previousValues
                                               ?.detailItems?.[idx];
 
+                                          // Check if this is a new item (no previous item at this index or beyond previous length)
+                                          const isNewItem = 
+                                            !revision.previousValues?.detailItems ||
+                                            idx >= revision.previousValues.detailItems.length;
+
                                           // Determine if each field changed
                                           const kadarChanged =
                                             prevItem &&
@@ -1140,19 +1149,19 @@ export function OrderDetails({
                                             item.pcs !== prevItem.pcs;
 
                                           return (
-                                            <tr key={idx}>
+                                            <tr key={idx} className={isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : ""}>
                                               <td
-                                                className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
                                               >
                                                 {item.kadar}
                                               </td>
                                               <td
-                                                className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
                                               >
                                                 {getWarnaLabel(item.warna)}
                                               </td>
                                               <td
-                                                className={`px-2 py-1 ${ukuranChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
                                               >
                                                 {(() => {
                                                   const ukuranDisplay =
@@ -1165,12 +1174,12 @@ export function OrderDetails({
                                                 })()}
                                               </td>
                                               <td
-                                                className={`px-2 py-1 text-right ${beratChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
                                               >
                                                 {item.berat}
                                               </td>
                                               <td
-                                                className={`px-2 py-1 text-right ${pcsChanged ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
                                               >
                                                 {item.pcs}
                                               </td>
@@ -1198,13 +1207,15 @@ export function OrderDetails({
         <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
           <div className="bg-white/95 backdrop-blur-sm border-t shadow-lg p-4">
             <div className="flex gap-3 justify-end max-w-7xl mx-auto">
-              <Button
-                variant="outline"
-                onClick={() => setShowCancelDialog(true)}
-                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
-              >
-                Cancel Order
-              </Button>
+              {userRole == "sales" ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCancelDialog(true)}
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                >
+                  Cancel Order
+                </Button>
+              ) : undefined}
               <Button
                 onClick={() => onApproveRevision(order.id)}
                 className="bg-green-600 hover:bg-green-700"

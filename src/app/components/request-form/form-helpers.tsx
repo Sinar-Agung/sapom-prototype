@@ -2,12 +2,12 @@
 
 export const getKadarColor = (kadar: string): string => {
   const colors: Record<string, string> = {
-    "6k": "bg-green-500 text-white",
-    "8k": "bg-blue-500 text-white",
-    "9k": "bg-blue-700 text-white",
-    "16k": "bg-orange-500 text-white",
-    "17k": "bg-pink-500 text-white",
-    "24k": "bg-red-500 text-white",
+    "6k": "bg-white text-black",
+    "8k": "bg-white text-black",
+    "9k": "bg-white text-black",
+    "16k": "bg-white text-black",
+    "17k": "bg-white text-black",
+    "24k": "bg-white text-black",
   };
   return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
 };

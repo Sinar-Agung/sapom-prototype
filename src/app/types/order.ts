@@ -140,6 +140,10 @@ export interface Order {
   
   // Revision notes from supplier/JB (latest revision)
   revisionNotes?: string;
+
+  // Dual approval tracking for revisions
+  jbApproved?: boolean;
+  salesApproved?: boolean;
 }
 
 /**

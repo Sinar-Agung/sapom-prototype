@@ -422,15 +422,8 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
       },
     };
 
-    // Update the order with new status based on role
-    let newStatus = existingOrder.status;
-    if (userRole === "supplier") {
-      // Supplier updates go to JB and Sales for review
-      newStatus = "Revised - Internal Review";
-    } else if (userRole === "jb") {
-      // JB updates go to Sales for approval
-      newStatus = "Revised - Internal Review";
-    }
+    // Update the order with new status - always goes to Revised - Internal Review
+    const newStatus = "Revised - Internal Review";
 
     const updatedOrder: Order = {
       ...existingOrder,
@@ -446,6 +439,8 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
       updatedBy: currentUser,
       revisionHistory: [...(existingOrder.revisionHistory || []), revision],
       status: newStatus as any,
+      jbApproved: false,
+      salesApproved: false,
     };
 
     orders[orderIndex] = updatedOrder;
@@ -470,15 +465,27 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
       return;
     }
 
-    orders[orderIndex] = {
-      ...orders[orderIndex],
-      status: "Order Revised",
-      updatedDate: Date.now(),
-      updatedBy: currentUser,
-    };
+    const currentOrder = orders[orderIndex];
+    
+    // Mark approval based on user role
+    if (userRole === "jb") {
+      currentOrder.jbApproved = true;
+    } else if (userRole === "sales") {
+      currentOrder.salesApproved = true;
+    }
+
+    // If both JB and Sales have approved, change status to Order Revised
+    if (currentOrder.jbApproved && currentOrder.salesApproved) {
+      currentOrder.status = "Order Revised";
+      toast.success("Order revision fully approved - Status changed to Order Revised");
+    } else {
+      toast.success(`Order approved by ${userRole.toUpperCase()} - Waiting for ${userRole === "jb" ? "Sales" : "JB"} approval`);
+    }
+
+    currentOrder.updatedDate = Date.now();
+    currentOrder.updatedBy = currentUser;
 
     localStorage.setItem("orders", JSON.stringify(orders));
-    toast.success("Order revision approved");
     onSave();
   };
 
@@ -602,7 +609,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
             {(userRole === "supplier" || userRole === "jb") && (
               <div className="md:col-span-2">
                 <Label htmlFor="revisionNotes" className="text-gray-600 font-bold text-base">
-                  Revision Notes <span className="text-sm text-gray-500">(Optional - visible to JB and Sales)</span>
+                  Revision Notes <span className="text-red-500">*</span> <span className="text-sm text-gray-500">(Required - visible to JB and Sales)</span>
                 </Label>
                 <Textarea
                   id="revisionNotes"
@@ -610,9 +617,10 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
                   onChange={(e) =>
                     setFormData({ ...formData, revisionNotes: e.target.value })
                   }
-                  placeholder="Add any notes about changes made to this order..."
+                  placeholder="Add notes about changes made to this order (required)..."
                   rows={3}
                   className="mt-1"
+                  required
                 />
               </div>
             )}
@@ -940,6 +948,21 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
                   Approve Changes
                 </Button>
               </div>
+            </div>
+          </Card>
+        ) : userRole === "jb" && order.status === "Revised - Internal Review" ? (
+          <Card className="p-4">
+            <h3 className="font-semibold text-lg mb-4">Review Order Changes</h3>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={onBack}>
+                Back
+              </Button>
+              <Button
+                onClick={handleApproveRevision}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Approve Revision
+              </Button>
             </div>
           </Card>
         ) : (

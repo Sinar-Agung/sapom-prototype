@@ -463,23 +463,36 @@ export default function App() {
       const orderIndex = allOrders.findIndex((o: any) => o.id === orderId);
 
       if (orderIndex !== -1) {
-        const oldStatus = allOrders[orderIndex].status;
-        allOrders[orderIndex].status = "Order Revised";
-        allOrders[orderIndex].updatedDate = Date.now();
-        allOrders[orderIndex].updatedBy = currentUser;
+        const currentOrder = allOrders[orderIndex];
+        const oldStatus = currentOrder.status;
+        
+        // Mark approval based on user role
+        if (userRole === "jb") {
+          currentOrder.jbApproved = true;
+        } else if (userRole === "sales") {
+          currentOrder.salesApproved = true;
+        }
+
+        // If both JB and Sales have approved, change status to Order Revised
+        if (currentOrder.jbApproved && currentOrder.salesApproved) {
+          currentOrder.status = "Order Revised";
+          toast.success("Order revision fully approved - Status changed to Order Revised");
+          
+          // Create notification for full approval
+          notifyOrderStatusChanged(
+            currentOrder,
+            oldStatus,
+            "Order Revised",
+            currentUser,
+            userRole,
+          );
+        } else {
+          toast.success(`Order approved by ${userRole.toUpperCase()} - Waiting for ${userRole === "jb" ? "Sales" : "JB"} approval`);
+        }
+
+        currentOrder.updatedDate = Date.now();
+        currentOrder.updatedBy = currentUser;
         localStorage.setItem("orders", JSON.stringify(allOrders));
-
-        // Create notification
-        notifyOrderStatusChanged(
-          allOrders[orderIndex],
-          oldStatus,
-          "Order Revised",
-          currentUser,
-          userRole,
-        );
-
-        // Show toast
-        toast.success("Order Revised successfully");
 
         // Go back
         handleBackFromOrderDetails();
@@ -539,6 +552,12 @@ export default function App() {
     setCurrentPage("order-edit");
   };
 
+  const handleUpdateOrderWithTabReturn = (order: any, returnTab: string) => {
+    setEditingOrderForUpdate(order);
+    setPreviousOrdersTab(returnTab);
+    setCurrentPage("order-edit");
+  };
+
   const handleBackFromOrderEdit = () => {
     setEditingOrderForUpdate(null);
 
@@ -549,12 +568,28 @@ export default function App() {
       return;
     }
 
-    setCurrentPage("jb-orders");
+    // Return to appropriate orders page based on user role
+    if (userRole === "supplier") {
+      setPreviousOrdersTab("in-review");
+      setCurrentPage("jb-orders");
+    } else if (userRole === "jb") {
+      setCurrentPage("jb-orders");
+    } else {
+      setCurrentPage("jb-orders");
+    }
   };
 
   const handleOrderEditSave = () => {
     setEditingOrderForUpdate(null);
-    setCurrentPage("jb-orders");
+    // Return to appropriate orders page with In Review tab for supplier
+    if (userRole === "supplier") {
+      setPreviousOrdersTab("in-review");
+      setCurrentPage("jb-orders");
+    } else if (userRole === "jb") {
+      setCurrentPage("jb-orders");
+    } else {
+      setCurrentPage("jb-orders");
+    }
   };
 
   const handleNavigateToTab = (tab: string) => {
@@ -867,6 +902,7 @@ export default function App() {
           <JBOrder
             onSeeDetail={handleSeeOrderDetail}
             onUpdateOrder={handleUpdateOrder}
+            onReviewRevision={handleReviewRevision}
             initialTab={previousOrdersTab}
           />
         );

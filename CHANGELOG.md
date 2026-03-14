@@ -9,6 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dual Approval System for Order Revisions**: Two-stage approval process for order changes
+  - Added `jbApproved` and `salesApproved` boolean flags to Order type
+  - Both JB and Sales must approve before status changes to "Order Revised"
+  - Individual approval tracking: Shows "Waiting for [JB/Sales] approval" message
+  - Full approval: Automatically changes status to "Order Revised" when both approve
+  - Implemented in: `order.ts`, `order-edit-form.tsx`, `App.tsx`
+
+- **Order Revision Navigation Improvements**: Enhanced navigation after supplier change requests
+  - Supplier automatically returns to "In Review" tab after requesting changes
+  - Smooth transition from order details back to order list
+  - Updated: `order-details.tsx`, `App.tsx`
+
+- **Visual Indicator for New Detail Items in Revisions**: Red border highlight for newly added items
+  - New detail items in revision history show red pulsing border and shadow
+  - CSS classes: `border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50`
+  - Detects new items by comparing with previous revision's detail items array
+  - Applied to: `order-details.tsx` revision history table
+
+### Changed
+
+- **JB Order Review Permissions**: Restricted JB actions based on order status
+  - **Change Requested Status**: JB cannot update order (no Update Order button)
+  - **Revised - Internal Review Status**: JB can only review (approve) - no cancel option
+  - JB review mode shows only "Back" and "Approve Revision" buttons
+  - Removed cancel/reject capability for JB role
+  - Updated: `jb-order.tsx`, `order-edit-form.tsx`, `App.tsx`
+
+- **Revision Notes Requirement**: Made revision notes mandatory for order updates
+  - Revision notes field changed from optional to required
+  - Added red asterisk (*) indicator and "Required" label
+  - Validation prevents submission without notes
+  - Error toast: "Revision notes are required"
+  - Updated: `order-edit-form.tsx`
+
+- **Order Status Flow**: Standardized status progression for revisions
+  - All order updates (Supplier/JB) now set status to "Revised - Internal Review"
+  - Reset approval flags (`jbApproved: false`, `salesApproved: false`) on each revision
+  - Status changes to "Order Revised" only after dual approval
+  - Updated: `order-edit-form.tsx`
+
+- **Product Detail Styling**: Simplified kadar (karat) display colors
+  - **Input Detail Barang**: Changed kadar backgrounds (6K-24K) from colored to white with black text
+  - **Product Details Table**: Removed colored backgrounds for kadar, now white with black text
+  - Affected kadar values: 6K, 8K, 9K, 16K, 17K, 24K
+  - Updated: `form-helpers.tsx`, `detail-items-table.tsx`
+
+### Fixed
+
+- **Order Edit Navigation**: Fixed supplier navigation after order updates
+  - Supplier now returns to "In Review" tab after submitting changes
+  - Proper tab state management for different user roles
+  - Updated: `App.tsx`
+
+### Added
+
 - **Docker Containerization**: Complete production and development containerization setup
   - Created multi-stage `Dockerfile` for optimized production build (~25MB final image)
   - Created `Dockerfile.dev` for development environment with hot reload
