@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     tools {
-        nodejs 'node' // Pastikan nama ini sesuai dengan konfigurasi di Jenkins Global Tool Configuration
+        nodejs "node" // Pastikan nama ini sesuai dengan konfigurasi di Jenkins Global Tool Configuration
     }
     
     environment {
