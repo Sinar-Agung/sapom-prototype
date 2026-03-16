@@ -278,8 +278,9 @@ export function OrderDetails({
         </span>
       </div>
 
-      {/* Order Information Card */}
-      <Card className="p-4 mb-4">
+      {/* Combined Card: Order Information, Order Items, Related Request Details, Revision History */}
+      <Card className="p-4 mb-4 space-y-4">
+        {/* Order Information */}
         <div className="flex gap-4">
           {/* Product Image */}
           <div className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
@@ -355,21 +356,705 @@ export function OrderDetails({
             </div>
           </div>
         </div>
-      </Card>
 
-      {/* Order Items Card */}
-      <DetailItemsTable
-        items={order.detailItems}
-        mode="readonly"
-        getKadarColor={getKadarColor}
-        getWarnaColor={getWarnaColor}
-        getWarnaLabel={getWarnaLabel}
-        getUkuranLabel={(ukuran) => {
-          const display = getUkuranDisplay(ukuran);
-          return display.showUnit ? `${display.value} cm` : display.value;
-        }}
-        title="Order Items"
-      />
+        {/* Divider */}
+        <hr className="border-t border-gray-200" />
+
+        {/* Order Items */}
+        <DetailItemsTable
+          items={order.detailItems}
+          mode="readonly"
+          noCard={true}
+          getKadarColor={getKadarColor}
+          getWarnaColor={getWarnaColor}
+          getWarnaLabel={getWarnaLabel}
+          getUkuranLabel={(ukuran) => {
+            const display = getUkuranDisplay(ukuran);
+            return display.showUnit ? `${display.value} cm` : display.value;
+          }}
+          title="Order Items"
+        />
+
+        {/* Related Request Details - Collapsible (for non-supplier users) */}
+        {relatedRequest && userRole !== "supplier" && (
+          <>
+            <hr className="border-t border-gray-200" />
+            <div>
+              <button
+                onClick={() => setIsRequestDetailsOpen(!isRequestDetailsOpen)}
+                className="w-full flex items-center justify-between py-2 hover:bg-gray-50 rounded-lg transition-colors px-1"
+              >
+                <h3 className="font-semibold text-gray-900">
+                  Related Request Details
+                </h3>
+                {isRequestDetailsOpen ? (
+                  <ChevronUp className="w-5 h-5 text-gray-500" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-500" />
+                )}
+              </button>
+
+              {isRequestDetailsOpen && (
+                <div className="mt-4 pt-4 border-t space-y-4">
+                  {/* Request Info Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      {relatedRequest.requestNo && (
+                        <div>
+                          <span className="text-gray-500">Request No: </span>
+                          <span className="font-medium font-mono">
+                            {relatedRequest.requestNo}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-gray-500">Created: </span>
+                        <span className="font-medium">
+                          {formatTimestamp(relatedRequest.timestamp)}
+                        </span>
+                      </div>
+                      {relatedRequest.createdBy && (
+                        <div>
+                          <span className="text-gray-500">Sales: </span>
+                          <span className="font-medium">
+                            {typeof relatedRequest.createdBy === "string"
+                              ? getFullNameFromUsername(relatedRequest.createdBy)
+                              : relatedRequest.createdBy.username}
+                          </span>
+                        </div>
+                      )}
+                      {relatedRequest.stockistId && (
+                        <div>
+                          <span className="text-gray-500">Stockist: </span>
+                          <span className="font-medium">
+                            {getFullNameFromUsername(relatedRequest.stockistId)}
+                          </span>
+                        </div>
+                      )}
+                      {relatedRequest.namaPelanggan && (
+                        <div>
+                          <span className="text-gray-500">Atas Nama: </span>
+                          <span className="font-medium">
+                            {relatedRequest.namaPelanggan.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {relatedRequest.customerExpectation && (
+                        <div>
+                          <span className="text-gray-500">
+                            Customer Expectation:{" "}
+                          </span>
+                          <span className="font-medium">
+                            {getLabelFromValue(
+                              CUSTOMER_EXPECTATION_OPTIONS,
+                              relatedRequest.customerExpectation,
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-gray-500">Status: </span>
+                        <span
+                          className={`inline-block text-xs ${getStatusBadgeClasses(relatedRequest.status)} px-2 py-1 rounded-full font-medium`}
+                        >
+                          {relatedRequest.status}
+                        </span>
+                      </div>
+                      {relatedRequest.updatedDate && (
+                        <div>
+                          <span className="text-gray-500">Updated: </span>
+                          <span className="font-medium">
+                            {formatTimestampWithTime(relatedRequest.updatedDate)}
+                          </span>
+                        </div>
+                      )}
+                      {relatedRequest.updatedBy && (
+                        <div>
+                          <span className="text-gray-500">Updated By: </span>
+                          <span className="font-medium">
+                            {getFullNameFromUsername(relatedRequest.updatedBy)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Request Items Table */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      Request Items (Original)
+                    </h4>
+                    <div className="max-h-[250px] overflow-auto">
+                      <table className="w-full border-collapse border text-xs">
+                        <thead className="bg-gray-100 sticky top-0 z-10">
+                          <tr>
+                            <th className="border p-2 text-left bg-gray-100">#</th>
+                            <th className="border p-2 text-left bg-gray-100">
+                              Kadar
+                            </th>
+                            <th className="border p-2 text-left bg-gray-100">
+                              Warna
+                            </th>
+                            <th className="border p-2 text-left bg-gray-100">
+                              Ukuran
+                            </th>
+                            <th className="border p-2 text-left bg-gray-100">
+                              Berat
+                            </th>
+                            <th className="border p-2 text-left bg-gray-100">
+                              Pcs
+                            </th>
+                            {relatedRequest.detailItems.some(
+                              (item) => item.availablePcs,
+                            ) && (
+                              <th className="border p-2 text-left bg-gray-100">
+                                Available
+                              </th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {relatedRequest.detailItems.map((item, index) => {
+                            const ukuranDisplay = getUkuranDisplay(item.ukuran);
+                            return (
+                              <tr
+                                key={item.id || index}
+                                className="hover:bg-gray-50"
+                              >
+                                <td className="border p-2 text-center">
+                                  {index + 1}
+                                </td>
+                                <td
+                                  className={`border p-2 font-medium ${getKadarColor(
+                                    item.kadar,
+                                  )}`}
+                                >
+                                  {item.kadar.toUpperCase()}
+                                </td>
+                                <td
+                                  className={`border p-2 ${getWarnaColor(
+                                    item.warna,
+                                  )}`}
+                                >
+                                  {getWarnaLabel(item.warna)}
+                                </td>
+                                <td className="border p-2">
+                                  {ukuranDisplay.showUnit
+                                    ? `${ukuranDisplay.value} cm`
+                                    : ukuranDisplay.value}
+                                </td>
+                                <td className="border p-2">{item.berat || "-"}</td>
+                                <td className="border p-2">{item.pcs}</td>
+                                {relatedRequest.detailItems.some(
+                                  (i) => i.availablePcs,
+                                ) && (
+                                  <td className="border p-2">
+                                    {item.availablePcs || "-"}
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Revision History - Collapsible (for non-supplier users) */}
+        {userRole !== "supplier" &&
+          currentOrder.revisionHistory &&
+          currentOrder.revisionHistory.length > 0 && (
+            <>
+              <hr className="border-t border-gray-200" />
+              <div>
+                <button
+                  onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
+                  className="w-full flex items-center justify-between py-2 hover:bg-gray-50 rounded-lg transition-colors px-1"
+                >
+                  <h3 className="font-semibold text-gray-900">
+                    Order Revisions ({currentOrder.revisionHistory.length}{" "}
+                    {currentOrder.revisionHistory.length === 1
+                      ? "version"
+                      : "versions"}
+                    )
+                  </h3>
+                  {isRevisionHistoryOpen ? (
+                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
+
+                {isRevisionHistoryOpen && (
+                  <div className="mt-4 space-y-3">
+                    {/* Initial Version - Show original order state */}
+                    {(() => {
+                      const isExpanded = expandedRevisions.has(-1);
+                      const firstRevision = currentOrder.revisionHistory[0];
+
+                      return (
+                        <div className="border rounded-lg overflow-hidden bg-blue-50">
+                          <button
+                            onClick={() => {
+                              const newExpanded = new Set(expandedRevisions);
+                              if (isExpanded) {
+                                newExpanded.delete(-1);
+                              } else {
+                                newExpanded.add(-1);
+                              }
+                              setExpandedRevisions(newExpanded);
+                            }}
+                            className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left"
+                          >
+                            <div>
+                              <h4 className="font-medium text-sm">
+                                {new Date(
+                                  currentOrder.createdDate,
+                                ).toLocaleDateString("id-ID", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </h4>
+                              <p className="text-xs text-gray-600">
+                                Initial version · Created by{" "}
+                                {getFullNameFromUsername(currentOrder.createdBy)}
+                              </p>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-500" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-500" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="border-t bg-white p-4 text-sm">
+                              <div className="flex flex-col md:flex-row gap-4">
+                                {/* Left side: Fields */}
+                                <div className="flex-1 space-y-3">
+                                  {/* Product Category */}
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Product Category
+                                    </p>
+                                    <p className="text-gray-900">
+                                      {getLabelFromValue(
+                                        [
+                                          { value: "basic", label: "Basic" },
+                                          { value: "model", label: "Model" },
+                                        ],
+                                        firstRevision?.previousValues
+                                          .kategoriBarang ||
+                                          currentOrder.kategoriBarang,
+                                      )}
+                                    </p>
+                                  </div>
+
+                                  {/* Product Type */}
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Product Type
+                                    </p>
+                                    <p className="text-gray-900">
+                                      {getLabelFromValue(
+                                        JENIS_PRODUK_OPTIONS,
+                                        firstRevision?.previousValues.jenisProduk ||
+                                          currentOrder.jenisProduk,
+                                      )}
+                                    </p>
+                                  </div>
+
+                                  {/* Basic Name */}
+                                  {(firstRevision?.previousValues.namaBasic ||
+                                    currentOrder.namaBasic) && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Basic Name
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          NAMA_BASIC_OPTIONS,
+                                          firstRevision?.previousValues.namaBasic ||
+                                            currentOrder.namaBasic,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Nama Produk */}
+                                  {(firstRevision?.previousValues.namaProduk ||
+                                    currentOrder.namaProduk) && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Nama Produk
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          NAMA_PRODUK_OPTIONS,
+                                          firstRevision?.previousValues
+                                            .namaProduk || currentOrder.namaProduk,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Right side: Photo */}
+                                {(firstRevision?.previousValues.photoId ||
+                                  currentOrder.photoId) && (
+                                  <div className="md:w-48">
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Product Photo
+                                    </p>
+                                    <img
+                                      src={
+                                        getImage(
+                                          firstRevision?.previousValues.photoId ||
+                                            currentOrder.photoId ||
+                                            "",
+                                        ) || ""
+                                      }
+                                      alt="Product"
+                                      className="w-full h-48 object-cover rounded border"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Detail Items */}
+                              {(() => {
+                                const detailItems =
+                                  firstRevision?.previousValues.detailItems ||
+                                  currentOrder.detailItems;
+                                return (
+                                  detailItems &&
+                                  detailItems.length > 0 && (
+                                    <div className="mt-4">
+                                      <p className="font-medium text-gray-700 text-xs mb-2">
+                                        Product Details ({detailItems.length} items)
+                                      </p>
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full text-xs border-collapse border">
+                                          <thead className="bg-gray-100">
+                                            <tr>
+                                              <th className="border px-2 py-1 text-left">
+                                                Kadar
+                                              </th>
+                                              <th className="border px-2 py-1 text-left">
+                                                Warna
+                                              </th>
+                                              <th className="border px-2 py-1 text-left">
+                                                Ukuran
+                                              </th>
+                                              <th className="border px-2 py-1 text-right">
+                                                Berat
+                                              </th>
+                                              <th className="border px-2 py-1 text-right">
+                                                Pcs
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {detailItems.map((item, idx) => (
+                                              <tr key={idx}>
+                                                <td
+                                                  className={`border px-2 py-1 font-medium ${getKadarColor(item.kadar)}`}
+                                                >
+                                                  {item.kadar}
+                                                </td>
+                                                <td
+                                                  className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
+                                                >
+                                                  {getWarnaLabel(item.warna)}
+                                                </td>
+                                                <td className="border px-2 py-1">
+                                                  {(() => {
+                                                    const ukuranDisplay =
+                                                      getUkuranDisplay(item.ukuran);
+                                                    return ukuranDisplay.showUnit
+                                                      ? `${ukuranDisplay.value} cm`
+                                                      : ukuranDisplay.value;
+                                                  })()}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.berat}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.pcs}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  )
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Revision History */}
+                    {currentOrder.revisionHistory.map((revision, index) => {
+                      const isExpanded = expandedRevisions.has(index);
+
+                      return (
+                        <div
+                          key={index}
+                          className="border rounded-lg overflow-hidden"
+                        >
+                          <button
+                            onClick={() => {
+                              const newExpanded = new Set(expandedRevisions);
+                              if (isExpanded) {
+                                newExpanded.delete(index);
+                              } else {
+                                newExpanded.add(index);
+                              }
+                              setExpandedRevisions(newExpanded);
+                            }}
+                            className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors text-left"
+                          >
+                            <div>
+                              <h4 className="font-medium text-sm">
+                                {new Date(revision.timestamp).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </h4>
+                              <p className="text-xs text-gray-600">
+                                Updated by{" "}
+                                {getFullNameFromUsername(revision.updatedBy)}
+                              </p>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-500" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-500" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="border-t bg-gray-50 p-4 text-sm">
+                              <div className="flex flex-col md:flex-row gap-4">
+                                {/* Left side: Fields */}
+                                <div className="flex-1 space-y-3">
+                                  {/* Product Category */}
+                                  {revision.changes.kategoriBarang && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Product Category
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          [
+                                            { value: "basic", label: "Basic" },
+                                            { value: "model", label: "Model" },
+                                          ],
+                                          revision.changes.kategoriBarang,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Product Type */}
+                                  {revision.changes.jenisProduk && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Product Type
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          JENIS_PRODUK_OPTIONS,
+                                          revision.changes.jenisProduk,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Basic Name */}
+                                  {revision.changes.namaBasic && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Basic Name
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          NAMA_BASIC_OPTIONS,
+                                          revision.changes.namaBasic,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Nama Produk */}
+                                  {revision.changes.namaProduk && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Nama Produk
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          NAMA_PRODUK_OPTIONS,
+                                          revision.changes.namaProduk,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Right side: Photo */}
+                                {revision.previousValues.photoId && (
+                                  <div className="md:w-48">
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Product Photo
+                                    </p>
+                                    <img
+                                      src={
+                                        getImage(revision.previousValues.photoId) ||
+                                        ""
+                                      }
+                                      alt="Product"
+                                      className="w-full h-48 object-cover rounded border"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Detail Items */}
+                              {revision.changes.detailItems &&
+                                revision.changes.detailItems.length > 0 && (
+                                  <div className="mt-4">
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Detail Barang (
+                                      {revision.changes.detailItems.length} items)
+                                    </p>
+                                    <div className="overflow-x-auto">
+                                      <table className="min-w-full text-xs border-collapse border">
+                                        <thead className="bg-gray-100">
+                                          <tr>
+                                            <th className="border px-2 py-1 text-left">
+                                              Kadar
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Warna
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Ukuran
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Berat
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Pcs
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {revision.changes.detailItems.map(
+                                            (item, idx) => {
+                                              // Get corresponding previous item for comparison
+                                              const prevItem =
+                                                revision.previousValues
+                                                  ?.detailItems?.[idx];
+
+                                              // Check if this is a new item (no previous item at this index or beyond previous length)
+                                              const isNewItem = 
+                                                !revision.previousValues?.detailItems ||
+                                                idx >= revision.previousValues.detailItems.length;
+
+                                              // Determine if each field changed
+                                              const kadarChanged =
+                                                prevItem &&
+                                                item.kadar !== prevItem.kadar;
+                                              const warnaChanged =
+                                                prevItem &&
+                                                item.warna !== prevItem.warna;
+                                              const ukuranChanged =
+                                                prevItem &&
+                                                item.ukuran !== prevItem.ukuran;
+                                              const beratChanged =
+                                                prevItem &&
+                                                item.berat !== prevItem.berat;
+                                              const pcsChanged =
+                                                prevItem &&
+                                                item.pcs !== prevItem.pcs;
+
+                                              return (
+                                                <tr key={idx} className={isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : ""}>
+                                                  <td
+                                                    className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                  >
+                                                    {item.kadar}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                  >
+                                                    {getWarnaLabel(item.warna)}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                  >
+                                                    {(() => {
+                                                      const ukuranDisplay =
+                                                        getUkuranDisplay(
+                                                          item.ukuran,
+                                                        );
+                                                      return ukuranDisplay.showUnit
+                                                        ? `${ukuranDisplay.value} cm`
+                                                        : ukuranDisplay.value;
+                                                    })()}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                  >
+                                                    {item.berat}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                  >
+                                                    {item.pcs}
+                                                  </td>
+                                                </tr>
+                                              );
+                                            },
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+      </Card>
 
       {/* Revision Details Card - Show for all users if there are revisions */}
       {order.revisionHistory && order.revisionHistory.length > 0 && (
@@ -527,680 +1212,6 @@ export function OrderDetails({
           </Button>
         </div>
       )}
-
-      {/* Related Request Details - Collapsible Panel */}
-      {relatedRequest && userRole !== "supplier" && (
-        <Card className="p-4">
-          <button
-            onClick={() => setIsRequestDetailsOpen(!isRequestDetailsOpen)}
-            className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
-          >
-            <h3 className="font-semibold text-gray-900">
-              Related Request Details
-            </h3>
-            {isRequestDetailsOpen ? (
-              <ChevronUp className="w-5 h-5 text-gray-500" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-gray-500" />
-            )}
-          </button>
-
-          {isRequestDetailsOpen && (
-            <div className="mt-4 pt-4 border-t space-y-4">
-              {/* Request Info Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  {relatedRequest.requestNo && (
-                    <div>
-                      <span className="text-gray-500">Request No: </span>
-                      <span className="font-medium font-mono">
-                        {relatedRequest.requestNo}
-                      </span>
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-gray-500">Created: </span>
-                    <span className="font-medium">
-                      {formatTimestamp(relatedRequest.timestamp)}
-                    </span>
-                  </div>
-                  {relatedRequest.createdBy && (
-                    <div>
-                      <span className="text-gray-500">Sales: </span>
-                      <span className="font-medium">
-                        {typeof relatedRequest.createdBy === "string"
-                          ? getFullNameFromUsername(relatedRequest.createdBy)
-                          : relatedRequest.createdBy.username}
-                      </span>
-                    </div>
-                  )}
-                  {relatedRequest.stockistId && (
-                    <div>
-                      <span className="text-gray-500">Stockist: </span>
-                      <span className="font-medium">
-                        {getFullNameFromUsername(relatedRequest.stockistId)}
-                      </span>
-                    </div>
-                  )}
-                  {relatedRequest.namaPelanggan && (
-                    <div>
-                      <span className="text-gray-500">Atas Nama: </span>
-                      <span className="font-medium">
-                        {relatedRequest.namaPelanggan.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  {relatedRequest.customerExpectation && (
-                    <div>
-                      <span className="text-gray-500">
-                        Customer Expectation:{" "}
-                      </span>
-                      <span className="font-medium">
-                        {getLabelFromValue(
-                          CUSTOMER_EXPECTATION_OPTIONS,
-                          relatedRequest.customerExpectation,
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-gray-500">Status: </span>
-                    <span
-                      className={`inline-block text-xs ${getStatusBadgeClasses(relatedRequest.status)} px-2 py-1 rounded-full font-medium`}
-                    >
-                      {relatedRequest.status}
-                    </span>
-                  </div>
-                  {relatedRequest.updatedDate && (
-                    <div>
-                      <span className="text-gray-500">Updated: </span>
-                      <span className="font-medium">
-                        {formatTimestampWithTime(relatedRequest.updatedDate)}
-                      </span>
-                    </div>
-                  )}
-                  {relatedRequest.updatedBy && (
-                    <div>
-                      <span className="text-gray-500">Updated By: </span>
-                      <span className="font-medium">
-                        {getFullNameFromUsername(relatedRequest.updatedBy)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Request Items Table */}
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Request Items (Original)
-                </h4>
-                <div className="max-h-[250px] overflow-auto">
-                  <table className="w-full border-collapse border text-xs">
-                    <thead className="bg-gray-100 sticky top-0 z-10">
-                      <tr>
-                        <th className="border p-2 text-left bg-gray-100">#</th>
-                        <th className="border p-2 text-left bg-gray-100">
-                          Kadar
-                        </th>
-                        <th className="border p-2 text-left bg-gray-100">
-                          Warna
-                        </th>
-                        <th className="border p-2 text-left bg-gray-100">
-                          Ukuran
-                        </th>
-                        <th className="border p-2 text-left bg-gray-100">
-                          Berat
-                        </th>
-                        <th className="border p-2 text-left bg-gray-100">
-                          Pcs
-                        </th>
-                        {relatedRequest.detailItems.some(
-                          (item) => item.availablePcs,
-                        ) && (
-                          <th className="border p-2 text-left bg-gray-100">
-                            Available
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {relatedRequest.detailItems.map((item, index) => {
-                        const ukuranDisplay = getUkuranDisplay(item.ukuran);
-                        return (
-                          <tr
-                            key={item.id || index}
-                            className="hover:bg-gray-50"
-                          >
-                            <td className="border p-2 text-center">
-                              {index + 1}
-                            </td>
-                            <td
-                              className={`border p-2 font-medium ${getKadarColor(
-                                item.kadar,
-                              )}`}
-                            >
-                              {item.kadar.toUpperCase()}
-                            </td>
-                            <td
-                              className={`border p-2 ${getWarnaColor(
-                                item.warna,
-                              )}`}
-                            >
-                              {getWarnaLabel(item.warna)}
-                            </td>
-                            <td className="border p-2">
-                              {ukuranDisplay.showUnit
-                                ? `${ukuranDisplay.value} cm`
-                                : ukuranDisplay.value}
-                            </td>
-                            <td className="border p-2">{item.berat || "-"}</td>
-                            <td className="border p-2">{item.pcs}</td>
-                            {relatedRequest.detailItems.some(
-                              (i) => i.availablePcs,
-                            ) && (
-                              <td className="border p-2">
-                                {item.availablePcs || "-"}
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Revision History - Collapsible Panel (for non-supplier users) */}
-      {userRole !== "supplier" &&
-        currentOrder.revisionHistory &&
-        currentOrder.revisionHistory.length > 0 && (
-          <Card className="p-4">
-            <button
-              onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
-              className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
-            >
-              <h3 className="font-semibold text-gray-900">
-                Order Revisions ({currentOrder.revisionHistory.length}{" "}
-                {currentOrder.revisionHistory.length === 1
-                  ? "version"
-                  : "versions"}
-                )
-              </h3>
-              {isRevisionHistoryOpen ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </button>
-
-            {isRevisionHistoryOpen && (
-              <div className="mt-4 space-y-3">
-                {/* Initial Version - Show original order state */}
-                {(() => {
-                  const isExpanded = expandedRevisions.has(-1);
-                  const firstRevision = currentOrder.revisionHistory[0];
-
-                  return (
-                    <div className="border rounded-lg overflow-hidden bg-blue-50">
-                      <button
-                        onClick={() => {
-                          const newExpanded = new Set(expandedRevisions);
-                          if (isExpanded) {
-                            newExpanded.delete(-1);
-                          } else {
-                            newExpanded.add(-1);
-                          }
-                          setExpandedRevisions(newExpanded);
-                        }}
-                        className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left"
-                      >
-                        <div>
-                          <h4 className="font-medium text-sm">
-                            {new Date(
-                              currentOrder.createdDate,
-                            ).toLocaleDateString("id-ID", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </h4>
-                          <p className="text-xs text-gray-600">
-                            Initial version · Created by{" "}
-                            {getFullNameFromUsername(currentOrder.createdBy)}
-                          </p>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
-                        )}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="border-t bg-white p-4 text-sm">
-                          <div className="flex flex-col md:flex-row gap-4">
-                            {/* Left side: Fields */}
-                            <div className="flex-1 space-y-3">
-                              {/* Product Category */}
-                              <div>
-                                <p className="font-medium text-gray-700 text-xs mb-1">
-                                  Product Category
-                                </p>
-                                <p className="text-gray-900">
-                                  {getLabelFromValue(
-                                    [
-                                      { value: "basic", label: "Basic" },
-                                      { value: "model", label: "Model" },
-                                    ],
-                                    firstRevision?.previousValues
-                                      .kategoriBarang ||
-                                      currentOrder.kategoriBarang,
-                                  )}
-                                </p>
-                              </div>
-
-                              {/* Product Type */}
-                              <div>
-                                <p className="font-medium text-gray-700 text-xs mb-1">
-                                  Product Type
-                                </p>
-                                <p className="text-gray-900">
-                                  {getLabelFromValue(
-                                    JENIS_PRODUK_OPTIONS,
-                                    firstRevision?.previousValues.jenisProduk ||
-                                      currentOrder.jenisProduk,
-                                  )}
-                                </p>
-                              </div>
-
-                              {/* Basic Name */}
-                              {(firstRevision?.previousValues.namaBasic ||
-                                currentOrder.namaBasic) && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Basic Name
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      NAMA_BASIC_OPTIONS,
-                                      firstRevision?.previousValues.namaBasic ||
-                                        currentOrder.namaBasic,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Nama Produk */}
-                              {(firstRevision?.previousValues.namaProduk ||
-                                currentOrder.namaProduk) && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Nama Produk
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      NAMA_PRODUK_OPTIONS,
-                                      firstRevision?.previousValues
-                                        .namaProduk || currentOrder.namaProduk,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Right side: Photo */}
-                            {(firstRevision?.previousValues.photoId ||
-                              currentOrder.photoId) && (
-                              <div className="md:w-48">
-                                <p className="font-medium text-gray-700 text-xs mb-2">
-                                  Product Photo
-                                </p>
-                                <img
-                                  src={
-                                    getImage(
-                                      firstRevision?.previousValues.photoId ||
-                                        currentOrder.photoId ||
-                                        "",
-                                    ) || ""
-                                  }
-                                  alt="Product"
-                                  className="w-full h-48 object-cover rounded border"
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Detail Items */}
-                          {(() => {
-                            const detailItems =
-                              firstRevision?.previousValues.detailItems ||
-                              currentOrder.detailItems;
-                            return (
-                              detailItems &&
-                              detailItems.length > 0 && (
-                                <div className="mt-4">
-                                  <p className="font-medium text-gray-700 text-xs mb-2">
-                                    Product Details ({detailItems.length} items)
-                                  </p>
-                                  <div className="overflow-x-auto">
-                                    <table className="min-w-full text-xs border-collapse border">
-                                      <thead className="bg-gray-100">
-                                        <tr>
-                                          <th className="border px-2 py-1 text-left">
-                                            Kadar
-                                          </th>
-                                          <th className="border px-2 py-1 text-left">
-                                            Warna
-                                          </th>
-                                          <th className="border px-2 py-1 text-left">
-                                            Ukuran
-                                          </th>
-                                          <th className="border px-2 py-1 text-right">
-                                            Berat
-                                          </th>
-                                          <th className="border px-2 py-1 text-right">
-                                            Pcs
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {detailItems.map((item, idx) => (
-                                          <tr key={idx}>
-                                            <td
-                                              className={`border px-2 py-1 font-medium ${getKadarColor(item.kadar)}`}
-                                            >
-                                              {item.kadar}
-                                            </td>
-                                            <td
-                                              className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                            >
-                                              {getWarnaLabel(item.warna)}
-                                            </td>
-                                            <td className="border px-2 py-1">
-                                              {(() => {
-                                                const ukuranDisplay =
-                                                  getUkuranDisplay(item.ukuran);
-                                                return ukuranDisplay.showUnit
-                                                  ? `${ukuranDisplay.value} cm`
-                                                  : ukuranDisplay.value;
-                                              })()}
-                                            </td>
-                                            <td className="border px-2 py-1 text-right">
-                                              {item.berat}
-                                            </td>
-                                            <td className="border px-2 py-1 text-right">
-                                              {item.pcs}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              )
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Revision History */}
-                {currentOrder.revisionHistory.map((revision, index) => {
-                  const isExpanded = expandedRevisions.has(index);
-
-                  return (
-                    <div
-                      key={index}
-                      className="border rounded-lg overflow-hidden"
-                    >
-                      <button
-                        onClick={() => {
-                          const newExpanded = new Set(expandedRevisions);
-                          if (isExpanded) {
-                            newExpanded.delete(index);
-                          } else {
-                            newExpanded.add(index);
-                          }
-                          setExpandedRevisions(newExpanded);
-                        }}
-                        className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors text-left"
-                      >
-                        <div>
-                          <h4 className="font-medium text-sm">
-                            {new Date(revision.timestamp).toLocaleDateString(
-                              "id-ID",
-                              {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </h4>
-                          <p className="text-xs text-gray-600">
-                            Updated by{" "}
-                            {getFullNameFromUsername(revision.updatedBy)}
-                          </p>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
-                        )}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="border-t bg-gray-50 p-4 text-sm">
-                          <div className="flex flex-col md:flex-row gap-4">
-                            {/* Left side: Fields */}
-                            <div className="flex-1 space-y-3">
-                              {/* Product Category */}
-                              {revision.changes.kategoriBarang && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Product Category
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      [
-                                        { value: "basic", label: "Basic" },
-                                        { value: "model", label: "Model" },
-                                      ],
-                                      revision.changes.kategoriBarang,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Product Type */}
-                              {revision.changes.jenisProduk && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Product Type
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      JENIS_PRODUK_OPTIONS,
-                                      revision.changes.jenisProduk,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Basic Name */}
-                              {revision.changes.namaBasic && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Basic Name
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      NAMA_BASIC_OPTIONS,
-                                      revision.changes.namaBasic,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Nama Produk */}
-                              {revision.changes.namaProduk && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Nama Produk
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      NAMA_PRODUK_OPTIONS,
-                                      revision.changes.namaProduk,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Right side: Photo */}
-                            {revision.previousValues.photoId && (
-                              <div className="md:w-48">
-                                <p className="font-medium text-gray-700 text-xs mb-2">
-                                  Product Photo
-                                </p>
-                                <img
-                                  src={
-                                    getImage(revision.previousValues.photoId) ||
-                                    ""
-                                  }
-                                  alt="Product"
-                                  className="w-full h-48 object-cover rounded border"
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Detail Items */}
-                          {revision.changes.detailItems &&
-                            revision.changes.detailItems.length > 0 && (
-                              <div className="mt-4">
-                                <p className="font-medium text-gray-700 text-xs mb-2">
-                                  Detail Barang (
-                                  {revision.changes.detailItems.length} items)
-                                </p>
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-full text-xs border-collapse border">
-                                    <thead className="bg-gray-100">
-                                      <tr>
-                                        <th className="border px-2 py-1 text-left">
-                                          Kadar
-                                        </th>
-                                        <th className="border px-2 py-1 text-left">
-                                          Warna
-                                        </th>
-                                        <th className="border px-2 py-1 text-left">
-                                          Ukuran
-                                        </th>
-                                        <th className="border px-2 py-1 text-right">
-                                          Berat
-                                        </th>
-                                        <th className="border px-2 py-1 text-right">
-                                          Pcs
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {revision.changes.detailItems.map(
-                                        (item, idx) => {
-                                          // Get corresponding previous item for comparison
-                                          const prevItem =
-                                            revision.previousValues
-                                              ?.detailItems?.[idx];
-
-                                          // Check if this is a new item (no previous item at this index or beyond previous length)
-                                          const isNewItem = 
-                                            !revision.previousValues?.detailItems ||
-                                            idx >= revision.previousValues.detailItems.length;
-
-                                          // Determine if each field changed
-                                          const kadarChanged =
-                                            prevItem &&
-                                            item.kadar !== prevItem.kadar;
-                                          const warnaChanged =
-                                            prevItem &&
-                                            item.warna !== prevItem.warna;
-                                          const ukuranChanged =
-                                            prevItem &&
-                                            item.ukuran !== prevItem.ukuran;
-                                          const beratChanged =
-                                            prevItem &&
-                                            item.berat !== prevItem.berat;
-                                          const pcsChanged =
-                                            prevItem &&
-                                            item.pcs !== prevItem.pcs;
-
-                                          return (
-                                            <tr key={idx} className={isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : ""}>
-                                              <td
-                                                className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {item.kadar}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {getWarnaLabel(item.warna)}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {(() => {
-                                                  const ukuranDisplay =
-                                                    getUkuranDisplay(
-                                                      item.ukuran,
-                                                    );
-                                                  return ukuranDisplay.showUnit
-                                                    ? `${ukuranDisplay.value} cm`
-                                                    : ukuranDisplay.value;
-                                                })()}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {item.berat}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {item.pcs}
-                                              </td>
-                                            </tr>
-                                          );
-                                        },
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-        )}
 
       {/* Review Action Buttons - Only shown in review mode */}
       {reviewMode && onApproveRevision && onCancelOrder && (
