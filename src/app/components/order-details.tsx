@@ -25,7 +25,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { DetailItemsTable } from "./ui/detail-items-table";
+import { ProductDetailsTable, ProductDetailsTableCompact } from "./ui/product-details-table";
 import {
   Dialog,
   DialogContent,
@@ -197,12 +197,12 @@ export function OrderDetails({
 
   const getKadarColor = (kadar: string) => {
     const colors: Record<string, string> = {
-      "6k": "bg-green-500 text-white",
-      "8k": "bg-blue-500 text-white",
-      "9k": "bg-blue-700 text-white",
-      "16k": "bg-orange-500 text-white",
-      "17k": "bg-pink-500 text-white",
-      "24k": "bg-red-500 text-white",
+      "6k": "bg-white-500 text-black",
+      "8k": "bg-white-500 text-black",
+      "9k": "bg-white-700 text-black",
+      "16k": "bg-white-500 text-black",
+      "17k": "bg-white-500 text-black",
+      "24k": "bg-white-500 text-black",
     };
     return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
   };
@@ -271,14 +271,14 @@ export function OrderDetails({
             {order.PONumber}
           </p>
         </div>
-        <span
+        {/* <span
           className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(currentOrder.status)}`}
         >
           {currentOrder.status}
-        </span>
+        </span> */}
       </div>
 
-      {/* Order Information Card */}
+      {/* Combined Order Details Card */}
       <Card className="p-4 mb-4">
         <div className="flex gap-4">
           {/* Product Image */}
@@ -295,248 +295,100 @@ export function OrderDetails({
             <h2 className="text-lg font-bold mb-2">
               {jenisProdukLabel} {productNameLabel}
             </h2>
-            <div className="space-y-1 text-sm">
-              <p>
-                <span className="text-gray-600">PO Number:</span>{" "}
+            <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
+              {userRole !== "supplier" && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 justify-self-start pr-1">Created By:</span>
+                  <span className="font-bold">
+                    {getFullNameFromUsername(order.jbId)}
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">PO Number:</span>
                 <span className="font-mono font-semibold text-blue-700">
                   {order.PONumber}
                 </span>
-              </p>
-              <p>
-                <span className="text-gray-600">Category:</span>{" "}
-                <span
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    order.kategoriBarang === "basic"
-                      ? "bg-purple-100 text-purple-700"
-                      : "bg-teal-100 text-teal-700"
-                  }`}
-                >
-                  {order.kategoriBarang === "basic" ? "Basic" : "Model"}
-                </span>
-              </p>
+              </div>
               {userRole !== "supplier" && (
-                <p>
-                  <span className="text-gray-600">Request No:</span>{" "}
-                  <span className="font-mono">{order.requestNo || "-"}</span>
-                </p>
+                <div className="grid grid-cols-5 gap-x-3 items-center">
+                  <span className="text-gray-600 pr-1">Category:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs w-fit ${
+                      order.kategoriBarang === "basic"
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-teal-100 text-teal-700"
+                    }`}
+                  >
+                    {order.kategoriBarang === "basic" ? "Basic" : "Model"}
+                  </span>
+                </div>
               )}
-              <p>
-                <span className="text-gray-600">Created:</span>{" "}
-                {formatTimestamp(order.createdDate)}
-              </p>
-              <p>
-                <span className="text-gray-600">Created By:</span>{" "}
-                {getFullNameFromUsername(order.jbId)}
-              </p>
+              {userRole !== "supplier" && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Request No:</span>
+                  <span className="font-mono">{order.requestNo || "-"}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">Created:</span>
+                <span>{formatTimestamp(order.createdDate)}</span>
+              </div>
               {order.branchCode && (
-                <p>
-                  <span className="text-gray-600">Branch:</span>{" "}
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Branch:</span>
                   <span className="font-medium">
                     {getBranchName(order.branchCode)}
                   </span>
-                </p>
+                </div>
               )}
-              <p>
-                <span className="text-gray-600">Supplier:</span>{" "}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">Supplier:</span>
                 <span className="font-medium">{pabrikLabel}</span>
-              </p>
-              <p>
-                <span className="text-gray-600">ETA:</span>{" "}
-                {formatDate(order.waktuKirim)}
-              </p>
-              <p>
-                <span className="text-gray-600">Status:</span>{" "}
+              </div>
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">ETA:</span>
+                <span>{formatDate(order.waktuKirim)}</span>
+              </div>
+              <div className="grid grid-cols-5 gap-x-3 items-center">
+                <span className="text-gray-600 pr-1">Status:</span>
                 <span
-                  className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium`}
+                  className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium w-fit`}
                 >
                   {currentOrder.status}
                 </span>
-              </p>
+              </div>
             </div>
           </div>
         </div>
-      </Card>
 
-      {/* Order Items Card */}
-      <DetailItemsTable
-        items={order.detailItems}
-        mode="readonly"
-        getKadarColor={getKadarColor}
-        getWarnaColor={getWarnaColor}
-        getWarnaLabel={getWarnaLabel}
-        getUkuranLabel={(ukuran) => {
-          const display = getUkuranDisplay(ukuran);
-          return display.showUnit ? `${display.value} cm` : display.value;
-        }}
-        title="Order Items"
-      />
-
-      {/* Revision Details Card - Show for all users if there are revisions */}
-      {order.revisionHistory && order.revisionHistory.length > 0 && (
-        <Card className="p-4 mb-4 bg-blue-50 border-blue-200">
-          <h3 className="font-semibold text-lg mb-3 text-blue-900">Revision History</h3>
-          <div className="space-y-3">
-            {order.revisionHistory.map((revision, index) => {
-              const etaChanged = revision.previousValues.waktuKirim !== revision.changes.waktuKirim;
-              const isLatest = index === order.revisionHistory!.length - 1;
-              
-              return (
-                <div 
-                  key={revision.revisionNumber} 
-                  className={`p-3 rounded border ${isLatest ? 'bg-white border-blue-300' : 'bg-gray-50 border-gray-200'}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-sm">
-                      Revision #{revision.revisionNumber}
-                      {isLatest && <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">Latest</span>}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(revision.timestamp).toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-2">
-                    Updated by: <span className="font-medium">{revision.updatedBy}</span>
-                  </p>
-                  
-                  {etaChanged && (
-                    <div className="bg-yellow-50 p-2 rounded border border-yellow-200 mb-2">
-                      <p className="text-xs font-semibold text-gray-700 mb-1">ETA Changed:</p>
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-red-600 line-through">
-                          {revision.previousValues.waktuKirim 
-                            ? new Date(revision.previousValues.waktuKirim).toLocaleDateString("id-ID")
-                            : "-"}
-                        </span>
-                        <span className="text-gray-500">→</span>
-                        <span className="text-green-600 font-semibold">
-                          {revision.changes.waktuKirim 
-                            ? new Date(revision.changes.waktuKirim).toLocaleDateString("id-ID")
-                            : "-"}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {revision.revisionNotes && (
-                    <div className="bg-white p-2 rounded border border-gray-200">
-                      <p className="text-xs font-semibold text-gray-700 mb-1">Notes:</p>
-                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{revision.revisionNotes}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* Supplier Action Buttons */}
-      {userRole === "supplier" &&
-        (currentOrder.status === "New" || currentOrder.status === "Viewed") && (
-          <div className="flex gap-2 flex-wrap justify-end mt-6">
-            <Button
-              onClick={() =>
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "In Production",
-                  "You've marked the Order as In Production",
-                )
-              }
-              className="bg-yellow-500 hover:bg-yellow-600 text-white"
-            >
-              Start Production
-            </Button>
-            <Button
-              onClick={() =>
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "Stock Ready",
-                  "You've marked the Order as Ready Stock",
-                )
-              }
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              Mark Stock Ready
-            </Button>
-            <Button
-              onClick={() => {
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "Change Requested",
-                  "You've requested a change for this Order",
-                );
-              }}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              Request Change
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() =>
-                handleUpdateStatus(currentOrder.id, "Unable to Fulfill")
-              }
-            >
-              Unable to Fulfill
-            </Button>
-          </div>
-        )}
-
-      {/* Supplier Action Buttons - Order Revised */}
-      {userRole === "supplier" && currentOrder.status === "Order Revised" && (
-        <div className="flex gap-2 flex-wrap justify-end mt-6">
-          <Button
-            onClick={() =>
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "In Production",
-                "You've marked the Order as In Production",
-              )
-            }
-            className="bg-yellow-500 hover:bg-yellow-600 text-white"
-          >
-            Start Production
-          </Button>
-          <Button
-            onClick={() =>
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "Stock Ready",
-                "You've marked the Order as Ready Stock",
-              )
-            }
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            Mark Stock Ready
-          </Button>
-          <Button
-            onClick={() => {
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "Change Requested",
-                "You've requested a change for this Order",
-              );
-              // Navigate to In Review tab
-              setTimeout(() => onBack(), 100);
-              // Navigate to In Review tab
-              setTimeout(() => onBack(), 100);
+        {/* Order Items */}
+        <div className="border-t pt-4">
+          <ProductDetailsTable
+            items={order.detailItems}
+            mode="readonly"
+            title="Order Items"
+            getKadarColor={getKadarColor}
+            getWarnaColor={getWarnaColor}
+            getWarnaLabel={getWarnaLabel}
+            getUkuranLabel={(ukuran) => {
+              const display = getUkuranDisplay(ukuran);
+              return display.showUnit ? `${display.value} cm` : display.value;
             }}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-          >
-            Request Change
-          </Button>
+            showCardWrapper={false}
+            showRowNumbers={true}
+          />
         </div>
-      )}
 
-      {/* Related Request Details - Collapsible Panel */}
-      {relatedRequest && userRole !== "supplier" && (
-        <Card className="p-4">
-          <button
-            onClick={() => setIsRequestDetailsOpen(!isRequestDetailsOpen)}
-            className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
+        {/* Related Request Details */}
+        {relatedRequest && userRole !== "supplier" && (
+          <div className="border-t pt-4">
+            <button
+              onClick={() => setIsRequestDetailsOpen(!isRequestDetailsOpen)}
+              className="w-full flex items-center justify-between hover:bg-gray-50 rounded-lg py-1 transition-colors"
           >
             <h3 className="font-semibold text-gray-900">
-              Related Request Details
+              Original Request
             </h3>
             {isRequestDetailsOpen ? (
               <ChevronUp className="w-5 h-5 text-gray-500" />
@@ -545,8 +397,8 @@ export function OrderDetails({
             )}
           </button>
 
-          {isRequestDetailsOpen && (
-            <div className="mt-4 pt-4 border-t space-y-4">
+            {isRequestDetailsOpen && (
+              <div className="mt-4 pt-4 border-t space-y-4">
               {/* Request Info Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className="space-y-2">
@@ -713,19 +565,19 @@ export function OrderDetails({
                   </table>
                 </div>
               </div>
-            </div>
-          )}
-        </Card>
-      )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Revision History - Collapsible Panel (for non-supplier users) */}
-      {userRole !== "supplier" &&
-        currentOrder.revisionHistory &&
-        currentOrder.revisionHistory.length > 0 && (
-          <Card className="p-4">
-            <button
-              onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
-              className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
+        {/* Revision History */}
+        {userRole !== "supplier" &&
+          currentOrder.revisionHistory &&
+          currentOrder.revisionHistory.length > 0 && (
+            <div className="border-t pt-4">
+              <button
+                onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
+                className="w-full flex items-center justify-between hover:bg-gray-50 rounded-lg py-1 transition-colors"
             >
               <h3 className="font-semibold text-gray-900">
                 Order Revisions ({currentOrder.revisionHistory.length}{" "}
@@ -741,237 +593,25 @@ export function OrderDetails({
               )}
             </button>
 
-            {isRevisionHistoryOpen && (
-              <div className="mt-4 space-y-3">
-                {/* Initial Version - Show original order state */}
-                {(() => {
-                  const isExpanded = expandedRevisions.has(-1);
-                  const firstRevision = currentOrder.revisionHistory[0];
-
-                  return (
-                    <div className="border rounded-lg overflow-hidden bg-blue-50">
-                      <button
-                        onClick={() => {
-                          const newExpanded = new Set(expandedRevisions);
-                          if (isExpanded) {
-                            newExpanded.delete(-1);
-                          } else {
-                            newExpanded.add(-1);
-                          }
-                          setExpandedRevisions(newExpanded);
-                        }}
-                        className="w-full flex items-center justify-between p-3 hover:bg-blue-100 transition-colors text-left"
-                      >
-                        <div>
-                          <h4 className="font-medium text-sm">
-                            {new Date(
-                              currentOrder.createdDate,
-                            ).toLocaleDateString("id-ID", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </h4>
-                          <p className="text-xs text-gray-600">
-                            Initial version · Created by{" "}
-                            {getFullNameFromUsername(currentOrder.createdBy)}
-                          </p>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
-                        )}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="border-t bg-white p-4 text-sm">
-                          <div className="flex flex-col md:flex-row gap-4">
-                            {/* Left side: Fields */}
-                            <div className="flex-1 space-y-3">
-                              {/* Product Category */}
-                              <div>
-                                <p className="font-medium text-gray-700 text-xs mb-1">
-                                  Product Category
-                                </p>
-                                <p className="text-gray-900">
-                                  {getLabelFromValue(
-                                    [
-                                      { value: "basic", label: "Basic" },
-                                      { value: "model", label: "Model" },
-                                    ],
-                                    firstRevision?.previousValues
-                                      .kategoriBarang ||
-                                      currentOrder.kategoriBarang,
-                                  )}
-                                </p>
-                              </div>
-
-                              {/* Product Type */}
-                              <div>
-                                <p className="font-medium text-gray-700 text-xs mb-1">
-                                  Product Type
-                                </p>
-                                <p className="text-gray-900">
-                                  {getLabelFromValue(
-                                    JENIS_PRODUK_OPTIONS,
-                                    firstRevision?.previousValues.jenisProduk ||
-                                      currentOrder.jenisProduk,
-                                  )}
-                                </p>
-                              </div>
-
-                              {/* Basic Name */}
-                              {(firstRevision?.previousValues.namaBasic ||
-                                currentOrder.namaBasic) && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Basic Name
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      NAMA_BASIC_OPTIONS,
-                                      firstRevision?.previousValues.namaBasic ||
-                                        currentOrder.namaBasic,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Nama Produk */}
-                              {(firstRevision?.previousValues.namaProduk ||
-                                currentOrder.namaProduk) && (
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Nama Produk
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      NAMA_PRODUK_OPTIONS,
-                                      firstRevision?.previousValues
-                                        .namaProduk || currentOrder.namaProduk,
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Right side: Photo */}
-                            {(firstRevision?.previousValues.photoId ||
-                              currentOrder.photoId) && (
-                              <div className="md:w-48">
-                                <p className="font-medium text-gray-700 text-xs mb-2">
-                                  Product Photo
-                                </p>
-                                <img
-                                  src={
-                                    getImage(
-                                      firstRevision?.previousValues.photoId ||
-                                        currentOrder.photoId ||
-                                        "",
-                                    ) || ""
-                                  }
-                                  alt="Product"
-                                  className="w-full h-48 object-cover rounded border"
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Detail Items */}
-                          {(() => {
-                            const detailItems =
-                              firstRevision?.previousValues.detailItems ||
-                              currentOrder.detailItems;
-                            return (
-                              detailItems &&
-                              detailItems.length > 0 && (
-                                <div className="mt-4">
-                                  <p className="font-medium text-gray-700 text-xs mb-2">
-                                    Product Details ({detailItems.length} items)
-                                  </p>
-                                  <div className="overflow-x-auto">
-                                    <table className="min-w-full text-xs border-collapse border">
-                                      <thead className="bg-gray-100">
-                                        <tr>
-                                          <th className="border px-2 py-1 text-left">
-                                            Kadar
-                                          </th>
-                                          <th className="border px-2 py-1 text-left">
-                                            Warna
-                                          </th>
-                                          <th className="border px-2 py-1 text-left">
-                                            Ukuran
-                                          </th>
-                                          <th className="border px-2 py-1 text-right">
-                                            Berat
-                                          </th>
-                                          <th className="border px-2 py-1 text-right">
-                                            Pcs
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {detailItems.map((item, idx) => (
-                                          <tr key={idx}>
-                                            <td
-                                              className={`border px-2 py-1 font-medium ${getKadarColor(item.kadar)}`}
-                                            >
-                                              {item.kadar}
-                                            </td>
-                                            <td
-                                              className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                            >
-                                              {getWarnaLabel(item.warna)}
-                                            </td>
-                                            <td className="border px-2 py-1">
-                                              {(() => {
-                                                const ukuranDisplay =
-                                                  getUkuranDisplay(item.ukuran);
-                                                return ukuranDisplay.showUnit
-                                                  ? `${ukuranDisplay.value} cm`
-                                                  : ukuranDisplay.value;
-                                              })()}
-                                            </td>
-                                            <td className="border px-2 py-1 text-right">
-                                              {item.berat}
-                                            </td>
-                                            <td className="border px-2 py-1 text-right">
-                                              {item.pcs}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              )
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Revision History */}
-                {currentOrder.revisionHistory.map((revision, index) => {
-                  const isExpanded = expandedRevisions.has(index);
+              {isRevisionHistoryOpen && (
+                <div className="mt-4 space-y-3">
+                {/* Revisions - newest first */}
+                {[...currentOrder.revisionHistory].reverse().map((revision) => {
+                  const revKey = revision.revisionNumber;
+                  const isExpanded = expandedRevisions.has(revKey);
 
                   return (
                     <div
-                      key={index}
+                      key={revKey}
                       className="border rounded-lg overflow-hidden"
                     >
                       <button
                         onClick={() => {
                           const newExpanded = new Set(expandedRevisions);
                           if (isExpanded) {
-                            newExpanded.delete(index);
+                            newExpanded.delete(revKey);
                           } else {
-                            newExpanded.add(index);
+                            newExpanded.add(revKey);
                           }
                           setExpandedRevisions(newExpanded);
                         }}
@@ -1008,7 +648,7 @@ export function OrderDetails({
                             {/* Left side: Fields */}
                             <div className="flex-1 space-y-3">
                               {/* Product Category */}
-                              {revision.changes.kategoriBarang && (
+                              {/* {revision.changes.kategoriBarang && (
                                 <div>
                                   <p className="font-medium text-gray-700 text-xs mb-1">
                                     Product Category
@@ -1023,7 +663,7 @@ export function OrderDetails({
                                     )}
                                   </p>
                                 </div>
-                              )}
+                              )} */}
 
                               {/* Product Type */}
                               {revision.changes.jenisProduk && (
@@ -1069,6 +709,28 @@ export function OrderDetails({
                                   </p>
                                 </div>
                               )}
+
+                              {/* Supplier */}
+                              <div>
+                                <p className="font-medium text-gray-700 text-xs mb-1">
+                                  Supplier
+                                </p>
+                                <p className="text-gray-900">
+                                  {currentOrder.pabrik?.name || "-"}
+                                </p>
+                              </div>
+
+                              {/* Customer Name */}
+                              {currentOrder.atasNama && (
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Customer Name
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {currentOrder.atasNama}
+                                  </p>
+                                </div>
+                              )}
                             </div>
 
                             {/* Right side: Photo */}
@@ -1092,119 +754,194 @@ export function OrderDetails({
                           {/* Detail Items */}
                           {revision.changes.detailItems &&
                             revision.changes.detailItems.length > 0 && (
-                              <div className="mt-4">
-                                <p className="font-medium text-gray-700 text-xs mb-2">
-                                  Detail Barang (
-                                  {revision.changes.detailItems.length} items)
-                                </p>
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-full text-xs border-collapse border">
-                                    <thead className="bg-gray-100">
-                                      <tr>
-                                        <th className="border px-2 py-1 text-left">
-                                          Kadar
-                                        </th>
-                                        <th className="border px-2 py-1 text-left">
-                                          Warna
-                                        </th>
-                                        <th className="border px-2 py-1 text-left">
-                                          Ukuran
-                                        </th>
-                                        <th className="border px-2 py-1 text-right">
-                                          Berat
-                                        </th>
-                                        <th className="border px-2 py-1 text-right">
-                                          Pcs
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {revision.changes.detailItems.map(
-                                        (item, idx) => {
-                                          // Get corresponding previous item for comparison
-                                          const prevItem =
-                                            revision.previousValues
-                                              ?.detailItems?.[idx];
-
-                                          // Check if this is a new item (no previous item at this index or beyond previous length)
-                                          const isNewItem = 
-                                            !revision.previousValues?.detailItems ||
-                                            idx >= revision.previousValues.detailItems.length;
-
-                                          // Determine if each field changed
-                                          const kadarChanged =
-                                            prevItem &&
-                                            item.kadar !== prevItem.kadar;
-                                          const warnaChanged =
-                                            prevItem &&
-                                            item.warna !== prevItem.warna;
-                                          const ukuranChanged =
-                                            prevItem &&
-                                            item.ukuran !== prevItem.ukuran;
-                                          const beratChanged =
-                                            prevItem &&
-                                            item.berat !== prevItem.berat;
-                                          const pcsChanged =
-                                            prevItem &&
-                                            item.pcs !== prevItem.pcs;
-
-                                          return (
-                                            <tr key={idx} className={isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : ""}>
-                                              <td
-                                                className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {item.kadar}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {getWarnaLabel(item.warna)}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {(() => {
-                                                  const ukuranDisplay =
-                                                    getUkuranDisplay(
-                                                      item.ukuran,
-                                                    );
-                                                  return ukuranDisplay.showUnit
-                                                    ? `${ukuranDisplay.value} cm`
-                                                    : ukuranDisplay.value;
-                                                })()}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {item.berat}
-                                              </td>
-                                              <td
-                                                className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                              >
-                                                {item.pcs}
-                                              </td>
-                                            </tr>
-                                          );
-                                        },
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
+                              <ProductDetailsTableCompact
+                                items={revision.changes.detailItems}
+                                title={`Detail Barang (${revision.changes.detailItems.length} items)`}
+                                getKadarColor={getKadarColor}
+                                getWarnaColor={getWarnaColor}
+                                getWarnaLabel={getWarnaLabel}
+                                getUkuranLabel={(ukuran) => {
+                                  const display = getUkuranDisplay(ukuran);
+                                  return display.showUnit
+                                    ? `${display.value} cm`
+                                    : display.value;
+                                }}
+                                previousItems={revision.previousValues?.detailItems}
+                                highlightChanges={true}
+                                showTitle={true}
+                              />
                             )}
                         </div>
                       )}
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </Card>
+                </div>
+              )}
+            </div>
+          )}
+      </Card>
+
+      {/* Revision Details Card - Show for all users if there are revisions */}
+      {order.revisionHistory && order.revisionHistory.length > 0 && (
+        <Card className="p-4 mb-4 bg-blue-50 border-blue-200">
+          <h3 className="font-semibold text-lg mb-3 text-blue-900">Revision History</h3>
+          <div className="space-y-3">
+            {order.revisionHistory.map((revision, index) => {
+              const etaChanged = revision.previousValues.waktuKirim !== revision.changes.waktuKirim;
+              const isLatest = index === order.revisionHistory!.length - 1;
+              
+              return (
+                <div 
+                  key={revision.revisionNumber} 
+                  className={`p-3 rounded border ${isLatest ? 'bg-white border-blue-300' : 'bg-gray-50 border-gray-200'}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm">
+                      Revision #{revision.revisionNumber}
+                      {isLatest && <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">Latest</span>}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(revision.timestamp).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-2">
+                    Updated by: <span className="font-medium">{revision.updatedBy}</span>
+                  </p>
+                  
+                  {etaChanged && (
+                    <div className="bg-yellow-50 p-2 rounded border border-yellow-200 mb-2">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">ETA Changed:</p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-red-600 line-through">
+                          {revision.previousValues.waktuKirim 
+                            ? new Date(revision.previousValues.waktuKirim).toLocaleDateString("id-ID")
+                            : "-"}
+                        </span>
+                        <span className="text-gray-500">→</span>
+                        <span className="text-green-600 font-semibold">
+                          {revision.changes.waktuKirim 
+                            ? new Date(revision.changes.waktuKirim).toLocaleDateString("id-ID")
+                            : "-"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {revision.revisionNotes && (
+                    <div className="bg-white p-2 rounded border border-gray-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Notes:</p>
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{revision.revisionNotes}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Supplier Action Buttons */}
+      {userRole === "supplier" &&
+        (currentOrder.status === "New" || currentOrder.status === "Viewed") && (
+          <div className="flex gap-2 flex-wrap justify-end mt-6">
+            <Button
+              onClick={() =>
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "In Production",
+                  "You've marked the Order as In Production",
+                )
+              }
+              className="bg-yellow-500 hover:bg-yellow-600 text-white"
+            >
+              Start Production
+            </Button>
+            <Button
+              onClick={() =>
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Stock Ready",
+                  "You've marked the Order as Ready Stock",
+                )
+              }
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Mark Stock Ready
+            </Button>
+            <Button
+              onClick={() => {
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Change Requested",
+                  "You've requested a change for this Order",
+                );
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              Request Change
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                handleUpdateStatus(currentOrder.id, "Unable to Fulfill")
+              }
+            >
+              Unable to Fulfill
+            </Button>
+          </div>
         )}
+
+      {/* Supplier Action Buttons - Order Revised */}
+      {userRole === "supplier" && currentOrder.status === "Order Revised" && (
+        <div className="flex gap-2 flex-wrap justify-end mt-6">
+          <Button
+            onClick={() =>
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "In Production",
+                "You've marked the Order as In Production",
+              )
+            }
+            className="bg-yellow-500 hover:bg-yellow-600 text-white"
+          >
+            Start Production
+          </Button>
+          <Button
+            onClick={() =>
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "Stock Ready",
+                "You've marked the Order as Ready Stock",
+              )
+            }
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            Mark Stock Ready
+          </Button>
+          <Button
+            onClick={() => {
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "Change Requested",
+                "You've requested a change for this Order",
+              );
+              // Navigate to In Review tab
+              setTimeout(() => onBack(), 100);
+              // Navigate to In Review tab
+              setTimeout(() => onBack(), 100);
+            }}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Request Change
+          </Button>
+        </div>
+      )}
 
       {/* Review Action Buttons - Only shown in review mode */}
       {reviewMode && onApproveRevision && onCancelOrder && (
-        <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
+        <div className="static bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
           <div className="bg-white/95 backdrop-blur-sm border-t shadow-lg p-4">
             <div className="flex gap-3 justify-end max-w-7xl mx-auto">
               {userRole == "sales" ? (

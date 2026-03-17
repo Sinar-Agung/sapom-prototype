@@ -359,6 +359,9 @@ export function MyOrders({
         );
       }
       return order.status === "Stockist Processing";
+    } else if (activeTab === "ordered") {
+      // Ordered tab - show Ordered status for both sales and stockist
+      return order.status === "Ordered";
     } else if (activeTab === "done") {
       return (
         order.status === "Done" ||
@@ -406,6 +409,9 @@ export function MyOrders({
   const assignedCount = requestNoFiltered.filter((order: Request) => {
     return order.status === "Requested to JB";
   }).length;
+  const orderedCount = requestNoFiltered.filter((order: Request) => {
+    return order.status === "Ordered";
+  }).length;
 
   // Calculate unseen counts (requests not viewed by current user)
   const unseenAllCount = requestNoFiltered.filter(
@@ -447,6 +453,11 @@ export function MyOrders({
   const unseenAssignedCount = requestNoFiltered.filter(
     (order: Request) =>
       order.status === "Requested to JB" &&
+      !order.viewedBy?.includes(currentUser),
+  ).length;
+  const unseenOrderedCount = requestNoFiltered.filter(
+    (order: Request) =>
+      order.status === "Ordered" &&
       !order.viewedBy?.includes(currentUser),
   ).length;
 
@@ -771,6 +782,24 @@ export function MyOrders({
             </span>
           </TabsTrigger>
           <TabsTrigger
+            value="ordered"
+            onClick={handleTabClick}
+            className={
+              activeTab === "ordered"
+                ? "text-indigo-600 border-indigo-600"
+                : ""
+            }
+          >
+            <span className="flex items-center gap-1.5">
+              Ordered ({orderedCount})
+              {unseenOrderedCount > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                  {unseenOrderedCount}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
             value="done"
             onClick={handleTabClick}
             className={
@@ -918,6 +947,28 @@ export function MyOrders({
             </Card>
           ) : (
             <div className="h-full overflow-y-auto">
+              <div className="space-y-3 pb-4">
+                {displayedOrders.map((order) => renderOrderCard(order))}
+              </div>
+              {displayedCount < sortedOrders.length && (
+                <div ref={observerTarget} className="flex justify-center py-4">
+                  <div className="text-sm text-gray-500">Loading more...</div>
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ordered" className="flex-1 min-h-0 m-0">
+          {filteredOrders.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <p className="text-lg mb-2">No ordered requests</p>
+                <p className="text-sm">Ordered requests will appear here</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="h-full overflow-y-auto scrollbar-hide">
               <div className="space-y-3 pb-4">
                 {displayedOrders.map((order) => renderOrderCard(order))}
               </div>
