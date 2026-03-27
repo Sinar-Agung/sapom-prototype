@@ -27,7 +27,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { ProductDetailsTable, ProductDetailsTableCompact } from "./ui/product-details-table";
+import { DetailItemsTable } from "./ui/detail-items-table";
 import {
   Dialog,
   DialogContent,
@@ -440,7 +440,9 @@ export function OrderDetails({
             <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
               {userRole !== "supplier" && (
                 <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 justify-self-start pr-1">Created By:</span>
+                  <span className="text-gray-600 justify-self-start pr-1">
+                    Created By:
+                  </span>
                   <span className="font-bold">
                     {getFullNameFromUsername(order.jbId)}
                   </span>
@@ -504,6 +506,7 @@ export function OrderDetails({
             </div>
           </div>
         </div>
+      </Card>
 
       {/* Supplier Revision Review - shown for Sales/JB when supplier has proposed changes */}
       {(userRole === "sales" || userRole === "jb") &&
@@ -960,6 +963,7 @@ export function OrderDetails({
             Request Change
           </Button>
         </div>
+      )}
 
       {/* Revision History - Unified Timeline Panel (all users; suppliers when Order Revised or Change Pending Approval) */}
       {(userRole !== "supplier" ||
