@@ -9,6 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**"Ordered" Tab in My Requests**: New tab for Sales and Stockist roles
+
+- Filters requests with status `"Ordered"` into a dedicated tab
+- Displays unseen count badge (red) on tab
+- Positioned between "Assigned" and "Done" tabs with indigo styling
+- Updated: `my-requests.tsx`
+
+**Reusable Product Details Table Components**: New shared table components
+
+- `ProductDetailsTable`: Full-featured table with modes `readonly`, `with-available-pcs`, `with-ordered-pcs`, `with-changes`
+- `ProductDetailsTableCompact`: Compact version for nested/inline use (e.g., revision history)
+- Supports responsive layout (desktop table ↔ mobile cards), sticky headers, change highlighting, row numbers
+- Located: `src/app/components/product-details-table.tsx`
+
+### Changed
+
+**Order Details Page — Combined into Single Card**: Merged four separate cards into one
+
+- Order Information, Order Items, Related Request Details, and Revision History now live inside one `<Card>`
+- Sections separated by `border-t` dividers for visual clarity
+- Updated: `order-details.tsx`
+
+**Order Details — Order Info Layout**: Aligned info fields to match order-card style
+
+- Replaced `space-y-1` paragraph list with `grid grid-cols-[auto_1fr]` per row
+- Labels right-aligned (`justify-self-end pr-1`) with consistent `gap-x-3` to values
+- Updated: `order-details.tsx`
+
+**Order Details — Revision History Improvements**:
+
+- Removed "Initial Version" entry — only actual revisions are shown
+- Revisions now displayed newest-first (`[...revisionHistory].reverse()`)
+- Added **Supplier** and **Customer Name** fields inside each revision entry (after Basic Name / Nama Produk)
+- Expand/collapse key changed from array index to `revision.revisionNumber` (stable across reorder)
+- Updated: `order-details.tsx`
+
+**Order Details — Request Items Table**: Replaced inline table markup with `ProductDetailsTableCompact`
+
+- Reduced ~170 lines of manual table markup to a single component call
+- Updated: `order-details.tsx`
+
+**OrderCard Layout Refactoring**: Consistent info grid layout for My Orders
+
+- Removed date display above product image; image now starts at top
+- All info fields (PO Number, Updated, Created, ETA, JB, Sales, Customer Name, Supplier) merged into one `grid grid-cols-1` with `grid-cols-[auto_1fr]` per row
+- Labels right-aligned with `justify-self-end` to minimize gap to values (`gap-x-3`)
+- Supplier displayed as `Badge` component with pabrik color
+- Updated: `order-card.tsx`
+
+**RequestCard Layout Refactoring**: Unified info grid layout for My Requests
+
+- Replaced individual `<p>` tags with `grid grid-cols-[auto_1fr] gap-x-3` layout
+- All fields (Request No, Created, Sales, Stockist, Customer Name, Supplier, ETA) in one grid
+- Supplier displayed as `Badge` component consistent with order-card
+- Updated: `request-card.tsx`
+
+**Order Details — Order Items Table**: Replaced `DetailItemsTable` with `ProductDetailsTable`
+
+- Uses `showCardWrapper={false}` (embedded inside combined card), `showRowNumbers={true}`
+- Updated: `order-details.tsx`
+
+### Added
+
 **Order Revision History — Chronological Display**: Latest revision now shown at top, initial version at bottom
 
 - Revision entries rendered in reverse chronological order (newest → oldest)

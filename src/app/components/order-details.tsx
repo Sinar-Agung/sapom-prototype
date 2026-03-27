@@ -27,7 +27,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { DetailItemsTable } from "./ui/detail-items-table";
+import { ProductDetailsTable, ProductDetailsTableCompact } from "./ui/product-details-table";
 import {
   Dialog,
   DialogContent,
@@ -413,14 +413,14 @@ export function OrderDetails({
             {order.PONumber}
           </p>
         </div>
-        <span
+        {/* <span
           className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(currentOrder.status)}`}
         >
           {currentOrder.status}
-        </span>
+        </span> */}
       </div>
 
-      {/* Order Information Card */}
+      {/* Combined Order Details Card */}
       <Card className="p-4 mb-4">
         <div className="flex gap-4">
           {/* Product Image */}
@@ -437,25 +437,21 @@ export function OrderDetails({
             <h2 className="text-lg font-bold mb-2">
               {jenisProdukLabel} {productNameLabel}
             </h2>
-            <div className="space-y-1 text-sm">
-              <p>
-                <span className="text-gray-600">PO Number:</span>{" "}
+            <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
+              {userRole !== "supplier" && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 justify-self-start pr-1">Created By:</span>
+                  <span className="font-bold">
+                    {getFullNameFromUsername(order.jbId)}
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">PO Number:</span>
                 <span className="font-mono font-semibold text-blue-700">
                   {order.PONumber}
                 </span>
-              </p>
-              <p>
-                <span className="text-gray-600">Category:</span>{" "}
-                <span
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    order.kategoriBarang === "basic"
-                      ? "bg-purple-100 text-purple-700"
-                      : "bg-teal-100 text-teal-700"
-                  }`}
-                >
-                  {order.kategoriBarang === "basic" ? "Basic" : "Model"}
-                </span>
-              </p>
+              </div>
               {userRole !== "supplier" && (
                 <p>
                   <span className="text-gray-600">Request No:</span>{" "}
@@ -471,42 +467,43 @@ export function OrderDetails({
                   )}
                 </p>
               )}
-              <p>
-                <span className="text-gray-600">Created:</span>{" "}
-                {formatTimestamp(order.createdDate)}
-              </p>
-              <p>
-                <span className="text-gray-600">Created By:</span>{" "}
-                {getFullNameFromUsername(order.jbId)}
-              </p>
+              {userRole !== "supplier" && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Request No:</span>
+                  <span className="font-mono">{order.requestNo || "-"}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">Created:</span>
+                <span>{formatTimestamp(order.createdDate)}</span>
+              </div>
               {order.branchCode && (
-                <p>
-                  <span className="text-gray-600">Branch:</span>{" "}
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Branch:</span>
                   <span className="font-medium">
                     {getBranchName(order.branchCode)}
                   </span>
-                </p>
+                </div>
               )}
-              <p>
-                <span className="text-gray-600">Supplier:</span>{" "}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">Supplier:</span>
                 <span className="font-medium">{pabrikLabel}</span>
-              </p>
-              <p>
-                <span className="text-gray-600">ETA:</span>{" "}
-                {formatDate(order.waktuKirim)}
-              </p>
-              <p>
-                <span className="text-gray-600">Status:</span>{" "}
+              </div>
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">ETA:</span>
+                <span>{formatDate(order.waktuKirim)}</span>
+              </div>
+              <div className="grid grid-cols-5 gap-x-3 items-center">
+                <span className="text-gray-600 pr-1">Status:</span>
                 <span
-                  className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium`}
+                  className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium w-fit`}
                 >
                   {currentOrder.status}
                 </span>
-              </p>
+              </div>
             </div>
           </div>
         </div>
-      </Card>
 
       {/* Supplier Revision Review - shown for Sales/JB when supplier has proposed changes */}
       {(userRole === "sales" || userRole === "jb") &&
@@ -963,7 +960,6 @@ export function OrderDetails({
             Request Change
           </Button>
         </div>
-      )}
 
       {/* Revision History - Unified Timeline Panel (all users; suppliers when Order Revised or Change Pending Approval) */}
       {(userRole !== "supplier" ||

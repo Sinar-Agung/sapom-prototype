@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { NewBadge } from "./new-badge";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -231,64 +232,77 @@ export function RequestCard({
             </div>
           </div>
 
-          {/* Request No */}
-          {order.requestNo && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500">Request No: </span>
-              <span className="font-mono">{order.requestNo}</span>
-            </p>
-          )}
-
-          {/* Created Date */}
-          <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-            <span className="text-gray-500">Created: </span>
-            {formatTimestamp(order.timestamp) || "-"}
-          </p>
-
-          {/* Sales Name (show for stockist and jb roles) */}
-          {(userRole === "stockist" || userRole === "jb") &&
-            order.createdBy && (
-              <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-                <span className="text-gray-500 hidden sm:inline">Sales: </span>
-                {getFullNameFromUsername(order.createdBy || "")}
-              </p>
+          {/* Request Information Grid - All fields in one consistent grid */}
+          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm mb-2 sm:mb-3">
+            {/* Request No */}
+            {order.requestNo && (
+              <>
+                <span className="text-gray-500">Request No:</span>
+                <span className="font-mono text-gray-700">
+                  {order.requestNo}
+                </span>
+              </>
             )}
 
-          {/* Sales Name (only show for sales if flag is set) */}
-          {userRole === "sales" && showSalesName && order.createdBy && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500 hidden sm:inline">Sales: </span>
-              {getFullNameFromUsername(order.createdBy || "")}
-            </p>
-          )}
-
-          {/* Stockist Name (show for sales and jb roles when stockist is assigned) */}
-          {(userRole === "sales" || userRole === "jb") && order.stockistId && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500 hidden sm:inline">Stockist: </span>
-              {getFullNameFromUsername(order.stockistId || "")}
-            </p>
-          )}
-
-          {/* Customer Name */}
-          {order.namaPelanggan && order.namaPelanggan.name && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500 hidden sm:inline">
-                Customer Name:{" "}
-              </span>
-              {atasNamaLabel}
-            </p>
-          )}
-
-          {/* Supplier with color badge */}
-          <div className="mb-0.5 sm:mb-1">
-            <span className="text-[11px] sm:text-sm text-gray-500 hidden sm:inline">
-              Supplier:{" "}
+            {/* Created Date */}
+            <span className="text-gray-500">Created:</span>
+            <span className="text-gray-700">
+              {formatTimestamp(order.timestamp) || "-"}
             </span>
-            <span
-              className={`text-[11px] sm:text-sm font-medium px-2 py-0.5 rounded ${getPabrikColor(pabrikLabel)}`}
+
+            {/* Sales Name (show for stockist and jb roles) */}
+            {(userRole === "stockist" || userRole === "jb") &&
+              order.createdBy && (
+                <>
+                  <span className="text-gray-500">Sales:</span>
+                  <span className="text-gray-700">
+                    {getFullNameFromUsername(order.createdBy || "")}
+                  </span>
+                </>
+              )}
+
+            {/* Sales Name (only show for sales if flag is set) */}
+            {userRole === "sales" && showSalesName && order.createdBy && (
+              <>
+                <span className="text-gray-500">Sales:</span>
+                <span className="text-gray-700">
+                  {getFullNameFromUsername(order.createdBy || "")}
+                </span>
+              </>
+            )}
+
+            {/* Stockist Name (show for sales and jb roles when stockist is assigned) */}
+            {(userRole === "sales" || userRole === "jb") &&
+              order.stockistId && (
+                <>
+                  <span className="text-gray-500">Stockist:</span>
+                  <span className="text-gray-700">
+                    {getFullNameFromUsername(order.stockistId || "")}
+                  </span>
+                </>
+              )}
+
+            {/* Customer Name */}
+            {order.namaPelanggan && order.namaPelanggan.name && (
+              <>
+                <span className="text-gray-500">Customer Name:</span>
+                <span className="text-gray-700">{atasNamaLabel}</span>
+              </>
+            )}
+
+            {/* Supplier with color badge */}
+            <span className="text-gray-500">Supplier:</span>
+            <Badge
+              variant="secondary"
+              className={`${getPabrikColor(pabrikLabel)}`}
             >
               {pabrikLabel}
+            </Badge>
+
+            {/* ETA */}
+            <span className="text-gray-500">ETA:</span>
+            <span className="text-gray-600">
+              {formatDate(order.waktuKirim) || "-"}
             </span>
           </div>
 

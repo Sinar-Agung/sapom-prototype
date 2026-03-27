@@ -20,6 +20,7 @@ import tambang from "@/assets/images/tambang.png";
 import { ChevronDown, ChevronRight, ClipboardCheck, Copy } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { NewBadge } from "./new-badge";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -177,21 +178,8 @@ export function OrderCard({
       </div>
 
       <div className="flex gap-2 sm:gap-4">
-        {/* Left Side - Dates and Image */}
+        {/* Left Side - Image Only */}
         <div className="flex flex-col w-20 sm:w-36 md:w-44 lg:w-48 shrink-0">
-          {/* Dates at top */}
-          <div className="mb-1 sm:mb-2">
-            {/* Updated Date */}
-            <div className="text-[9px] sm:text-xs text-gray-500 mb-0.5">
-              Updated
-            </div>
-            <div className="text-[11px] sm:text-sm font-semibold mb-1">
-              {formatTimestampWithTime(
-                order.updatedDate || order.createdDate,
-              ) || "-"}
-            </div>
-          </div>
-
           {/* Product Image */}
           <div className="w-16 h-16 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-44 lg:h-44 border rounded-lg overflow-hidden bg-gray-50">
             <img
@@ -238,71 +226,83 @@ export function OrderCard({
             </div>
           </div>
 
-          {/* PO Number - Prominent display */}
-          <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-            <span className="text-gray-500">PO Number: </span>
-            <span className="font-mono font-semibold text-blue-700">
-              {order.PONumber}
-            </span>
-          </p>
-
-          {/* Request No */}
-          {order.requestNo && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500">Request No: </span>
-              <span className="font-mono">{order.requestNo}</span>
-            </p>
-          )}
-
-          {/* Created Date */}
-          <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-            <span className="text-gray-500">Created: </span>
-            {formatTimestamp(order.createdDate) || "-"}
-          </p>
-
-          {/* JB Name - Hidden for suppliers */}
-          {userRole !== "supplier" && order.jbId && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500 hidden sm:inline">JB: </span>
-              {getJBFullName(order.jbId)}
-            </p>
-          )}
-
-          {/* Sales Name - Hidden for suppliers */}
-          {userRole !== "supplier" && order.sales && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500">Sales: </span>
-              {getFullNameFromUsername(order.sales)}
-            </p>
-          )}
-
-          {/* Customer Name - Hidden for suppliers */}
-          {userRole !== "supplier" && order.atasNama && (
-            <p className="text-[11px] sm:text-sm text-gray-700 mb-0.5 sm:mb-1">
-              <span className="text-gray-500">Customer Name: </span>
-              {order.atasNama}
-            </p>
-          )}
-
-          {/* Supplier with color badge - Hidden for suppliers */}
-          {userRole !== "supplier" && (
-            <div className="mb-0.5 sm:mb-1">
-              <span className="text-[11px] sm:text-sm text-gray-500 hidden sm:inline">
-                Supplier:{" "}
-              </span>
-              <span
-                className={`text-[11px] sm:text-sm font-medium px-2 py-0.5 rounded ${getPabrikColor(pabrikLabel)}`}
-              >
-                {pabrikLabel}
+          {/* Order Information Grid - All fields in one consistent grid */}
+          <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
+            {/* PO Number */}
+            <div className="grid grid-cols-5 gap-x-3">
+              <span className="text-gray-500">PO Number:</span>
+              <span className="font-mono font-semibold text-blue-700">
+                {order.PONumber}
               </span>
             </div>
-          )}
 
-          {/* ETA beneath Pabrik - smaller text */}
-          <p className="text-[10px] sm:text-xs text-gray-600 mb-2 sm:mb-3">
-            <span className="text-gray-500 hidden sm:inline">ETA: </span>
-            {formatDate(order.waktuKirim) || "-"}
-          </p>
+            {/* Updated Date */}
+            <div className="grid grid-cols-5 gap-x-3">
+              <span className="text-gray-500">Updated:</span>
+              <span className="font-medium">
+                {formatTimestampWithTime(
+                  order.updatedDate || order.createdDate,
+                ) || "-"}
+              </span>
+            </div>
+
+            {/* Created Date */}
+            <div className="grid grid-cols-5 gap-x-3">
+              <span className="text-gray-500">Created:</span>
+              <span>
+                {formatTimestamp(order.createdDate) || "-"}
+              </span>
+            </div>
+
+            {/* ETA */}
+            <div className="grid grid-cols-5 gap-x-3">
+              <span className="text-gray-500">ETA:</span>
+              <span>
+                {formatDate(order.waktuKirim) || "-"}
+              </span>
+            </div>
+
+            {/* JB Name - Hidden for suppliers */}
+            {userRole !== "supplier" && order.jbId && (
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">JB:</span>
+                <span className="text-gray-700">
+                  {getJBFullName(order.jbId)}
+                </span>
+              </div>
+            )}
+
+            {/* Sales Name - Hidden for suppliers */}
+            {/* {userRole !== "supplier" && order.sales && (
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">Sales:</span>
+                <span className="text-gray-700">
+                  {getFullNameFromUsername(order.sales)}
+                </span>
+              </div>
+            )} */}
+
+            {/* Customer Name - Hidden for suppliers */}
+            {userRole !== "supplier" && order.atasNama && (
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">Customer Name:</span>
+                <span className="text-gray-700">{order.atasNama}</span>
+              </div>
+            )}
+
+            {/* Supplier - Hidden for suppliers */}
+            {userRole !== "supplier" && (
+              <div className="grid grid-cols-5 gap-x-3 items-center">
+                <span className="text-gray-500">Supplier:</span>
+                <Badge
+                  variant="secondary"
+                  className={`${getPabrikColor(pabrikLabel)}`}
+                >
+                  {pabrikLabel}
+                </Badge>
+              </div>
+            )}
+          </div>
 
           {/* Action Buttons */}
           {(onToggleExpand ||
