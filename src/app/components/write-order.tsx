@@ -7,6 +7,7 @@ import {
 } from "@/app/data/order-data";
 import { Order } from "@/app/types/order";
 import { DetailBarangItem, Request } from "@/app/types/request";
+import { getImage } from "@/app/utils/image-storage";
 import {
   notifyOrderCreated,
   notifyRequestStatusChanged,
@@ -60,14 +61,14 @@ const NAMA_BASIC_IMAGES: Record<string, string> = {
   casteli: casteli,
 };
 
-// Color mapping for Kadar
+// Color mapping for Kadar (backgrounds removed)
 const KADAR_COLORS: Record<string, string> = {
-  "6k": "bg-green-500 text-white",
-  "8k": "bg-blue-500 text-white",
-  "9k": "bg-blue-700 text-white",
-  "16k": "bg-orange-500 text-white",
-  "17k": "bg-pink-500 text-white",
-  "24k": "bg-red-500 text-white",
+  "6k": "",
+  "8k": "",
+  "9k": "",
+  "16k": "",
+  "17k": "",
+  "24k": "",
 };
 
 // Color mapping for Warna
@@ -283,11 +284,15 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
     if (request.kategoriBarang === "basic" && request.namaBasic) {
       return NAMA_BASIC_IMAGES[request.namaBasic] || italySanta;
     }
+    if (request.photoId) {
+      const stored = getImage(request.photoId);
+      if (stored) return stored;
+    }
     return request.fotoBarangBase64 || italySanta;
   };
 
   const getKadarColor = (kadar: string) => {
-    return KADAR_COLORS[kadar.toLowerCase()] || "bg-gray-500 text-white";
+    return KADAR_COLORS[kadar.toLowerCase()] || "";
   };
 
   const getWarnaColor = (warna: string) => {
@@ -595,7 +600,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
           detailItems: orderDetailItems,
           photoId: request.photoId,
           fotoBarangBase64: request.fotoBarangBase64,
-          status: "New",
+          status: "New Order",
         };
 
         // Save the new order to localStorage

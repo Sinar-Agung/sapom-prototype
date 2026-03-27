@@ -12,7 +12,6 @@ import { DetailBarangItem, Request } from "@/app/types/request";
 import { getImage } from "@/app/utils/image-storage";
 import {
   notifyRequestStatusChanged,
-  notifyRequestViewedByStockist,
   removeETAReminderForStockist,
 } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
@@ -97,7 +96,7 @@ export function VerifyStock({
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
   const [showSendToJBDialog, setShowSendToJBDialog] = useState(false);
   const [wasUpdated, setWasUpdated] = useState(false);
-  const [currentRequest, setCurrentRequest] = useState<Request>(request);
+  const [currentRequest] = useState<Request>(request);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -262,43 +261,6 @@ export function VerifyStock({
     });
 
     setDetailItems(sortedItems);
-
-    // Update order status to "Stockist Processing" when this component mounts
-    const currentUser =
-      sessionStorage.getItem("username") ||
-      localStorage.getItem("username") ||
-      "";
-
-    const savedOrders = localStorage.getItem("requests");
-    if (savedOrders) {
-      const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
-      if (orderIndex !== -1 && orders[orderIndex].status === "Open") {
-        const oldStatus = orders[orderIndex].status;
-        orders[orderIndex].status = "Stockist Processing";
-        orders[orderIndex].updatedDate = Date.now();
-        orders[orderIndex].updatedBy = currentUser;
-        orders[orderIndex].stockistId = currentUser; // Assign stockist ownership
-        localStorage.setItem("requests", JSON.stringify(orders));
-
-        // Create notification for stockist viewing the request with status change
-        notifyRequestViewedByStockist(
-          orders[orderIndex],
-          currentUser,
-          oldStatus,
-          "Stockist Processing",
-        );
-
-        // Update local state to reflect changes immediately
-        setCurrentRequest({
-          ...request,
-          status: "Stockist Processing",
-          updatedDate: Date.now(),
-          updatedBy: currentUser,
-          stockistId: currentUser,
-        });
-      }
-    }
   }, [request.id, request.detailItems]);
 
   const formatDate = (isoString: string) => {

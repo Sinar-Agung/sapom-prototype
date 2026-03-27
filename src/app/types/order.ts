@@ -11,20 +11,44 @@ import { DetailBarangItem, EntityReference } from "./request";
  * Represents the lifecycle of an order in the supplier workflow
  */
 export type OrderStatus =
-  | "New" // Order created by JB, not yet viewed by supplier
+  | "New Order" // Order created by JB, not yet viewed by supplier
   | "Viewed" // Supplier has viewed the order details
-  | "Revised - Internal Review" // JB has revised the order, awaiting sales review
-  | "Order Revised" // Sales approved the revision
+  | "Order Revised" // Supplier proposed changes have been approved by Sales and JB
   | "Rejected" // Sales rejected the revision
-  | "Change Requested" // Supplier needs changes/clarification
+  | "Change Pending Approval" // Supplier has submitted proposed changes awaiting Sales/JB review
   | "In Production" // Supplier has started production
   | "Stock Ready" // Order is ready for pickup/delivery
   | "Partially Delivered" // Order has partial deliveries
   | "Fully Delivered" // Order fully delivered to JB
+  | "Shipping" // Supplier has dispatched the order
   | "Unable to Fulfill" // Supplier cannot fulfill the order
   | "Completed" // Order fulfilled and delivered
   | "Confirmed by JB" // Order delivery confirmed by JB
   | "Cancelled"; // Order was cancelled
+
+/**
+ * Order Shipping Item - tracks dispatched quantities for a specific item
+ */
+export interface OrderShippingItem {
+  kadar: string;
+  warna: string;
+  ukuran: string;
+  berat: string;
+  pcs: number;
+}
+
+/**
+ * Order Shipping - created by supplier when dispatching goods
+ */
+export interface OrderShipping {
+  id: string;
+  orderId: string;
+  orderPONumber: string;
+  shippingDate: string; // ISO date string (YYYY-MM-DD)
+  createdDate: number;
+  createdBy: string;
+  items: OrderShippingItem[];
+}
 
 /**
  * Order Arrival Item - tracks delivered quantities for a specific item
@@ -137,7 +161,7 @@ export interface Order {
 
   // Revision history
   revisionHistory?: OrderRevision[];
-  
+
   // Revision notes from supplier/JB (latest revision)
   revisionNotes?: string;
 

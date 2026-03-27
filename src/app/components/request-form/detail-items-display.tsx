@@ -1,6 +1,6 @@
 import { NewBadge } from "@/app/components/new-badge";
 import { Button } from "@/app/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 export interface DetailBarangItem {
@@ -21,6 +21,7 @@ interface DetailItemsDisplayProps {
   editingDetailId: string | null;
   onRowClick: (id: string) => void;
   onEdit?: (item: DetailBarangItem) => void;
+  onCopy?: (item: DetailBarangItem) => void;
   onDelete?: (id: string) => void;
   onNotesClick: (itemId: string, x: number, y: number) => void;
   rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
@@ -41,6 +42,7 @@ export function DetailItemsDisplay({
   editingDetailId,
   onRowClick,
   onEdit,
+  onCopy,
   onDelete,
   onNotesClick,
   rowRefs,
@@ -73,7 +75,7 @@ export function DetailItemsDisplay({
     ? "max-h-[300px] sm:max-h-[250px]" // Shorter when form is expanded
     : "max-h-[600px] sm:max-h-[250px]"; // Taller when form is collapsed
 
-  const hasActions = onEdit !== undefined || onDelete !== undefined;
+  const hasActions = onEdit !== undefined || onCopy !== undefined || onDelete !== undefined;
 
   return (
     <div
@@ -200,6 +202,20 @@ export function DetailItemsDisplay({
                             disabled={editingDetailId !== null && !isEditing}
                           >
                             Edit
+                          </Button>
+                        )}
+                        {onCopy && (
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCopy(item);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            disabled={editingDetailId !== null}
+                          >
+                            <Copy className="w-3 h-3" />
                           </Button>
                         )}
                         {onDelete && (
@@ -340,6 +356,20 @@ export function DetailItemsDisplay({
                               disabled={editingDetailId !== null && !isEditing}
                             >
                               Edit
+                            </Button>
+                          )}
+                          {onCopy && (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onCopy(item);
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              disabled={editingDetailId !== null}
+                            >
+                              <Copy className="w-3 h-3" />
                             </Button>
                           )}
                           {onDelete && (

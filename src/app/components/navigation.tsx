@@ -3,7 +3,6 @@ import { getUnreadCountForUser } from "@/app/utils/notification-helper";
 import {
   Bell,
   CirclePlus,
-  HelpCircle,
   Home,
   Inbox,
   List,
@@ -69,7 +68,6 @@ export function Navigation({
     } else if (userRole === "jb") {
       return [
         { id: "home", label: t("navigation.home"), icon: Home },
-        { id: "jb-requests", label: t("navigation.requests"), icon: List },
         { id: "inbound", label: t("navigation.inbound"), icon: Inbox },
         { id: "jb-orders", label: t("navigation.orders"), icon: Package },
         {
@@ -104,7 +102,7 @@ export function Navigation({
           label: t("navigation.newRequest"),
           icon: CirclePlus,
         },
-        { id: "my-orders", label: t("navigation.myRequests"), icon: List },
+
         { id: "sales-orders", label: t("navigation.orders"), icon: Package },
         {
           id: "notifications",

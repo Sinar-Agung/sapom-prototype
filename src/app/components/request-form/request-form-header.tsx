@@ -12,6 +12,7 @@ import {
   NAMA_PRODUK_OPTIONS,
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
+import { getImage } from "@/app/utils/image-storage";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -55,6 +56,8 @@ interface RequestFormHeaderProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
   fileInputKey: number;
   onFileInputKeyChange: (key: number) => void;
+  existingPhotoId?: string | null;
+  onExistingPhotoClear?: () => void;
 }
 
 export function RequestFormHeader({
@@ -65,7 +68,9 @@ export function RequestFormHeader({
   fileInputRef,
   fileInputKey,
   onFileInputKeyChange,
-}: OrderFormHeaderProps) {
+  existingPhotoId,
+  onExistingPhotoClear,
+}: RequestFormHeaderProps) {
   // Helper function to calculate ETA based on Customer Expectation
   const calculateETA = (action: string): Date | undefined => {
     if (!action) return undefined;
@@ -312,30 +317,35 @@ export function RequestFormHeader({
                 ref={fileInputRef}
                 key={fileInputKey}
               />
-              {formData.fotoBarang && (
-                <div className="border rounded-md p-2 bg-gray-50 relative">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-1 right-1 h-7 px-2 rounded z-10 text-xs"
-                    onClick={() => {
-                      onFormDataChange({
-                        ...formData,
-                        fotoBarang: null,
-                      });
-                      onFileInputKeyChange(fileInputKey + 1);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                  <img
-                    src={URL.createObjectURL(formData.fotoBarang)}
-                    alt="Preview"
-                    className="w-full sm:w-48 h-48 object-cover rounded"
-                  />
-                </div>
-              )}
+              {(formData.fotoBarang || existingPhotoId) && (() => {
+                const imgSrc = formData.fotoBarang
+                  ? URL.createObjectURL(formData.fotoBarang)
+                  : getImage(existingPhotoId!);
+                return imgSrc ? (
+                  <div className="border rounded-md p-2 bg-gray-50 relative">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-1 right-1 h-7 px-2 rounded z-10 text-xs"
+                      onClick={() => {
+                        onFormDataChange({ ...formData, fotoBarang: null });
+                        onFileInputKeyChange(fileInputKey + 1);
+                        if (!formData.fotoBarang && onExistingPhotoClear) {
+                          onExistingPhotoClear();
+                        }
+                      }}
+                    >
+                      Remove
+                    </Button>
+                    <img
+                      src={imgSrc}
+                      alt="Preview"
+                      className="w-full sm:w-48 h-48 object-cover rounded"
+                    />
+                  </div>
+                ) : null;
+              })()}
             </div>
           </>
         ) : null}

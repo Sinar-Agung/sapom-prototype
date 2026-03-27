@@ -17,7 +17,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ChevronDown, ChevronRight, ClipboardCheck } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardCheck, Copy } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { NewBadge } from "./new-badge";
 import { Badge } from "./ui/badge";
@@ -60,7 +60,7 @@ interface OrderCardProps {
   onToggleExpand?: () => void;
   onSeeDetail?: (order: Order) => void;
   onUpdateOrder?: (order: Order) => void;
-  onReviewRevision?: (order: Order) => void;
+  onDuplicateOrder?: (order: Order) => void;
   currentUser?: string;
   userRole?: "sales" | "jb" | "supplier" | "stockist";
 }
@@ -71,7 +71,7 @@ export function OrderCard({
   onToggleExpand,
   onSeeDetail,
   onUpdateOrder,
-  onReviewRevision,
+  onDuplicateOrder,
   currentUser,
   userRole,
 }: OrderCardProps) {
@@ -305,10 +305,13 @@ export function OrderCard({
           </div>
 
           {/* Action Buttons */}
-          {(onToggleExpand || onSeeDetail || onUpdateOrder) && (
+          {(onToggleExpand ||
+            onSeeDetail ||
+            onUpdateOrder ||
+            onDuplicateOrder) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
-              {/* Update Order Button - Only for Change Requested status */}
-              {onUpdateOrder && (
+              {/* Update Order Button - Only if not JB */}
+              {onUpdateOrder && userRole !== "jb" && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -377,23 +380,22 @@ export function OrderCard({
                 </Tooltip>
               )}
 
-              {/* Review Revision Button */}
-              {onReviewRevision && (
+              {/* Duplicate Button - only for sales */}
+              {onDuplicateOrder && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onReviewRevision(order)}
-                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                      onClick={() => onDuplicateOrder(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
                     >
-                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Review Revision</span>
-                      <span className="sm:hidden">Review</span>
+                      <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Duplicate</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Review order revision</p>
+                    <p>Duplicate as new request</p>
                   </TooltipContent>
                 </Tooltip>
               )}

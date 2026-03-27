@@ -1,6 +1,8 @@
 import { Notification } from "@/app/types/notification";
+import { getImage } from "@/app/utils/image-storage";
 import {
   getNotificationsForUser,
+  getUnreadCountForUser,
   markAllAsReadForUser,
   markNotificationAsRead,
   removeNotificationForUser,
@@ -34,7 +36,6 @@ import {
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { getUnreadCountForUser } from "@/app/utils/notification-helper";
 
 interface NotificationsProps {
   onNavigateToRequest?: (requestId: string) => void;
@@ -74,8 +75,9 @@ export function Notifications({
   });
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
     return (
-      (sessionStorage.getItem("notificationsSortDirection") as "asc" | "desc") ||
-      "desc"
+      (sessionStorage.getItem("notificationsSortDirection") as
+        | "asc"
+        | "desc") || "desc"
     );
   });
   const currentUser =
@@ -396,9 +398,13 @@ export function Notifications({
         const requestsJson = localStorage.getItem("requests");
         if (requestsJson) {
           const requests = JSON.parse(requestsJson);
-          const request = requests.find((r: any) => r.id === notification.entityId);
-          if (request?.fotoBarangBase64) {
-            return request.fotoBarangBase64;
+          const request = requests.find(
+            (r: any) => r.id === notification.entityId,
+          );
+          if (request?.fotoBarangBase64) return request.fotoBarangBase64;
+          if (request?.photoId) {
+            const img = getImage(request.photoId);
+            if (img) return img;
           }
         }
       } else if (notification.entityType === "order") {
@@ -406,8 +412,10 @@ export function Notifications({
         if (ordersJson) {
           const orders = JSON.parse(ordersJson);
           const order = orders.find((o: any) => o.id === notification.entityId);
-          if (order?.fotoBarangBase64) {
-            return order.fotoBarangBase64;
+          if (order?.fotoBarangBase64) return order.fotoBarangBase64;
+          if (order?.photoId) {
+            const img = getImage(order.photoId);
+            if (img) return img;
           }
         }
       }
@@ -415,6 +423,64 @@ export function Notifications({
       console.error("Error getting thumbnail image:", error);
     }
     return null;
+  };
+
+  const renderMessageFields = (
+    message: string,
+    isExpiring: boolean,
+    isUnread: boolean,
+  ) => {
+    const lines = message.split("\n").filter(Boolean);
+    const isParseable =
+      lines.length > 1 && lines.every((l) => l.includes(": "));
+
+    if (!isParseable) {
+      return (
+        <p
+          className={`text-sm whitespace-pre-wrap ${
+            isExpiring
+              ? "text-orange-800 font-medium"
+              : isUnread
+                ? "text-gray-700"
+                : "text-gray-600"
+          } mb-2`}
+        >
+          {message}
+        </p>
+      );
+    }
+
+    const pairs = lines.map((l) => {
+      const colonIdx = l.indexOf(": ");
+      return { field: l.slice(0, colonIdx), value: l.slice(colonIdx + 2) };
+    });
+
+    return (
+      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mb-2">
+        {pairs.map(({ field, value }, i) => (
+          <div key={i} className="flex gap-1.5 text-xs min-w-0">
+            <span
+              className={`font-semibold whitespace-nowrap shrink-0 ${
+                isExpiring ? "text-orange-700" : "text-gray-500"
+              }`}
+            >
+              {field}:
+            </span>
+            <span
+              className={`truncate ${
+                isExpiring
+                  ? "text-orange-800"
+                  : isUnread
+                    ? "text-gray-700"
+                    : "text-gray-600"
+              }`}
+            >
+              {value || "—"}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -548,77 +614,7 @@ export function Notifications({
                     notification.eventType === "request_expired";
 
                   // Generalize 'You <action>' for all event types
-                  let displayMessage = notification.message;
-                  if (isCurrentUser) {
-                    switch (notification.eventType) {
-                      case "request_created":
-                        // For request_created, message is just supplier info - no personalization needed
-                        displayMessage = notification.message;
-                        break;
-                      case "request_updated":
-                        displayMessage = `You updated request ${notification.entityNumber}`;
-                        break;
-                      case "request_cancelled":
-                        displayMessage = `You cancelled request ${notification.entityNumber}`;
-                        break;
-                      case "request_status_changed":
-                        displayMessage = notification.message.replace(
-                          getFullNameFromUsername(notification.triggeredBy),
-                          "You",
-                        );
-                        break;
-                      case "request_viewed_by_stockist":
-                        displayMessage = `You viewed request ${notification.entityNumber}`;
-                        break;
-                      case "request_approved_by_stockist":
-                        displayMessage = `You approved request ${notification.entityNumber}`;
-                        break;
-                      case "request_rejected_by_stockist":
-                        displayMessage = `You rejected request ${notification.entityNumber}`;
-                        break;
-                      case "request_converted_to_order":
-                        displayMessage = `You converted request ${notification.entityNumber} to order`;
-                        break;
-                      case "order_created":
-                        displayMessage = `You created order ${notification.entityNumber}`;
-                        break;
-                      case "order_updated":
-                        displayMessage = `You updated order ${notification.entityNumber}`;
-                        break;
-                      case "order_revised":
-                        displayMessage = `You revised order ${notification.entityNumber}`;
-                        break;
-                      case "order_status_changed":
-                        displayMessage = notification.message.replace(
-                          getFullNameFromUsername(notification.triggeredBy),
-                          "You",
-                        );
-                        break;
-                      case "order_viewed_by_supplier":
-                        displayMessage = `You viewed order ${notification.entityNumber}`;
-                        break;
-                      case "order_arrival_recorded":
-                        displayMessage = `You recorded arrival for order ${notification.entityNumber}`;
-                        break;
-                      case "order_closed":
-                        displayMessage = `You closed order ${notification.entityNumber}`;
-                        break;
-                      case "request_expiring":
-                        // System notification, don't personalize
-                        displayMessage = notification.message;
-                        break;
-                      case "request_expired":
-                        // System notification, don't personalize
-                        displayMessage = notification.message;
-                        break;
-                      default:
-                        // fallback: replace name with You if present
-                        displayMessage = notification.message.replace(
-                          getFullNameFromUsername(notification.triggeredBy),
-                          "You",
-                        );
-                    }
-                  }
+                  const displayMessage = notification.message;
 
                   const thumbnailImage = getThumbnailImage(notification);
 
@@ -635,15 +631,6 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
-                        {thumbnailImage && (
-                          <div className="flex-shrink-0">
-                            <img
-                              src={thumbnailImage}
-                              alt="Product"
-                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
-                            />
-                          </div>
-                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>
@@ -693,17 +680,24 @@ export function Notifications({
                               </Button>
                             </div>
                           </div>
-                          <p
-                            className={`text-sm whitespace-pre-wrap ${
-                              isExpiring
-                                ? "text-orange-800 font-medium"
-                                : isUnread
-                                  ? "text-gray-700"
-                                  : "text-gray-600"
-                            } mb-2`}
-                          >
-                            {displayMessage}
-                          </p>
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              {renderMessageFields(
+                                displayMessage,
+                                isExpiring,
+                                isUnread,
+                              )}
+                            </div>
+                            {thumbnailImage && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={thumbnailImage}
+                                  alt="Product"
+                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
+                                />
+                              </div>
+                            )}
+                          </div>
                           <div className="flex items-center gap-3 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <span className="font-medium">
@@ -808,15 +802,7 @@ export function Notifications({
                     notification.eventType === "request_expired";
 
                   // Customize message for "viewed" notifications when it's the current user
-                  let displayMessage = notification.message;
-                  if (
-                    isCurrentUser &&
-                    notification.eventType === "request_viewed_by_stockist"
-                  ) {
-                    displayMessage = `You viewed request ${notification.entityNumber}`;
-                  } else if (notification.eventType === "request_expiring") {
-                    displayMessage = notification.message;
-                  }
+                  const displayMessage = notification.message;
 
                   const thumbnailImage = getThumbnailImage(notification);
 
@@ -833,15 +819,6 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
-                        {thumbnailImage && (
-                          <div className="flex-shrink-0">
-                            <img
-                              src={thumbnailImage}
-                              alt="Product"
-                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
-                            />
-                          </div>
-                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>
@@ -887,15 +864,24 @@ export function Notifications({
                               </Button>
                             </div>
                           </div>
-                          <p
-                            className={`text-sm whitespace-pre-wrap ${
-                              isExpiring
-                                ? "text-orange-800 font-medium"
-                                : "text-gray-700"
-                            } mb-2`}
-                          >
-                            {displayMessage}
-                          </p>
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              {renderMessageFields(
+                                displayMessage,
+                                isExpiring,
+                                true,
+                              )}
+                            </div>
+                            {thumbnailImage && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={thumbnailImage}
+                                  alt="Product"
+                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
+                                />
+                              </div>
+                            )}
+                          </div>
                           <div className="flex items-center gap-3 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <span className="font-medium">
@@ -1017,15 +1003,6 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
-                        {thumbnailImage && (
-                          <div className="flex-shrink-0">
-                            <img
-                              src={thumbnailImage}
-                              alt="Product"
-                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
-                            />
-                          </div>
-                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>
@@ -1073,15 +1050,24 @@ export function Notifications({
                               </Button>
                             </div>
                           </div>
-                          <p
-                            className={`text-sm whitespace-pre-wrap ${
-                              isExpiring
-                                ? "text-orange-800 font-medium"
-                                : "text-gray-700"
-                            } mb-2`}
-                          >
-                            {notification.message}
-                          </p>
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              {renderMessageFields(
+                                notification.message,
+                                isExpiring,
+                                isUnread,
+                              )}
+                            </div>
+                            {thumbnailImage && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={thumbnailImage}
+                                  alt="Product"
+                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
+                                />
+                              </div>
+                            )}
+                          </div>
                           <div className="flex items-center gap-3 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <span className="font-medium">
@@ -1158,73 +1144,7 @@ export function Notifications({
                     notification.eventType === "request_expiring";
 
                   // Generalize 'You <action>' for all event types
-                  let displayMessage = notification.message;
-                  if (isCurrentUser) {
-                    switch (notification.eventType) {
-                      case "request_created":
-                        displayMessage = notification.message;
-                        break;
-                      case "request_updated":
-                        displayMessage = `You updated request ${notification.entityNumber}`;
-                        break;
-                      case "request_cancelled":
-                        displayMessage = `You cancelled request ${notification.entityNumber}`;
-                        break;
-                      case "request_status_changed":
-                        displayMessage = notification.message.replace(
-                          getFullNameFromUsername(notification.triggeredBy),
-                          "You",
-                        );
-                        break;
-                      case "request_viewed_by_stockist":
-                        displayMessage = `You viewed request ${notification.entityNumber}`;
-                        break;
-                      case "request_approved_by_stockist":
-                        displayMessage = `You approved request ${notification.entityNumber}`;
-                        break;
-                      case "request_rejected_by_stockist":
-                        displayMessage = `You rejected request ${notification.entityNumber}`;
-                        break;
-                      case "request_converted_to_order":
-                        displayMessage = `You converted request ${notification.entityNumber} to order`;
-                        break;
-                      case "order_created":
-                        displayMessage = `You created order ${notification.entityNumber}`;
-                        break;
-                      case "order_updated":
-                        displayMessage = `You updated order ${notification.entityNumber}`;
-                        break;
-                      case "order_revised":
-                        displayMessage = `You revised order ${notification.entityNumber}`;
-                        break;
-                      case "order_status_changed":
-                        displayMessage = notification.message.replace(
-                          getFullNameFromUsername(notification.triggeredBy),
-                          "You",
-                        );
-                        break;
-                      case "order_viewed_by_supplier":
-                        displayMessage = `You viewed order ${notification.entityNumber}`;
-                        break;
-                      case "order_arrival_recorded":
-                        displayMessage = `You recorded arrival for order ${notification.entityNumber}`;
-                        break;
-                      case "order_closed":
-                        displayMessage = `You closed order ${notification.entityNumber}`;
-                        break;
-                      case "request_expiring":
-                        displayMessage = notification.message;
-                        break;
-                      case "request_expired":
-                        displayMessage = notification.message;
-                        break;
-                      default:
-                        displayMessage = notification.message.replace(
-                          getFullNameFromUsername(notification.triggeredBy),
-                          "You",
-                        );
-                    }
-                  }
+                  const displayMessage = notification.message;
 
                   const thumbnailImage = getThumbnailImage(notification);
 
@@ -1235,15 +1155,6 @@ export function Notifications({
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-4">
-                        {thumbnailImage && (
-                          <div className="flex-shrink-0">
-                            <img
-                              src={thumbnailImage}
-                              alt="Product"
-                              className="w-16 h-16 object-cover rounded-md border border-gray-300"
-                            />
-                          </div>
-                        )}
                         <div className="flex-shrink-0 mt-1">
                           {getEventIcon(notification.eventType)}
                         </div>
@@ -1282,9 +1193,24 @@ export function Notifications({
                               </Button>
                             </div>
                           </div>
-                          <p className="text-sm whitespace-pre-wrap text-gray-600 mb-2">
-                            {displayMessage}
-                          </p>
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              {renderMessageFields(
+                                displayMessage,
+                                false,
+                                false,
+                              )}
+                            </div>
+                            {thumbnailImage && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={thumbnailImage}
+                                  alt="Product"
+                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
+                                />
+                              </div>
+                            )}
+                          </div>
                           <div className="flex items-center gap-3 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <span className="font-medium">

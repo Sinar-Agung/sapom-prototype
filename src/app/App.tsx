@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { AvailablePcsDemo } from "./components/available-pcs-demo";
 import { JBHome } from "./components/jb-home";
 import { JBInbound } from "./components/jb-inbound";
-import { JBOrder } from "./components/jb-order";
+
 import { JBRequests } from "./components/jb-requests";
 import { Login } from "./components/login";
 import { MyOrders } from "./components/my-requests";
@@ -24,13 +24,12 @@ import { QuestionForm } from "./components/question-form";
 import { Register } from "./components/register";
 import { RequestDetails } from "./components/request-details";
 import { RequestForm } from "./components/request-form";
-import { SalesOrders } from "./components/sales-orders";
 import { SalesQuestions } from "./components/sales-questions";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
 import { StockistQuestions } from "./components/stockist-questions";
 import { SupplierHome } from "./components/supplier-home";
-import { SupplierOrders } from "./components/supplier-orders";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,10 +41,12 @@ import {
   AlertDialogTitle,
 } from "./components/ui/alert-dialog";
 import { Toaster } from "./components/ui/sonner";
+import { UnifiedOrders } from "./components/unified-orders";
 import { WriteOrder } from "./components/write-order";
 import {
   initializeMockData,
   initializeMockNotifications,
+  populateMockData,
 } from "./utils/mock-data";
 import {
   checkAndExpireRequests,
@@ -57,6 +58,7 @@ import {
   authenticateUser,
   getBranchName,
   getCurrentUserDetails,
+  getFullNameFromUsername,
   getUserRole,
   initializeUserData,
   type LanguageCode,
@@ -121,7 +123,8 @@ export default function App() {
   const [myOrdersTab, setMyOrdersTab] = useState<string>("open");
   const [myOrdersKey, setMyOrdersKey] = useState<number>(0); // Force remount when incremented
   const [justCreatedRequest, setJustCreatedRequest] = useState(false); // Flag to force Open tab after creating request
-  const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("new");
+  const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("");
+  const [previousPage, setPreviousPage] = useState<string>("");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
   const [cameFromNotifications, setCameFromNotifications] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
@@ -175,6 +178,12 @@ export default function App() {
         setEditingOrder(null);
         setFormMode("new");
       }
+      // Reset orders tab to first tab when navigating fresh (not back)
+      if (
+        ["sales-orders", "jb-orders", "supplier-orders"].includes(targetPage)
+      ) {
+        setPreviousOrdersTab("");
+      }
       setCurrentPage(targetPage);
     }
   };
@@ -196,12 +205,15 @@ export default function App() {
   };
 
   const handleEditOrder = (order: any) => {
+    setPreviousPage(currentPage);
     setEditingOrder(order);
     setFormMode("edit");
     setCurrentPage("tambah-pesanan");
   };
 
-  const handleDuplicateOrder = (order: any) => {
+  const handleDuplicateOrder = (order: any, currentTab?: string) => {
+    setPreviousPage(currentPage);
+    if (currentTab) setPreviousOrdersTab(currentTab);
     setEditingOrder(order);
     setFormMode("duplicate");
     setCurrentPage("tambah-pesanan");
@@ -230,6 +242,8 @@ export default function App() {
       currentTab,
     );
     setMyOrdersTab(currentTab); // Save the current tab
+    setPreviousOrdersTab(currentTab);
+    setPreviousPage(currentPage);
     setVerifyingOrder(order);
     setVerifyMode("verify");
     setCurrentPage("request-details");
@@ -239,7 +253,33 @@ export default function App() {
   const handleSeeDetail = (order: any, currentTab: string) => {
     setMyOrdersTab(currentTab); // Save the current tab
     setJbRequestsTab(currentTab); // Save for JB as well
-    setVerifyingOrder(order);
+    setPreviousOrdersTab(currentTab);
+    setPreviousPage(currentPage);
+
+    // When JB opens an Open request, update status to JB Verifying
+    let updatedOrder = order;
+    if (userRole === "jb" && order.status === "Open") {
+      const savedRequests = localStorage.getItem("requests");
+      if (savedRequests) {
+        const allRequests = JSON.parse(savedRequests);
+        const idx = allRequests.findIndex((r: any) => r.id === order.id);
+        if (idx !== -1) {
+          allRequests[idx] = {
+            ...allRequests[idx],
+            status: "JB Verifying",
+            viewedBy: [
+              ...new Set([...(allRequests[idx].viewedBy || []), currentUser]),
+            ],
+            updatedDate: Date.now(),
+            updatedBy: currentUser,
+          };
+          localStorage.setItem("requests", JSON.stringify(allRequests));
+          updatedOrder = { ...order, status: "JB Verifying" };
+        }
+      }
+    }
+
+    setVerifyingOrder(updatedOrder);
 
     // For JB role in assigned tab, route to write-order
     if (userRole === "jb" && currentTab === "assigned") {
@@ -261,12 +301,14 @@ export default function App() {
       return;
     }
 
-    // Return to appropriate page based on user role
-    if (userRole === "jb") {
-      setCurrentPage("jb-requests");
-    } else {
-      setCurrentPage("my-orders");
-    }
+    // Return to the page the user came from
+    const fallback =
+      userRole === "jb"
+        ? "jb-orders"
+        : userRole === "sales"
+          ? "sales-orders"
+          : "my-orders";
+    setCurrentPage(previousPage || fallback);
   };
 
   const handleBackFromWriteOrder = () => {
@@ -279,7 +321,7 @@ export default function App() {
       return;
     }
 
-    setCurrentPage("jb-requests");
+    setCurrentPage(previousPage || "jb-orders");
   };
 
   const handleNavigateToOrder = (orderId: string) => {
@@ -357,10 +399,9 @@ export default function App() {
 
     // Navigate based on user role
     if (userRole === "stockist") {
-      // For stockist: if status is Open or Stockist Processing, go to verify-stock in verify mode
+      // For stockist: if status is Open, go to verify-stock in verify mode
       // Otherwise, go to detail mode (read-only)
-      const isVerifyMode =
-        request.status === "Open" || request.status === "Stockist Processing";
+      const isVerifyMode = request.status === "Open";
 
       if (isVerifyMode) {
         console.log("→ Opening in Verify Stock mode (can edit/verify)");
@@ -421,6 +462,7 @@ export default function App() {
     if (currentTab) {
       setPreviousOrdersTab(currentTab);
     }
+    setPreviousPage(currentPage);
     setCurrentPage("order-details");
   };
 
@@ -453,6 +495,7 @@ export default function App() {
     if (currentTab) {
       setPreviousOrdersTab(currentTab);
     }
+    setPreviousPage(currentPage);
     setCurrentPage("order-details");
   };
 
@@ -465,7 +508,7 @@ export default function App() {
       if (orderIndex !== -1) {
         const currentOrder = allOrders[orderIndex];
         const oldStatus = currentOrder.status;
-        
+
         // Mark approval based on user role
         if (userRole === "jb") {
           currentOrder.jbApproved = true;
@@ -476,8 +519,10 @@ export default function App() {
         // If both JB and Sales have approved, change status to Order Revised
         if (currentOrder.jbApproved && currentOrder.salesApproved) {
           currentOrder.status = "Order Revised";
-          toast.success("Order revision fully approved - Status changed to Order Revised");
-          
+          toast.success(
+            "Order revision fully approved - Status changed to Order Revised",
+          );
+
           // Create notification for full approval
           notifyOrderStatusChanged(
             currentOrder,
@@ -487,7 +532,9 @@ export default function App() {
             userRole,
           );
         } else {
-          toast.success(`Order approved by ${userRole.toUpperCase()} - Waiting for ${userRole === "jb" ? "Sales" : "JB"} approval`);
+          toast.success(
+            `Order approved by ${userRole.toUpperCase()} - Waiting for ${userRole === "jb" ? "Sales" : "JB"} approval`,
+          );
         }
 
         currentOrder.updatedDate = Date.now();
@@ -534,14 +581,14 @@ export default function App() {
   const handleBackFromOrderDetails = () => {
     setViewingOrder(null);
     setIsReviewMode(false);
-    // Navigate back to appropriate orders page based on user role
-    if (userRole === "supplier") {
-      setCurrentPage("supplier-orders");
-    } else if (userRole === "sales") {
-      setCurrentPage("sales-orders");
-    } else {
-      setCurrentPage("jb-orders");
-    }
+    // Return to the page the user came from
+    const fallback =
+      userRole === "supplier"
+        ? "supplier-orders"
+        : userRole === "sales"
+          ? "sales-orders"
+          : "jb-orders";
+    setCurrentPage(previousPage || fallback);
   };
 
   const handleUpdateOrder = (order: any, currentTab?: string) => {
@@ -549,6 +596,7 @@ export default function App() {
     if (currentTab) {
       setPreviousOrdersTab(currentTab);
     }
+    setPreviousPage(currentPage);
     setCurrentPage("order-edit");
   };
 
@@ -568,28 +616,56 @@ export default function App() {
       return;
     }
 
-    // Return to appropriate orders page based on user role
-    if (userRole === "supplier") {
-      setPreviousOrdersTab("in-review");
-      setCurrentPage("jb-orders");
-    } else if (userRole === "jb") {
-      setCurrentPage("jb-orders");
-    } else {
-      setCurrentPage("jb-orders");
-    }
+    const fallback =
+      userRole === "supplier"
+        ? "supplier-orders"
+        : userRole === "jb"
+          ? "jb-orders"
+          : "sales-orders";
+    setCurrentPage(previousPage || fallback);
   };
 
   const handleOrderEditSave = () => {
-    setEditingOrderForUpdate(null);
-    // Return to appropriate orders page with In Review tab for supplier
-    if (userRole === "supplier") {
-      setPreviousOrdersTab("in-review");
-      setCurrentPage("jb-orders");
-    } else if (userRole === "jb") {
-      setCurrentPage("jb-orders");
-    } else {
-      setCurrentPage("jb-orders");
+    // Re-read the updated order from localStorage so viewingOrder reflects the new status
+    if (editingOrderForUpdate) {
+      const saved = localStorage.getItem("orders");
+      if (saved) {
+        const all = JSON.parse(saved);
+        const fresh = all.find((o: any) => o.id === editingOrderForUpdate.id);
+        if (fresh) setViewingOrder(fresh);
+      }
     }
+    setEditingOrderForUpdate(null);
+    const fallback =
+      userRole === "supplier"
+        ? "supplier-orders"
+        : userRole === "jb"
+          ? "jb-orders"
+          : "sales-orders";
+    setCurrentPage(previousPage || fallback);
+  };
+
+  const handleJBRejectRequest = (reason: string) => {
+    if (!verifyingOrder) return;
+    const savedRequests = localStorage.getItem("requests");
+    if (savedRequests) {
+      const allRequests = JSON.parse(savedRequests);
+      const idx = allRequests.findIndex((r: any) => r.id === verifyingOrder.id);
+      if (idx !== -1) {
+        allRequests[idx].status = "Rejected";
+        allRequests[idx].rejectionReason = reason;
+        allRequests[idx].updatedDate = Date.now();
+        allRequests[idx].updatedBy = currentUser;
+        localStorage.setItem("requests", JSON.stringify(allRequests));
+        toast.success("Request rejected");
+        handleBackFromVerify();
+      }
+    }
+  };
+
+  const handleJBWriteOrder = () => {
+    // Navigate to write-order; on back from there return to jb-orders with saved tab
+    setCurrentPage("write-order");
   };
 
   const handleNavigateToTab = (tab: string) => {
@@ -598,8 +674,13 @@ export default function App() {
   };
 
   const handleJBNavigateToTab = (tab: string) => {
-    setJbRequestsTab(tab);
-    setCurrentPage("jb-requests");
+    // Map old jb-requests tabs to jb-orders tabs
+    const tabMap: Record<string, string> = {
+      assigned: "internal",
+      done: "finalized",
+    };
+    setPreviousOrdersTab(tabMap[tab] || tab);
+    setCurrentPage("jb-orders");
   };
 
   const handleSaveComplete = (action: "save" | "saveAndAddMore") => {
@@ -613,22 +694,18 @@ export default function App() {
   };
 
   const handleNavigateToMyRequests = () => {
-    // Navigate to My Requests page and show Open tab
-    console.log("🔵 handleNavigateToMyRequests called");
-    console.log("   Current myOrdersTab:", myOrdersTab);
-    console.log("   Current currentPage:", currentPage);
-    // Clear sessionStorage and set flag to force Open tab
-    sessionStorage.removeItem("myRequestActiveTab");
-    setJustCreatedRequest(true); // Set flag to force Open tab
-    setMyOrdersTab("open");
-    console.log("   Set myOrdersTab to: open");
-    console.log("   Set justCreatedRequest to: true");
-    // Increment key to force MyOrders component to remount with fresh state
-    setMyOrdersKey((prev) => prev + 1);
     setHasFormChanges(false);
-    setCurrentPage("my-orders");
-    console.log("   ✅ Set currentPage to: my-orders");
-    console.log("   ✅ handleNavigateToMyRequests complete");
+    // Sales users go to the Pesanan page on the Internal tab
+    if (userRole === "sales") {
+      setPreviousOrdersTab("internal");
+      setCurrentPage("sales-orders");
+    } else {
+      sessionStorage.removeItem("myRequestActiveTab");
+      setJustCreatedRequest(true);
+      setMyOrdersTab("open");
+      setMyOrdersKey((prev) => prev + 1);
+      setCurrentPage("my-orders");
+    }
   };
 
   const getFormTitle = () => {
@@ -646,8 +723,9 @@ export default function App() {
       return;
     }
 
-    // Go back to my-orders page with the saved tab
-    setCurrentPage("my-orders");
+    // Go back to where the user came from
+    const fallback = userRole === "sales" ? "sales-orders" : "my-orders";
+    setCurrentPage(previousPage || fallback);
     setHasFormChanges(false);
   };
 
@@ -662,11 +740,11 @@ export default function App() {
 
     // If there are unsaved changes, show confirmation dialog
     if (hasFormChanges) {
-      setPendingNavigation("home");
+      setPendingNavigation(previousPage || "home");
       setShowNavigationWarning(true);
     } else {
-      // No changes, go back to home page directly
-      setCurrentPage("home");
+      // No changes, go back to where the user came from
+      setCurrentPage(previousPage || "home");
     }
   };
 
@@ -846,10 +924,14 @@ export default function App() {
         return <StockistQuestions />;
       case "sales-orders":
         return (
-          <SalesOrders
+          <UnifiedOrders
+            userRole="sales"
+            onEditRequest={handleEditOrder}
+            onDuplicateRequest={handleDuplicateOrder}
+            onViewRequestDetails={handleSeeDetail}
             onSeeDetail={handleSeeOrderDetail}
             onUpdateOrder={handleUpdateOrder}
-            onReviewRevision={handleReviewRevision}
+            initialTab={previousOrdersTab}
           />
         );
       case "home":
@@ -888,21 +970,26 @@ export default function App() {
         );
       case "inbound":
         return <JBInbound />;
-      case "supplier-orders":
+      case "supplier-orders": {
+        const currentSupplierId = (getCurrentUserDetails() as any)?.supplierId;
         return (
-          <SupplierOrders
+          <UnifiedOrders
+            userRole="supplier"
             onSeeDetail={handleSeeOrderDetail}
             onUpdateOrder={handleUpdateOrder}
             initialTab={previousOrdersTab}
+            supplierId={currentSupplierId}
           />
         );
+      }
       case "jb-orders":
       case "order":
         return (
-          <JBOrder
+          <UnifiedOrders
+            userRole="jb"
+            onViewRequestDetails={handleSeeDetail}
             onSeeDetail={handleSeeOrderDetail}
             onUpdateOrder={handleUpdateOrder}
-            onReviewRevision={handleReviewRevision}
             initialTab={previousOrdersTab}
           />
         );
@@ -957,6 +1044,24 @@ export default function App() {
               // Only show duplicate button for sales
               userRole === "sales"
                 ? () => handleDuplicateOrder(verifyingOrder)
+                : undefined
+            }
+            onReject={
+              // JB can reject Open requests
+              userRole === "jb" &&
+              verifyMode === "detail" &&
+              (verifyingOrder?.status === "Open" ||
+                verifyingOrder?.status === "JB Verifying")
+                ? handleJBRejectRequest
+                : undefined
+            }
+            onWriteOrder={
+              // JB can write order for Open/JB Verifying requests
+              userRole === "jb" &&
+              verifyMode === "detail" &&
+              (verifyingOrder?.status === "Open" ||
+                verifyingOrder?.status === "JB Verifying")
+                ? handleJBWriteOrder
                 : undefined
             }
           />
@@ -1041,7 +1146,7 @@ export default function App() {
       />
 
       {/* Main Content - Fills remaining space with scrollable content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide p-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 pb-4">
         {/* Profile Section - Fixed at top right */}
         <div className="fixed top-4 right-4 z-40">
           <div
@@ -1067,10 +1172,13 @@ export default function App() {
                     <span
                       className={`text-sm font-semibold ${roleConfig.color}`}
                     >
-                      {currentUser}
+                      {getFullNameFromUsername(currentUser) || currentUser}
                     </span>
                     <ChevronDown className="w-4 h-4 transition-transform rotate-180" />
                   </div>
+                  <span className={`text-xs ${roleConfig.color} opacity-60`}>
+                    {currentUser}
+                  </span>
                   <span className={`text-xs ${roleConfig.color} opacity-80`}>
                     {roleConfig.label}
                   </span>
@@ -1087,10 +1195,24 @@ export default function App() {
                 </div>
               )}
             </div>
+            {isProfileExpanded && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const result = populateMockData();
+                  toast.success(
+                    `Populated ${result.requests} requests & ${result.orders} orders`,
+                  );
+                }}
+                className="w-full text-xs px-2 py-1 rounded border border-dashed border-current opacity-60 hover:opacity-100 transition-opacity"
+              >
+                Populate
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="w-full max-w-7xl mx-auto">{renderContent()}</div>
+        <div className={`w-full max-w-7xl mx-auto ${ ["sales-orders", "jb-orders", "order", "supplier-orders"].includes(currentPage) ? "" : "pt-4" }`}>{renderContent()}</div>
       </div>
 
       {/* Navigation Warning Dialog */}

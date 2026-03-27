@@ -12,7 +12,6 @@ import { DetailBarangItem, Request } from "@/app/types/request";
 import { getImage } from "@/app/utils/image-storage";
 import {
   notifyRequestStatusChanged,
-  notifyRequestViewedByStockist,
   removeETAReminderForStockist,
 } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
@@ -26,7 +25,13 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowLeft, CheckCircle, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Send,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -83,6 +88,8 @@ interface RequestDetailsProps {
   isJBWaiting?: boolean;
   onEditRequest?: () => void;
   onDuplicateRequest?: () => void;
+  onWriteOrder?: () => void;
+  onReject?: (reason: string) => void;
 }
 
 export function RequestDetails({
@@ -92,14 +99,22 @@ export function RequestDetails({
   isJBWaiting = false,
   onEditRequest,
   onDuplicateRequest,
+  onWriteOrder,
+  onReject,
 }: RequestDetailsProps) {
   const [detailItems, setDetailItems] = useState<DetailBarangItem[]>([]);
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
   const [showSendToJBDialog, setShowSendToJBDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const [wasUpdated, setWasUpdated] = useState(false);
   const [currentRequest, setCurrentRequest] = useState<Request>(request);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isRevisionHistoryOpen, setIsRevisionHistoryOpen] = useState(false);
+  const [expandedRevisions, setExpandedRevisions] = useState<Set<number>>(
+    new Set(),
+  );
 
   // Refs for debounce management
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -238,43 +253,6 @@ export function RequestDetails({
     });
 
     setDetailItems(sortedItems);
-
-    // Update order status to "Stockist Processing" when this component mounts
-    const currentUser =
-      sessionStorage.getItem("username") ||
-      localStorage.getItem("username") ||
-      "";
-
-    const savedOrders = localStorage.getItem("requests");
-    if (savedOrders) {
-      const orders = JSON.parse(savedOrders);
-      const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
-      if (orderIndex !== -1 && orders[orderIndex].status === "Open") {
-        const oldStatus = orders[orderIndex].status;
-        orders[orderIndex].status = "Stockist Processing";
-        orders[orderIndex].updatedDate = Date.now();
-        orders[orderIndex].updatedBy = currentUser;
-        orders[orderIndex].stockistId = currentUser; // Assign stockist ownership
-        localStorage.setItem("requests", JSON.stringify(orders));
-
-        // Create notification for stockist viewing the request with status change
-        notifyRequestViewedByStockist(
-          orders[orderIndex],
-          currentUser,
-          oldStatus,
-          "Stockist Processing",
-        );
-
-        // Update local state to reflect changes immediately
-        setCurrentRequest({
-          ...request,
-          status: "Stockist Processing",
-          updatedDate: Date.now(),
-          updatedBy: currentUser,
-          stockistId: currentUser,
-        });
-      }
-    }
   }, [request.id, request.detailItems]);
 
   const formatDate = (isoString: string) => {
@@ -319,6 +297,46 @@ export function RequestDetails({
       return NAMA_BASIC_IMAGES[request.namaBasic] || italySanta;
     }
     return italySanta;
+  };
+
+  const getRevWarnaColor = (warna: string): string => {
+    const colors: Record<string, string> = {
+      rg: "bg-rose-300 text-gray-800",
+      ap: "bg-gray-200 text-gray-800",
+      kn: "bg-yellow-400 text-gray-800",
+      ks: "bg-yellow-300 text-gray-800",
+      "2w-ap-rg": "bg-gradient-to-r from-gray-200 to-rose-300 text-gray-800",
+      "2w-ap-kn": "bg-gradient-to-r from-gray-200 to-yellow-400 text-gray-800",
+    };
+    return colors[warna.toLowerCase()] || "bg-gray-300 text-gray-800";
+  };
+
+  const getRevWarnaLabel = (warna: string): string => {
+    const labels: Record<string, string> = {
+      rg: "RG",
+      ap: "AP",
+      kn: "KN",
+      ks: "KS",
+      "2w-ap-rg": "2W (AP & RG)",
+      "2w-ap-kn": "2W (AP & KN)",
+    };
+    return labels[warna.toLowerCase()] || warna.toUpperCase();
+  };
+
+  const getRevUkuranDisplay = (
+    ukuran: string,
+  ): { value: string; showUnit: boolean } => {
+    const labels: Record<string, string> = {
+      a: "Anak",
+      n: "Normal",
+      p: "Panjang",
+      t: "Tanggung",
+    };
+    const label = labels[ukuran?.toLowerCase()];
+    if (label) return { value: label, showUnit: false };
+    const num = parseFloat(ukuran);
+    if (!isNaN(num)) return { value: ukuran, showUnit: true };
+    return { value: ukuran || "-", showUnit: false };
   };
 
   const handleAvailablePcsChange = (itemId: string, value: string) => {
@@ -674,7 +692,7 @@ export function RequestDetails({
       )}
 
       {/* Sales Action Buttons - Only show in detail mode */}
-      {mode === "detail" && (
+      {mode === "detail" && (onEditRequest || onDuplicateRequest) && (
         <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
           {onEditRequest && currentRequest.status === "Open" && (
             <Button
@@ -695,6 +713,864 @@ export function RequestDetails({
           )}
         </div>
       )}
+
+      {/* JB Action Buttons - Reject and Write Order */}
+      {mode === "detail" && (onReject || onWriteOrder) && (
+        <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
+          <Button
+            variant="outline"
+            onClick={onBack}
+            className="flex-1 sm:flex-none"
+          >
+            Back
+          </Button>
+          {onReject && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRejectReason("");
+                setShowRejectDialog(true);
+              }}
+              className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            >
+              Reject
+            </Button>
+          )}
+          {onWriteOrder && (
+            <Button onClick={onWriteOrder} className="flex-1 sm:flex-none">
+              Write Order
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Revision History - visible to all non-supplier users */}
+      {currentRequest.revisionHistory &&
+        currentRequest.revisionHistory.length > 0 && (
+          <Card className="p-4 mb-4">
+            <button
+              onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
+              className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
+            >
+              <h3 className="font-semibold text-gray-900">Revision History</h3>
+              {isRevisionHistoryOpen ? (
+                <ChevronUp className="w-5 h-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
+
+            {isRevisionHistoryOpen && (
+              <div className="mt-6 relative">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
+
+                <div className="space-y-0">
+                  {/* Initial Version */}
+                  {(() => {
+                    const isExpanded = expandedRevisions.has(-1);
+                    const firstRevision = currentRequest.revisionHistory![0];
+
+                    const initialPabrik =
+                      firstRevision?.previousValues.pabrik ??
+                      currentRequest.pabrik;
+                    const initialPabrikLabel =
+                      typeof initialPabrik === "string"
+                        ? getLabelFromValue(PABRIK_OPTIONS, initialPabrik)
+                        : initialPabrik?.name || "";
+
+                    const initialPelanggan =
+                      firstRevision?.previousValues.namaPelanggan ??
+                      currentRequest.namaPelanggan;
+                    const initialPelangganLabel =
+                      typeof initialPelanggan === "string"
+                        ? getLabelFromValue(ATAS_NAMA_OPTIONS, initialPelanggan)
+                        : initialPelanggan?.name || "";
+
+                    const initialDetailItems =
+                      firstRevision?.previousValues.detailItems ??
+                      currentRequest.detailItems;
+
+                    return (
+                      <div className="flex gap-4 pb-6">
+                        <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
+                          <div className="font-medium text-gray-700">
+                            {new Date(
+                              currentRequest.timestamp,
+                            ).toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </div>
+                          <div>
+                            {new Date(
+                              currentRequest.timestamp,
+                            ).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="relative flex flex-col items-center">
+                          <div className="w-3 h-3 rounded-full bg-blue-400 border-2 border-white ring-1 ring-blue-400 mt-2 z-10" />
+                        </div>
+
+                        <div className="flex-1 pb-2">
+                          <button
+                            onClick={() => {
+                              const newExpanded = new Set(expandedRevisions);
+                              if (isExpanded) {
+                                newExpanded.delete(-1);
+                              } else {
+                                newExpanded.add(-1);
+                              }
+                              setExpandedRevisions(newExpanded);
+                            }}
+                            className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
+                          >
+                            <div>
+                              <p className="font-medium text-sm">
+                                Initial version
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Created by{" "}
+                                {getFullNameFromUsername(
+                                  currentRequest.createdBy || "",
+                                )}
+                              </p>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 border rounded-lg bg-white p-4 text-sm space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Supplier
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {initialPabrikLabel}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Customer
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {initialPelangganLabel}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Product Category
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {getLabelFromValue(
+                                      [
+                                        { value: "basic", label: "Basic" },
+                                        { value: "model", label: "Model" },
+                                      ],
+                                      firstRevision?.previousValues
+                                        .kategoriBarang ??
+                                        currentRequest.kategoriBarang,
+                                    )}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Product Type
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {getLabelFromValue(
+                                      JENIS_PRODUK_OPTIONS,
+                                      firstRevision?.previousValues
+                                        .jenisProduk ??
+                                        currentRequest.jenisProduk,
+                                    )}
+                                  </p>
+                                </div>
+                                {(firstRevision?.previousValues.namaBasic ??
+                                  currentRequest.namaBasic) && (
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Basic Name
+                                    </p>
+                                    <p className="text-gray-900">
+                                      {getLabelFromValue(
+                                        NAMA_BASIC_OPTIONS,
+                                        firstRevision?.previousValues
+                                          .namaBasic ??
+                                          currentRequest.namaBasic,
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+                                {(firstRevision?.previousValues.namaProduk ??
+                                  currentRequest.namaProduk) && (
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Nama Produk
+                                    </p>
+                                    <p className="text-gray-900">
+                                      {getLabelFromValue(
+                                        NAMA_PRODUK_OPTIONS,
+                                        firstRevision?.previousValues
+                                          .namaProduk ??
+                                          currentRequest.namaProduk,
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    ETA
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {(firstRevision?.previousValues
+                                      .waktuKirim ?? currentRequest.waktuKirim)
+                                      ? new Date(
+                                          firstRevision?.previousValues
+                                            .waktuKirim ??
+                                            currentRequest.waktuKirim,
+                                        ).toLocaleDateString("id-ID")
+                                      : "-"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Customer Expectation
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {getLabelFromValue(
+                                      CUSTOMER_EXPECTATION_OPTIONS,
+                                      firstRevision?.previousValues
+                                        .customerExpectation ??
+                                        currentRequest.customerExpectation,
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              {initialDetailItems &&
+                                initialDetailItems.length > 0 && (
+                                  <div className="mt-2">
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Detail Barang ({initialDetailItems.length}{" "}
+                                      items)
+                                    </p>
+                                    <div className="overflow-x-auto">
+                                      <table className="min-w-full text-xs border-collapse border">
+                                        <thead className="bg-gray-100">
+                                          <tr>
+                                            <th className="border px-2 py-1 text-left">
+                                              Kadar
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Warna
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Ukuran
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Berat
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Pcs
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {initialDetailItems.map(
+                                            (item, idx) => (
+                                              <tr key={idx}>
+                                                <td className="border px-2 py-1 font-medium">
+                                                  {item.kadar}
+                                                </td>
+                                                <td
+                                                  className={`border px-2 py-1 ${getRevWarnaColor(item.warna)}`}
+                                                >
+                                                  {getRevWarnaLabel(item.warna)}
+                                                </td>
+                                                <td className="border px-2 py-1">
+                                                  {(() => {
+                                                    const ud =
+                                                      getRevUkuranDisplay(
+                                                        item.ukuran,
+                                                      );
+                                                    return ud.showUnit
+                                                      ? `${ud.value} cm`
+                                                      : ud.value;
+                                                  })()}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.berat}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.pcs}
+                                                </td>
+                                              </tr>
+                                            ),
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                              {(() => {
+                                const initialPhotoId =
+                                  firstRevision?.previousValues.photoId ??
+                                  currentRequest.photoId;
+                                const initialPhoto = initialPhotoId
+                                  ? getImage(initialPhotoId)
+                                  : null;
+                                if (!initialPhoto) return null;
+                                return (
+                                  <div className="mt-3">
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Photo
+                                    </p>
+                                    <img
+                                      src={initialPhoto}
+                                      alt="Initial version"
+                                      className="w-32 h-32 object-cover rounded border"
+                                    />
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Revision entries */}
+                  {currentRequest.revisionHistory!.map((revision, index) => {
+                    const isExpanded = expandedRevisions.has(index);
+
+                    const revPabrikLabel =
+                      typeof revision.changes.pabrik === "string"
+                        ? getLabelFromValue(
+                            PABRIK_OPTIONS,
+                            revision.changes.pabrik,
+                          )
+                        : revision.changes.pabrik?.name || "";
+                    const prevPabrikLabel =
+                      typeof revision.previousValues.pabrik === "string"
+                        ? getLabelFromValue(
+                            PABRIK_OPTIONS,
+                            revision.previousValues.pabrik,
+                          )
+                        : revision.previousValues.pabrik?.name || "";
+                    const pabrikChanged =
+                      JSON.stringify(revision.changes.pabrik) !==
+                      JSON.stringify(revision.previousValues.pabrik);
+
+                    const revPelangganLabel =
+                      typeof revision.changes.namaPelanggan === "string"
+                        ? getLabelFromValue(
+                            ATAS_NAMA_OPTIONS,
+                            revision.changes.namaPelanggan,
+                          )
+                        : revision.changes.namaPelanggan?.name || "";
+                    const prevPelangganLabel =
+                      typeof revision.previousValues.namaPelanggan === "string"
+                        ? getLabelFromValue(
+                            ATAS_NAMA_OPTIONS,
+                            revision.previousValues.namaPelanggan,
+                          )
+                        : revision.previousValues.namaPelanggan?.name || "";
+                    const pelangganChanged =
+                      JSON.stringify(revision.changes.namaPelanggan) !==
+                      JSON.stringify(revision.previousValues.namaPelanggan);
+
+                    const etaChanged =
+                      revision.changes.waktuKirim &&
+                      revision.previousValues.waktuKirim !==
+                        revision.changes.waktuKirim;
+
+                    return (
+                      <div key={index} className="flex gap-4 pb-6">
+                        <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
+                          <div className="font-medium text-gray-700">
+                            {new Date(revision.timestamp).toLocaleDateString(
+                              "id-ID",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                          </div>
+                          <div>
+                            {new Date(revision.timestamp).toLocaleTimeString(
+                              "id-ID",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="relative flex flex-col items-center">
+                          <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-400 mt-2 z-10" />
+                        </div>
+
+                        <div className="flex-1 pb-2">
+                          <button
+                            onClick={() => {
+                              const newExpanded = new Set(expandedRevisions);
+                              if (isExpanded) {
+                                newExpanded.delete(index);
+                              } else {
+                                newExpanded.add(index);
+                              }
+                              setExpandedRevisions(newExpanded);
+                            }}
+                            className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
+                          >
+                            <div>
+                              <p className="font-medium text-sm">
+                                Revision #{revision.revisionNumber}
+                                {index ===
+                                  currentRequest.revisionHistory!.length -
+                                    1 && (
+                                  <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
+                                    Latest
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Updated by{" "}
+                                {getFullNameFromUsername(revision.updatedBy)}
+                              </p>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 border rounded-lg bg-gray-50 p-4 text-sm space-y-3">
+                              {etaChanged && (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                                  <p className="text-xs font-semibold text-gray-700 mb-1">
+                                    ETA Change
+                                  </p>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-red-600 line-through">
+                                      {revision.previousValues.waktuKirim
+                                        ? new Date(
+                                            revision.previousValues.waktuKirim,
+                                          ).toLocaleDateString("id-ID")
+                                        : "—"}
+                                    </span>
+                                    <span className="text-gray-500">→</span>
+                                    <span className="text-green-700 font-semibold">
+                                      {new Date(
+                                        revision.changes.waktuKirim!,
+                                      ).toLocaleDateString("id-ID")}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-2 gap-3">
+                                {pabrikChanged && (
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Supplier
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-red-500 line-through text-xs">
+                                        {prevPabrikLabel}
+                                      </span>
+                                      <span className="text-gray-400">→</span>
+                                      <span className="text-green-700 font-semibold">
+                                        {revPabrikLabel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {pelangganChanged && (
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Customer
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-red-500 line-through text-xs">
+                                        {prevPelangganLabel}
+                                      </span>
+                                      <span className="text-gray-400">→</span>
+                                      <span className="text-green-700 font-semibold">
+                                        {revPelangganLabel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {revision.changes.kategoriBarang &&
+                                  revision.changes.kategoriBarang !==
+                                    revision.previousValues.kategoriBarang && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Product Category
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-red-500 line-through text-xs">
+                                          {getLabelFromValue(
+                                            [
+                                              {
+                                                value: "basic",
+                                                label: "Basic",
+                                              },
+                                              {
+                                                value: "model",
+                                                label: "Model",
+                                              },
+                                            ],
+                                            revision.previousValues
+                                              .kategoriBarang || "",
+                                          )}
+                                        </span>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="text-green-700 font-semibold">
+                                          {getLabelFromValue(
+                                            [
+                                              {
+                                                value: "basic",
+                                                label: "Basic",
+                                              },
+                                              {
+                                                value: "model",
+                                                label: "Model",
+                                              },
+                                            ],
+                                            revision.changes.kategoriBarang,
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                {revision.changes.jenisProduk &&
+                                  revision.changes.jenisProduk !==
+                                    revision.previousValues.jenisProduk && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Product Type
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-red-500 line-through text-xs">
+                                          {getLabelFromValue(
+                                            JENIS_PRODUK_OPTIONS,
+                                            revision.previousValues
+                                              .jenisProduk || "",
+                                          )}
+                                        </span>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="text-green-700 font-semibold">
+                                          {getLabelFromValue(
+                                            JENIS_PRODUK_OPTIONS,
+                                            revision.changes.jenisProduk,
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                {revision.changes.namaBasic &&
+                                  revision.changes.namaBasic !==
+                                    revision.previousValues.namaBasic && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Basic Name
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-red-500 line-through text-xs">
+                                          {getLabelFromValue(
+                                            NAMA_BASIC_OPTIONS,
+                                            revision.previousValues.namaBasic ||
+                                              "",
+                                          )}
+                                        </span>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="text-green-700 font-semibold">
+                                          {getLabelFromValue(
+                                            NAMA_BASIC_OPTIONS,
+                                            revision.changes.namaBasic,
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                {revision.changes.namaProduk &&
+                                  revision.changes.namaProduk !==
+                                    revision.previousValues.namaProduk && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Nama Produk
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-red-500 line-through text-xs">
+                                          {getLabelFromValue(
+                                            NAMA_PRODUK_OPTIONS,
+                                            revision.previousValues
+                                              .namaProduk || "",
+                                          )}
+                                        </span>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="text-green-700 font-semibold">
+                                          {getLabelFromValue(
+                                            NAMA_PRODUK_OPTIONS,
+                                            revision.changes.namaProduk,
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                {revision.changes.customerExpectation &&
+                                  revision.changes.customerExpectation !==
+                                    revision.previousValues
+                                      .customerExpectation && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Customer Expectation
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-red-500 line-through text-xs">
+                                          {getLabelFromValue(
+                                            CUSTOMER_EXPECTATION_OPTIONS,
+                                            revision.previousValues
+                                              .customerExpectation || "",
+                                          )}
+                                        </span>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="text-green-700 font-semibold">
+                                          {getLabelFromValue(
+                                            CUSTOMER_EXPECTATION_OPTIONS,
+                                            revision.changes
+                                              .customerExpectation,
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                              {revision.changes.detailItems &&
+                                revision.changes.detailItems.length > 0 && (
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Detail Barang (
+                                      {revision.changes.detailItems.length}{" "}
+                                      items)
+                                    </p>
+                                    <div className="overflow-x-auto">
+                                      <table className="min-w-full text-xs border-collapse border">
+                                        <thead className="bg-gray-100">
+                                          <tr>
+                                            <th className="border px-2 py-1 text-left">
+                                              Kadar
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Warna
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Ukuran
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Berat
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Pcs
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {revision.changes.detailItems.map(
+                                            (item, idx) => {
+                                              const prevItem =
+                                                revision.previousValues
+                                                  .detailItems?.[idx];
+                                              const isNewItem =
+                                                !revision.previousValues
+                                                  .detailItems ||
+                                                idx >=
+                                                  revision.previousValues
+                                                    .detailItems.length;
+                                              const kadarChanged =
+                                                prevItem &&
+                                                item.kadar !== prevItem.kadar;
+                                              const warnaChanged =
+                                                prevItem &&
+                                                item.warna !== prevItem.warna;
+                                              const ukuranChanged =
+                                                prevItem &&
+                                                item.ukuran !== prevItem.ukuran;
+                                              const beratChanged =
+                                                prevItem &&
+                                                item.berat !== prevItem.berat;
+                                              const pcsChanged =
+                                                prevItem &&
+                                                item.pcs !== prevItem.pcs;
+                                              return (
+                                                <tr
+                                                  key={idx}
+                                                  className={
+                                                    isNewItem
+                                                      ? "border-4 border-green-500"
+                                                      : ""
+                                                  }
+                                                >
+                                                  <td
+                                                    className={`px-2 py-1 font-medium ${kadarChanged && !isNewItem ? "border-4 border-orange-400" : "border"}`}
+                                                  >
+                                                    {item.kadar}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 ${getRevWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-orange-400" : "border"}`}
+                                                  >
+                                                    {getRevWarnaLabel(
+                                                      item.warna,
+                                                    )}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-orange-400" : "border"}`}
+                                                  >
+                                                    {(() => {
+                                                      const ud =
+                                                        getRevUkuranDisplay(
+                                                          item.ukuran,
+                                                        );
+                                                      return ud.showUnit
+                                                        ? `${ud.value} cm`
+                                                        : ud.value;
+                                                    })()}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-orange-400" : "border"}`}
+                                                  >
+                                                    {item.berat}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-orange-400" : "border"}`}
+                                                  >
+                                                    {item.pcs}
+                                                  </td>
+                                                </tr>
+                                              );
+                                            },
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                              {(revision.previousValues.photoId ||
+                                revision.changes.photoId) &&
+                                (() => {
+                                  const beforeImg = revision.previousValues
+                                    .photoId
+                                    ? getImage(revision.previousValues.photoId)
+                                    : null;
+                                  const afterImg = revision.changes.photoId
+                                    ? getImage(revision.changes.photoId)
+                                    : null;
+                                  const photoChanged =
+                                    revision.previousValues.photoId !==
+                                    revision.changes.photoId;
+                                  if (!beforeImg && !afterImg) return null;
+                                  if (photoChanged && beforeImg && afterImg) {
+                                    return (
+                                      <div className="flex gap-3 flex-wrap mt-3">
+                                        <div className="w-32">
+                                          <p className="font-medium text-gray-500 text-xs mb-1">
+                                            Photo — Before
+                                          </p>
+                                          <img
+                                            src={beforeImg}
+                                            alt="Before"
+                                            className="w-full h-32 object-cover rounded border border-red-200"
+                                          />
+                                        </div>
+                                        <div className="w-32">
+                                          <p className="font-medium text-green-700 text-xs mb-1">
+                                            Photo — After
+                                          </p>
+                                          <img
+                                            src={afterImg}
+                                            alt="After"
+                                            className="w-full h-32 object-cover rounded border border-green-400"
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  const singleImg = afterImg || beforeImg;
+                                  return singleImg ? (
+                                    <div className="mt-3">
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Photo
+                                      </p>
+                                      <img
+                                        src={singleImg}
+                                        alt="Product"
+                                        className="w-32 h-32 object-cover rounded border"
+                                      />
+                                    </div>
+                                  ) : null;
+                                })()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
+      {/* Reject Confirmation Dialog */}
+      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Request</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please provide a reason for rejecting this request.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <textarea
+              className="w-full min-h-[100px] rounded-md border-2 border-gray-400 bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-gray-600 resize-none"
+              placeholder="Reason of Rejection (required)"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!rejectReason.trim()}
+              onClick={() => {
+                if (rejectReason.trim()) {
+                  onReject!(rejectReason.trim());
+                  setShowRejectDialog(false);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Reject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Ready Stock Confirmation Dialog */}
       <AlertDialog

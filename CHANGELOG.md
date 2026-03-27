@@ -5,109 +5,157 @@ All notable changes to the SAPOM (Sales And Production Order Management) prototy
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),  
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## \[Unreleased\]
 
 ### Added
 
-- **"Ordered" Tab in My Requests**: New tab for Sales and Stockist roles
-  - Filters requests with status `"Ordered"` into a dedicated tab
-  - Displays unseen count badge (red) on tab
-  - Positioned between "Assigned" and "Done" tabs with indigo styling
-  - Updated: `my-requests.tsx`
+**"Ordered" Tab in My Requests**: New tab for Sales and Stockist roles
 
-- **Reusable Product Details Table Components**: New shared table components
-  - `ProductDetailsTable`: Full-featured table with modes `readonly`, `with-available-pcs`, `with-ordered-pcs`, `with-changes`
-  - `ProductDetailsTableCompact`: Compact version for nested/inline use (e.g., revision history)
-  - Supports responsive layout (desktop table ↔ mobile cards), sticky headers, change highlighting, row numbers
-  - Located: `src/app/components/product-details-table.tsx`
+- Filters requests with status `"Ordered"` into a dedicated tab
+- Displays unseen count badge (red) on tab
+- Positioned between "Assigned" and "Done" tabs with indigo styling
+- Updated: `my-requests.tsx`
+
+**Reusable Product Details Table Components**: New shared table components
+
+- `ProductDetailsTable`: Full-featured table with modes `readonly`, `with-available-pcs`, `with-ordered-pcs`, `with-changes`
+- `ProductDetailsTableCompact`: Compact version for nested/inline use (e.g., revision history)
+- Supports responsive layout (desktop table ↔ mobile cards), sticky headers, change highlighting, row numbers
+- Located: `src/app/components/product-details-table.tsx`
 
 ### Changed
 
-- **Order Details Page — Combined into Single Card**: Merged four separate cards into one
-  - Order Information, Order Items, Related Request Details, and Revision History now live inside one `<Card>`
-  - Sections separated by `border-t` dividers for visual clarity
-  - Updated: `order-details.tsx`
+**Order Details Page — Combined into Single Card**: Merged four separate cards into one
 
-- **Order Details — Order Info Layout**: Aligned info fields to match order-card style
-  - Replaced `space-y-1` paragraph list with `grid grid-cols-[auto_1fr]` per row
-  - Labels right-aligned (`justify-self-end pr-1`) with consistent `gap-x-3` to values
-  - Updated: `order-details.tsx`
+- Order Information, Order Items, Related Request Details, and Revision History now live inside one `<Card>`
+- Sections separated by `border-t` dividers for visual clarity
+- Updated: `order-details.tsx`
 
-- **Order Details — Revision History Improvements**:
-  - Removed "Initial Version" entry — only actual revisions are shown
-  - Revisions now displayed newest-first (`[...revisionHistory].reverse()`)
-  - Added **Supplier** and **Customer Name** fields inside each revision entry (after Basic Name / Nama Produk)
-  - Expand/collapse key changed from array index to `revision.revisionNumber` (stable across reorder)
-  - Updated: `order-details.tsx`
+**Order Details — Order Info Layout**: Aligned info fields to match order-card style
 
-- **Order Details — Request Items Table**: Replaced inline table markup with `ProductDetailsTableCompact`
-  - Reduced ~170 lines of manual table markup to a single component call
-  - Updated: `order-details.tsx`
+- Replaced `space-y-1` paragraph list with `grid grid-cols-[auto_1fr]` per row
+- Labels right-aligned (`justify-self-end pr-1`) with consistent `gap-x-3` to values
+- Updated: `order-details.tsx`
 
-- **OrderCard Layout Refactoring**: Consistent info grid layout for My Orders
-  - Removed date display above product image; image now starts at top
-  - All info fields (PO Number, Updated, Created, ETA, JB, Sales, Customer Name, Supplier) merged into one `grid grid-cols-1` with `grid-cols-[auto_1fr]` per row
-  - Labels right-aligned with `justify-self-end` to minimize gap to values (`gap-x-3`)
-  - Supplier displayed as `Badge` component with pabrik color
-  - Updated: `order-card.tsx`
+**Order Details — Revision History Improvements**:
 
-- **RequestCard Layout Refactoring**: Unified info grid layout for My Requests
-  - Replaced individual `<p>` tags with `grid grid-cols-[auto_1fr] gap-x-3` layout
-  - All fields (Request No, Created, Sales, Stockist, Customer Name, Supplier, ETA) in one grid
-  - Supplier displayed as `Badge` component consistent with order-card
-  - Updated: `request-card.tsx`
+- Removed "Initial Version" entry — only actual revisions are shown
+- Revisions now displayed newest-first (`[...revisionHistory].reverse()`)
+- Added **Supplier** and **Customer Name** fields inside each revision entry (after Basic Name / Nama Produk)
+- Expand/collapse key changed from array index to `revision.revisionNumber` (stable across reorder)
+- Updated: `order-details.tsx`
 
-- **Order Details — Order Items Table**: Replaced `DetailItemsTable` with `ProductDetailsTable`
-  - Uses `showCardWrapper={false}` (embedded inside combined card), `showRowNumbers={true}`
-  - Updated: `order-details.tsx`
+**Order Details — Request Items Table**: Replaced inline table markup with `ProductDetailsTableCompact`
+
+- Reduced ~170 lines of manual table markup to a single component call
+- Updated: `order-details.tsx`
+
+**OrderCard Layout Refactoring**: Consistent info grid layout for My Orders
+
+- Removed date display above product image; image now starts at top
+- All info fields (PO Number, Updated, Created, ETA, JB, Sales, Customer Name, Supplier) merged into one `grid grid-cols-1` with `grid-cols-[auto_1fr]` per row
+- Labels right-aligned with `justify-self-end` to minimize gap to values (`gap-x-3`)
+- Supplier displayed as `Badge` component with pabrik color
+- Updated: `order-card.tsx`
+
+**RequestCard Layout Refactoring**: Unified info grid layout for My Requests
+
+- Replaced individual `<p>` tags with `grid grid-cols-[auto_1fr] gap-x-3` layout
+- All fields (Request No, Created, Sales, Stockist, Customer Name, Supplier, ETA) in one grid
+- Supplier displayed as `Badge` component consistent with order-card
+- Updated: `request-card.tsx`
+
+**Order Details — Order Items Table**: Replaced `DetailItemsTable` with `ProductDetailsTable`
+
+- Uses `showCardWrapper={false}` (embedded inside combined card), `showRowNumbers={true}`
+- Updated: `order-details.tsx`
 
 ### Added
 
-- **Dual Approval System for Order Revisions**: Two-stage approval process for order changes
-  - Added `jbApproved` and `salesApproved` boolean flags to Order type
-  - Both JB and Sales must approve before status changes to "Order Revised"
-  - Individual approval tracking: Shows "Waiting for [JB/Sales] approval" message
-  - Full approval: Automatically changes status to "Order Revised" when both approve
-  - Implemented in: `order.ts`, `order-edit-form.tsx`, `App.tsx`
+**Order Revision History — Chronological Display**: Latest revision now shown at top, initial version at bottom
 
-- **Order Revision Navigation Improvements**: Enhanced navigation after supplier change requests
-  - Supplier automatically returns to "In Review" tab after requesting changes
-  - Smooth transition from order details back to order list
-  - Updated: `order-details.tsx`, `App.tsx`
-
-- **Visual Indicator for New Detail Items in Revisions**: Red border highlight for newly added items
-  - New detail items in revision history show red pulsing border and shadow
-  - CSS classes: `border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50`
-  - Detects new items by comparing with previous revision's detail items array
-  - Applied to: `order-details.tsx` revision history table
+- Revision entries rendered in reverse chronological order (newest → oldest)
+- Initial Version pinned to bottom using `order-last` CSS class in flex column
+- Applied to both Order Revision History and Request Revision History timelines
+- "Latest" badge now correctly marks the first rendered entry (most recent)
+- Updated: `order-details.tsx`
 
 ### Changed
 
-- **JB Order Review Permissions**: Restricted JB actions based on order status
-  - **Change Requested Status**: JB cannot update order (no Update Order button)
-  - **Revised - Internal Review Status**: JB can only review (approve) - no cancel option
-  - JB review mode shows only "Back" and "Approve Revision" buttons
-  - Removed cancel/reject capability for JB role
-  - Updated: `jb-order.tsx`, `order-edit-form.tsx`, `App.tsx`
+**Change Pending Approval — Supplier Proposed Changes Moved Up**: Proposed changes now displayed immediately after order header
 
-- **Revision Notes Requirement**: Made revision notes mandatory for order updates
-  - Revision notes field changed from optional to required
-  - Added red asterisk (*) indicator and "Required" label
-  - Validation prevents submission without notes
-  - Error toast: "Revision notes are required"
-  - Updated: `order-edit-form.tsx`
+- Supplier Proposed Changes card rendered right after the order info card for faster access
+- Order Items table hidden when order status is "Change Pending Approval" (use proposed changes diff instead)
+- Approval badges, ETA diff, supplier notes, photo comparison, and item diff tables remain intact
+- Updated: `order-details.tsx`
 
-- **Order Status Flow**: Standardized status progression for revisions
-  - All order updates (Supplier/JB) now set status to "Revised - Internal Review"
-  - Reset approval flags (`jbApproved: false`, `salesApproved: false`) on each revision
-  - Status changes to "Order Revised" only after dual approval
-  - Updated: `order-edit-form.tsx`
+**Revision Approval — Stay on Page After Both Approve**: Users remain on order details after full approval
 
-- **Product Detail Styling**: Simplified kadar (karat) display colors
-  - **Input Detail Barang**: Changed kadar backgrounds (6K-24K) from colored to white with black text
-  - **Product Details Table**: Removed colored backgrounds for kadar, now white with black text
-  - Affected kadar values: 6K, 8K, 9K, 16K, 17K, 24K
-  - Updated: `form-helpers.tsx`, `detail-items-table.tsx`
+- Removed auto-redirect (`setTimeout(() => onBack(), 500)`) when both Sales & JB approve
+- Success toast still shown; users navigate back on their own
+- Updated: `order-details.tsx`
+
+**Tab Configuration — Order Revised Moved to Negotiation Tab**: All users now see "Order Revised" orders under Negotiation
+
+- Moved `"Order Revised"` status from Finalized to Negotiation tab for `sales` role
+- Moved `"Order Revised"` status from Finalized to In Negotiation tab for `jb` role
+- Supplier role already had `"Order Revised"` in Negotiation (no change needed)
+- Updated: `unified-orders.tsx`
+
+### Added
+
+**Dual Approval System for Order Revisions**: Two-stage approval process for order changes
+
+- Added `jbApproved` and `salesApproved` boolean flags to Order type
+- Both JB and Sales must approve before status changes to "Order Revised"
+- Individual approval tracking: Shows "Waiting for \[JB/Sales\] approval" message
+- Full approval: Automatically changes status to "Order Revised" when both approve
+- Implemented in: `order.ts`, `order-edit-form.tsx`, `App.tsx`
+
+**Order Revision Navigation Improvements**: Enhanced navigation after supplier change requests
+
+- Supplier automatically returns to "In Review" tab after requesting changes
+- Smooth transition from order details back to order list
+- Updated: `order-details.tsx`, `App.tsx`
+
+**Visual Indicator for New Detail Items in Revisions**: Red border highlight for newly added items
+
+- New detail items in revision history show red pulsing border and shadow
+- CSS classes: `border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50`
+- Detects new items by comparing with previous revision's detail items array
+- Applied to: `order-details.tsx` revision history table
+
+### Changed
+
+**JB Order Review Permissions**: Restricted JB actions based on order status
+
+- **Change Requested Status**: JB cannot update order (no Update Order button)
+- **Revised - Internal Review Status**: JB can only review (approve) - no cancel option
+- JB review mode shows only "Back" and "Approve Revision" buttons
+- Removed cancel/reject capability for JB role
+- Updated: `jb-order.tsx`, `order-edit-form.tsx`, `App.tsx`
+
+**Revision Notes Requirement**: Made revision notes mandatory for order updates
+
+- Revision notes field changed from optional to required
+- Added red asterisk (\*) indicator and "Required" label
+- Validation prevents submission without notes
+- Error toast: "Revision notes are required"
+- Updated: `order-edit-form.tsx`
+
+**Order Status Flow**: Standardized status progression for revisions
+
+- All order updates (Supplier/JB) now set status to "Revised - Internal Review"
+- Reset approval flags (`jbApproved: false`, `salesApproved: false`) on each revision
+- Status changes to "Order Revised" only after dual approval
+- Updated: `order-edit-form.tsx`
+
+**Product Detail Styling**: Simplified kadar (karat) display colors
+
+- **Input Detail Barang**: Changed kadar backgrounds (6K-24K) from colored to white with black text
+- **Product Details Table**: Removed colored backgrounds for kadar, now white with black text
+- Affected kadar values: 6K, 8K, 9K, 16K, 17K, 24K
+- Updated: `form-helpers.tsx`, `detail-items-table.tsx`
 
 ### Fixed
 
@@ -118,138 +166,180 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Docker Containerization**: Complete production and development containerization setup
-  - Created multi-stage `Dockerfile` for optimized production build (~25MB final image)
-  - Created `Dockerfile.dev` for development environment with hot reload
-  - Added `docker-compose.yml` with profiles for dev/prod environment separation
-  - Added `nginx.conf` with SPA routing, gzip compression, caching, and security headers
-  - Added `.dockerignore` for build context optimization
-  - Added `.env.example` template for environment configuration
-  - **Helper Scripts**:
-    - `docker.sh`: Linux/Mac helper with 16 commands (build, run, logs, shell, clean, health, status)
-    - `docker.bat`: Windows helper with same functionality
-    - `Makefile`: Automation targets with colored output and help system
-  - **Documentation**:
-    - `README.Docker.md`: Comprehensive guide (320+ lines) covering quick start, commands, troubleshooting, CI/CD
-    - `QUICKSTART.md`: Quick reference guide for getting started in under 5 minutes
-  - **Features**:
-    - Production: nginx:alpine serving optimized build on port 8080
-    - Development: Vite dev server with volume mounts on port 5173
-    - Health checks for production containers
-    - Cross-platform support (Linux/Mac/Windows)
-    - CI/CD ready structure
+**Docker Containerization**: Complete production and development containerization setup
 
-- **Order Management Consolidated Tabs**: Standardized tab interface across all user roles
-  - Consolidated 13 individual status tabs into 6 logical groups matching supplier view
-  - **Tab Structure** (Sales, JB, Supplier):
-    - **All**: Shows all orders with total count
-    - **Incoming**: Groups "Incoming", "Approved - Pending SO", "Forwarded to Supplier"
-    - **In Review**: Groups "In Review", "Change Requested", "Revised - Internal Review"
-    - **Production**: Groups "Order Revised", "Waktu Kirim Confirmed", "Production in Progress", "Production Completed"
-    - **Rejected**: Shows rejected orders
-    - **Delivered**: Shows delivered orders
-  - Updated filtered count calculations to group related statuses
-  - Simplified filter logic using status arrays for each tab
-  - Applied to: `sales-orders.tsx`, `jb-order.tsx`, `supplier-orders.tsx`
-  - Badge counts reflect unseen orders in each consolidated group
+- Created multi-stage `Dockerfile` for optimized production build (~25MB final image)
+- Created `Dockerfile.dev` for development environment with hot reload
+- Added `docker-compose.yml` with profiles for dev/prod environment separation
+- Added `nginx.conf` with SPA routing, gzip compression, caching, and security headers
+- Added `.dockerignore` for build context optimization
+- Added `.env.example` template for environment configuration
+- **Helper Scripts**:
+  - `docker.sh`: Linux/Mac helper with 16 commands (build, run, logs, shell, clean, health, status)
+  - `docker.bat`: Windows helper with same functionality
+  - `Makefile`: Automation targets with colored output and help system
+- **Documentation**:
+  - `README.Docker.md`: Comprehensive guide (320+ lines) covering quick start, commands, troubleshooting, CI/CD
+  - `QUICKSTART.md`: Quick reference guide for getting started in under 5 minutes
+- **Features**:
+  - Production: nginx:alpine serving optimized build on port 8080
+  - Development: Vite dev server with volume mounts on port 5173
+  - Health checks for production containers
+  - Cross-platform support (Linux/Mac/Windows)
+  - CI/CD ready structure
+
+**Order Management Consolidated Tabs**: Standardized tab interface across all user roles
+
+- Consolidated 13 individual status tabs into 6 logical groups matching supplier view
+- **Tab Structure** (Sales, JB, Supplier):
+  - **All**: Shows all orders with total count
+  - **Incoming**: Groups "Incoming", "Approved - Pending SO", "Forwarded to Supplier"
+  - **In Review**: Groups "In Review", "Change Requested", "Revised - Internal Review"
+  - **Production**: Groups "Order Revised", "Waktu Kirim Confirmed", "Production in Progress", "Production Completed"
+  - **Rejected**: Shows rejected orders
+  - **Delivered**: Shows delivered orders
+- Updated filtered count calculations to group related statuses
+- Simplified filter logic using status arrays for each tab
+- Applied to: `sales-orders.tsx`, `jb-order.tsx`, `supplier-orders.tsx`
+- Badge counts reflect unseen orders in each consolidated group
 
 ### Changed
 
-- **Supplier Change Request Workflow**: Improved change request handling
-  - **Supplier**: "Request Change" button now changes status to "Change Requested" without opening form
-  - **Supplier**: "Update Order" button appears in order list when status is "Change Requested"
-  - **JB**: "Update Order" button shown based on order status (not tab-based)
-  - Order status change happens immediately without navigation
-  - Updated components: `order-details.tsx`, `supplier-orders.tsx`, `jb-order.tsx`, `order-card.tsx`
+**Supplier Change Request Workflow**: Improved change request handling
 
-- **Sales Review Mode for Revised Orders**: Enhanced approval workflow with mandatory cancel reason
-  - Sales users see approve/cancel buttons for "Revised - Internal Review" status
-  - **Cancel Action** now requires mandatory reason/note via dialog
-    - Added cancel dialog with textarea for reason input
-    - Validation prevents cancel without reason
-    - Reason stored with order when canceled
-  - **Approve Action** processes revision as before
-  - Updated `sales-orders.tsx` to show `onReviewRevision` callback for "Revised - Internal Review"
-  - Updated `order-details.tsx` with Dialog, Label, Textarea components for cancel workflow
-  - Added state management for `showCancelDialog` and `cancelReason`
+- **Supplier**: "Request Change" button now changes status to "Change Requested" without opening form
+- **Supplier**: "Update Order" button appears in order list when status is "Change Requested"
+- **JB**: "Update Order" button shown based on order status (not tab-based)
+- Order status change happens immediately without navigation
+- Updated components: `order-details.tsx`, `supplier-orders.tsx`, `jb-order.tsx`, `order-card.tsx`
+
+## \[Unreleased\] – 2026-03-27
 
 ### Added
 
-- **Order Tabs Translations**: Added i18n support for order filtering tabs
-  - Added `orderTabs` section to both en.json and id.json locales
-  - Translations for: All, Incoming, In Review, Production, Rejected, Delivered
-  - Supports future order filtering functionality
+**Unified Order/Request View**: All roles now use a single `UnifiedOrders` component for listing and managing orders and requests, replacing `sales-orders.tsx` and `supplier-orders.tsx`.
 
-- **Sales Question Management System**: Complete question/inquiry management for sales users
-  - Created new `sales-questions.tsx` component with two-tab interface
-  - **Pending Questions tab**: Shows unanswered questions with create and edit capabilities
-  - **Answered Questions tab**: Displays answered questions with timestamps and responses
-  - Integrated question form (`question-form.tsx`) with edit mode support
-  - Questions stored in localStorage with unique IDs and timestamps
-  - Automatic navigation after create/update operations
-  - Added "Questions" menu item to sales navigation
+- Added `src/app/components/unified-orders.tsx` with role-based tab logic, lazy loading, and interleaved request/order display
+- All order and request lists now support search, sort, and infinite scroll
+- Tab structure and status grouping are now consistent across roles
 
-- **Notification Card Enhancements**: Product thumbnails and role-based filtering
-  - Added product thumbnail images to notification cards (positioned on the left)
-  - Implemented `getThumbnailImage()` helper function supporting:
-    - Basic products: Shows nama basic image from mapping
-    - Model products: Shows uploaded product photo via photoId
-  - Added sales-specific notification filtering: Sales users now only see notifications for requests they created
-  - Filter implemented in `filterNotificationsByRole()` in notification-helper.ts
+### Changed
 
-- **Role-Based Order Update Workflow**: Multi-role approval system for order revisions
-  - **Supplier/JB Update Flow**:
-    - "Request Change" button now navigates to order edit form via `onUpdateOrder` callback
-    - Can edit product images (change/delete), product details, and ETA (waktuKirim)
-    - Submit changes → Status set to "Revised - Internal Review"
-    - Notifications sent to JB and Sales for review
-  - **Sales Review Flow**:
-    - Views order updates in read-only mode
-    - Cannot edit images, details, or ETA (all editing UI hidden)
-    - Can only Approve or Reject changes
-    - Mandatory cancellation reason required when rejecting
-    - Approve → Status set to "Order Revised"
-    - Reject → Status set to "Rejected" with reason stored
-  - **Implementation Details**:
-    - Added `userRole` prop to OrderEditForm for permission control
-    - Added `onUpdateOrder` callback chain: App → SupplierOrders → OrderDetails
-    - Conditional rendering for ETA field (editable Input vs read-only text)
-    - Conditional action buttons based on role (Edit/Submit vs Approve/Reject)
-    - Sales review interface with cancel reason textarea and action buttons
-  - **DetailItemsDisplay Component Updates**:
-    - Made `onEdit` and `onDelete` props optional
-    - Conditionally hides action buttons and "Aksi" column when props undefined
-    - Supports read-only view for sales role (no edit/delete capability on detail items)
+**Order Status Renaming and Flow**
 
-- **Request Cards "New" Badge System**: Visual indicators for unseen requests with mark-as-viewed tracking
-  - Added animated "New" badge to request cards (matching order cards pattern)
-  - Badge appears for requests not yet viewed by current user
-  - Added `viewedBy` property to Request type for tracking viewed status
-  - Implemented mark-as-viewed functionality across all request views:
-    - **Sales**: Badge removed on show items, see details, or duplicate actions
-    - **Stockist**: Badge removed on verify stock, show items, or see details actions
-    - **JB**: Badge removed on show items or see details actions
-  - Red badge counters on all tabs now reflect actual unseen request counts
-  - Badge counts dynamically update when requests are marked as viewed
-  - Applied to my-requests.tsx (Sales & Stockist) and jb-requests.tsx (JB) components
+- Renamed status `New` → `New Order` throughout the codebase
+- Renamed `Change Requested` → `Change Pending Approval` for supplier-initiated changes
+- Added new status: `Shipping` for supplier-dispatched orders
+- Updated status color mapping and tab logic for new statuses
+- Updated mock data and migration logic to reflect new statuses
 
-- **Project Documentation**:
-  - Created comprehensive project lifecycle breakdown document (PROJECT_BREAKDOWN.csv)
-  - Created Indonesian version of project breakdown (PROJECT_BREAKDOWN_ID.csv)
-  - Documented 432 tasks across all SDLC phases:
-    - Design phase (71 tasks, ~450 hours)
-    - Development phase (175 tasks, ~850 hours)
-    - Testing phase (101 tasks, ~500 hours)
-    - Bug Fix phase (11 batches, ~216 hours)
-    - UAT phase (30 tasks, ~228 hours)
-    - Deployment phase (44 tasks, ~300+ hours)
-  - Each task includes: ID, name, description, dependencies, estimated hours, user role, priority, and status
-  - Organized by Phase > Category > Module hierarchy
-  - Reflects current implementation status (frontend mostly completed, backend not started)
+**Mock Data Improvements**
 
-- Standardized notification message format across all notification types
-- Supplier now receives their own order change request notifications
-- Sales users now receive order created notifications with standardized format
+- Mock orders now include revision history and new statuses
+- Added `populateMockData()` utility for quickly generating 15 requests and 15 orders with realistic data
+- Existing localStorage data is migrated to new status names and structure on load
+
+### Removed
+
+- Deleted legacy `sales-orders.tsx` and `supplier-orders.tsx` components (now replaced by `unified-orders.tsx`)
+
+**Sales Review Mode for Revised Orders**: Enhanced approval workflow with mandatory cancel reason
+
+- Sales users see approve/cancel buttons for "Revised - Internal Review" status
+- **Cancel Action** now requires mandatory reason/note via dialog
+  - Added cancel dialog with textarea for reason input
+  - Validation prevents cancel without reason
+  - Reason stored with order when canceled
+- **Approve Action** processes revision as before
+- Updated `sales-orders.tsx` to show `onReviewRevision` callback for "Revised - Internal Review"
+- Updated `order-details.tsx` with Dialog, Label, Textarea components for cancel workflow
+- Added state management for `showCancelDialog` and `cancelReason`
+
+### Added
+
+**Order Tabs Translations**: Added i18n support for order filtering tabs
+
+- Added `orderTabs` section to both en.json and id.json locales
+- Translations for: All, Incoming, In Review, Production, Rejected, Delivered
+- Supports future order filtering functionality
+
+**Sales Question Management System**: Complete question/inquiry management for sales users
+
+- Created new `sales-questions.tsx` component with two-tab interface
+- **Pending Questions tab**: Shows unanswered questions with create and edit capabilities
+- **Answered Questions tab**: Displays answered questions with timestamps and responses
+- Integrated question form (`question-form.tsx`) with edit mode support
+- Questions stored in localStorage with unique IDs and timestamps
+- Automatic navigation after create/update operations
+- Added "Questions" menu item to sales navigation
+
+**Notification Card Enhancements**: Product thumbnails and role-based filtering
+
+- Added product thumbnail images to notification cards (positioned on the left)
+- Implemented `getThumbnailImage()` helper function supporting:
+  - Basic products: Shows nama basic image from mapping
+  - Model products: Shows uploaded product photo via photoId
+- Added sales-specific notification filtering: Sales users now only see notifications for requests they created
+- Filter implemented in `filterNotificationsByRole()` in notification-helper.ts
+
+**Role-Based Order Update Workflow**: Multi-role approval system for order revisions
+
+- **Supplier/JB Update Flow**:
+  - "Request Change" button now navigates to order edit form via `onUpdateOrder` callback
+  - Can edit product images (change/delete), product details, and ETA (waktuKirim)
+  - Submit changes → Status set to "Revised - Internal Review"
+  - Notifications sent to JB and Sales for review
+- **Sales Review Flow**:
+  - Views order updates in read-only mode
+  - Cannot edit images, details, or ETA (all editing UI hidden)
+  - Can only Approve or Reject changes
+  - Mandatory cancellation reason required when rejecting
+  - Approve → Status set to "Order Revised"
+  - Reject → Status set to "Rejected" with reason stored
+- **Implementation Details**:
+  - Added `userRole` prop to OrderEditForm for permission control
+  - Added `onUpdateOrder` callback chain: App → SupplierOrders → OrderDetails
+  - Conditional rendering for ETA field (editable Input vs read-only text)
+  - Conditional action buttons based on role (Edit/Submit vs Approve/Reject)
+  - Sales review interface with cancel reason textarea and action buttons
+- **DetailItemsDisplay Component Updates**:
+  - Made `onEdit` and `onDelete` props optional
+  - Conditionally hides action buttons and "Aksi" column when props undefined
+  - Supports read-only view for sales role (no edit/delete capability on detail items)
+
+**Request Cards "New" Badge System**: Visual indicators for unseen requests with mark-as-viewed tracking
+
+- Added animated "New" badge to request cards (matching order cards pattern)
+- Badge appears for requests not yet viewed by current user
+- Added `viewedBy` property to Request type for tracking viewed status
+- Implemented mark-as-viewed functionality across all request views:
+  - **Sales**: Badge removed on show items, see details, or duplicate actions
+  - **Stockist**: Badge removed on verify stock, show items, or see details actions
+  - **JB**: Badge removed on show items or see details actions
+- Red badge counters on all tabs now reflect actual unseen request counts
+- Badge counts dynamically update when requests are marked as viewed
+- Applied to my-requests.tsx (Sales & Stockist) and jb-requests.tsx (JB) components
+
+**Project Documentation**:
+
+- Created comprehensive project lifecycle breakdown document (PROJECT_BREAKDOWN.csv)
+- Created Indonesian version of project breakdown (PROJECT_BREAKDOWN_ID.csv)
+- Documented 432 tasks across all SDLC phases:
+  - Design phase (71 tasks, ~450 hours)
+  - Development phase (175 tasks, ~850 hours)
+  - Testing phase (101 tasks, ~500 hours)
+  - Bug Fix phase (11 batches, ~216 hours)
+  - UAT phase (30 tasks, ~228 hours)
+  - Deployment phase (44 tasks, ~300+ hours)
+- Each task includes: ID, name, description, dependencies, estimated hours, user role, priority, and status
+- Organized by Phase > Category > Module hierarchy
+- Reflects current implementation status (frontend mostly completed, backend not started)
+
+Standardized notification message format across all notification types
+
+Supplier now receives their own order change request notifications
+
+Sales users now receive order created notifications with standardized format
 
 ### Fixed
 
