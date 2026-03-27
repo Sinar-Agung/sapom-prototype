@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Order Revision History — Chronological Display**: Latest revision now shown at top, initial version at bottom
+
+*   Revision entries rendered in reverse chronological order (newest → oldest)
+*   Initial Version pinned to bottom using `order-last` CSS class in flex column
+*   Applied to both Order Revision History and Request Revision History timelines
+*   "Latest" badge now correctly marks the first rendered entry (most recent)
+*   Updated: `order-details.tsx`
+
+### Changed
+
+**Change Pending Approval — Supplier Proposed Changes Moved Up**: Proposed changes now displayed immediately after order header
+
+*   Supplier Proposed Changes card rendered right after the order info card for faster access
+*   Order Items table hidden when order status is "Change Pending Approval" (use proposed changes diff instead)
+*   Approval badges, ETA diff, supplier notes, photo comparison, and item diff tables remain intact
+*   Updated: `order-details.tsx`
+
+**Revision Approval — Stay on Page After Both Approve**: Users remain on order details after full approval
+
+*   Removed auto-redirect (`setTimeout(() => onBack(), 500)`) when both Sales & JB approve
+*   Success toast still shown; users navigate back on their own
+*   Updated: `order-details.tsx`
+
+**Tab Configuration — Order Revised Moved to Negotiation Tab**: All users now see "Order Revised" orders under Negotiation
+
+*   Moved `"Order Revised"` status from Finalized to Negotiation tab for `sales` role
+*   Moved `"Order Revised"` status from Finalized to In Negotiation tab for `jb` role
+*   Supplier role already had `"Order Revised"` in Negotiation (no change needed)
+*   Updated: `unified-orders.tsx`
+
+### Added
+
 **Dual Approval System for Order Revisions**: Two-stage approval process for order changes
 
 *   Added `jbApproved` and `salesApproved` boolean flags to Order type
@@ -118,7 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 *   Order status change happens immediately without navigation
 *   Updated components: `order-details.tsx`, `supplier-orders.tsx`, `jb-order.tsx`, `order-card.tsx`
 
-## [Unreleased] – 2026-03-27
+## \[Unreleased\] – 2026-03-27
 
 ### Added
 

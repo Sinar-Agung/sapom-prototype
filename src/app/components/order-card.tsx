@@ -310,8 +310,8 @@ export function OrderCard({
             onUpdateOrder ||
             onDuplicateOrder) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
-              {/* Update Order Button - Only for Change Requested status */}
-              {onUpdateOrder && (
+              {/* Update Order Button - Only if not JB */}
+              {onUpdateOrder && userRole !== "jb" && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button

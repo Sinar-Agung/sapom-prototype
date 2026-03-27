@@ -162,7 +162,6 @@ export function OrderDetails({
       toast.success(
         "Both parties approved. Order is now ready for production.",
       );
-      setTimeout(() => onBack(), 500);
     } else {
       allOrders[idx].updatedDate = Date.now();
       allOrders[idx].updatedBy = currentUser;
@@ -509,19 +508,366 @@ export function OrderDetails({
         </div>
       </Card>
 
+      {/* Supplier Revision Review - shown for Sales/JB when supplier has proposed changes */}
+      {(userRole === "sales" || userRole === "jb") &&
+        currentOrder.status === "Change Pending Approval" &&
+        currentOrder.revisionHistory &&
+        currentOrder.revisionHistory.length > 0 &&
+        (() => {
+          const lastRevision =
+            currentOrder.revisionHistory[
+              currentOrder.revisionHistory.length - 1
+            ];
+          const etaChanged =
+            lastRevision.previousValues.waktuKirim !== currentOrder.waktuKirim;
+
+          return (
+            <Card className="p-4 mb-4 border-orange-300 bg-orange-50">
+              <h3 className="font-semibold text-lg mb-1 text-orange-900">
+                Supplier Proposed Changes
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Proposed by{" "}
+                <span className="font-medium">
+                  {getFullNameFromUsername(lastRevision.updatedBy)}
+                </span>{" "}
+                on {new Date(lastRevision.timestamp).toLocaleString("id-ID")}
+              </p>
+
+              {/* Approval status badges */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <span className="text-xs font-semibold text-gray-600">
+                  Approvals needed:
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    currentOrder.salesApproved
+                      ? "bg-green-100 text-green-800 border border-green-300"
+                      : "bg-gray-100 text-gray-500 border border-gray-200"
+                  }`}
+                >
+                  {currentOrder.salesApproved ? "✓" : "○"} Sales
+                  {currentOrder.salesApproved && currentOrder.sales && (
+                    <span className="ml-1 font-normal">
+                      ({getFullNameFromUsername(currentOrder.sales)})
+                    </span>
+                  )}
+                  {!currentOrder.salesApproved && (
+                    <span className="ml-1 font-normal text-gray-400">
+                      — pending
+                    </span>
+                  )}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    currentOrder.jbApproved
+                      ? "bg-green-100 text-green-800 border border-green-300"
+                      : "bg-gray-100 text-gray-500 border border-gray-200"
+                  }`}
+                >
+                  {currentOrder.jbApproved ? "✓" : "○"} JB
+                  {currentOrder.jbApproved && currentOrder.jbId && (
+                    <span className="ml-1 font-normal">
+                      ({getFullNameFromUsername(currentOrder.jbId)})
+                    </span>
+                  )}
+                  {!currentOrder.jbApproved && (
+                    <span className="ml-1 font-normal text-gray-400">
+                      — pending
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {etaChanged && (
+                <div className="bg-white p-3 rounded border border-orange-200 mb-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">
+                    Proposed ETA Change:
+                  </p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-red-600 line-through">
+                      {lastRevision.previousValues.waktuKirim
+                        ? new Date(
+                            lastRevision.previousValues.waktuKirim,
+                          ).toLocaleDateString("id-ID")
+                        : "-"}
+                    </span>
+                    <span className="text-gray-500">→</span>
+                    <span className="text-green-600 font-semibold">
+                      {currentOrder.waktuKirim
+                        ? new Date(currentOrder.waktuKirim).toLocaleDateString(
+                            "id-ID",
+                          )
+                        : "-"}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {lastRevision.revisionNotes && (
+                <div className="bg-white p-3 rounded border border-orange-200 mb-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">
+                    Supplier Notes:
+                  </p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                    {lastRevision.revisionNotes}
+                  </p>
+                </div>
+              )}
+
+              {/* Photo before/after in comparison panel */}
+              {(lastRevision.previousValues.photoId ||
+                lastRevision.changes.photoId) &&
+                (() => {
+                  const beforeImg = lastRevision.previousValues.photoId
+                    ? getImage(lastRevision.previousValues.photoId)
+                    : null;
+                  const afterImg = lastRevision.changes.photoId
+                    ? getImage(lastRevision.changes.photoId)
+                    : null;
+                  const photoChanged =
+                    lastRevision.previousValues.photoId !==
+                    lastRevision.changes.photoId;
+                  if (!beforeImg && !afterImg) return null;
+                  return (
+                    <div className="bg-white p-3 rounded border border-orange-200 mb-3">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">
+                        Product Photo:
+                      </p>
+                      {photoChanged && beforeImg && afterImg ? (
+                        <div className="flex gap-4 flex-wrap">
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Before</p>
+                            <img
+                              src={beforeImg}
+                              alt="Before"
+                              className="w-36 h-36 object-cover rounded border border-red-200"
+                            />
+                          </div>
+                          <div>
+                            <p className="text-xs text-green-700 font-medium mb-1">
+                              After (proposed)
+                            </p>
+                            <img
+                              src={afterImg}
+                              alt="After"
+                              className="w-36 h-36 object-cover rounded border border-green-400"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={afterImg || beforeImg || ""}
+                          alt="Product"
+                          className="w-36 h-36 object-cover rounded border"
+                        />
+                      )}
+                    </div>
+                  );
+                })()}
+
+              {lastRevision.previousValues.detailItems &&
+                (() => {
+                  const origItems = lastRevision.previousValues.detailItems!;
+                  const propItems = currentOrder.detailItems;
+                  const maxLen = Math.max(origItems.length, propItems.length);
+                  const diffCell = "bg-amber-200";
+                  const getChanged = (
+                    oi: (typeof origItems)[0] | undefined,
+                    pi: (typeof propItems)[0] | undefined,
+                  ) =>
+                    !oi || !pi
+                      ? {}
+                      : {
+                          kadar: oi.kadar !== pi.kadar,
+                          warna: oi.warna !== pi.warna,
+                          ukuran: oi.ukuran !== pi.ukuran,
+                          berat: (oi.berat || "") !== (pi.berat || ""),
+                          pcs: oi.pcs !== pi.pcs,
+                        };
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">
+                          Original Items:
+                        </p>
+                        <div className="overflow-auto max-h-[200px]">
+                          <table className="w-full border-collapse border text-xs">
+                            <thead className="bg-gray-100 sticky top-0">
+                              <tr>
+                                <th className="border p-1">#</th>
+                                <th className="border p-1">Kadar</th>
+                                <th className="border p-1">Warna</th>
+                                <th className="border p-1">Ukuran</th>
+                                <th className="border p-1">Berat</th>
+                                <th className="border p-1">Pcs</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.from({ length: maxLen }, (_, idx) => {
+                                const item = origItems[idx];
+                                if (!item) return null;
+                                const propItem = propItems[idx];
+                                const changed = getChanged(item, propItem);
+                                const rowBg = propItem ? "" : "bg-red-100";
+                                const ud = getUkuranDisplay(item.ukuran);
+                                return (
+                                  <tr key={idx} className={rowBg}>
+                                    <td className="border p-1 text-center">
+                                      {idx + 1}
+                                    </td>
+                                    <td
+                                      className={`border p-1 font-medium ${changed.kadar ? diffCell : ""}`}
+                                    >
+                                      {item.kadar.toUpperCase()}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.warna ? diffCell : getWarnaColor(item.warna)}`}
+                                    >
+                                      {getWarnaLabel(item.warna)}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.ukuran ? diffCell : ""}`}
+                                    >
+                                      {ud.showUnit
+                                        ? `${ud.value} cm`
+                                        : ud.value}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.berat ? diffCell : ""}`}
+                                    >
+                                      {item.berat || "-"}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.pcs ? diffCell : ""}`}
+                                    >
+                                      {item.pcs}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold text-green-700 mb-1">
+                          Proposed Items:
+                        </p>
+                        <div className="overflow-auto max-h-[200px]">
+                          <table className="w-full border-collapse border text-xs">
+                            <thead className="bg-green-50 sticky top-0">
+                              <tr>
+                                <th className="border p-1">#</th>
+                                <th className="border p-1">Kadar</th>
+                                <th className="border p-1">Warna</th>
+                                <th className="border p-1">Ukuran</th>
+                                <th className="border p-1">Berat</th>
+                                <th className="border p-1">Pcs</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.from({ length: maxLen }, (_, idx) => {
+                                const item = propItems[idx];
+                                if (!item) return null;
+                                const origItem = origItems[idx];
+                                const changed = getChanged(origItem, item);
+                                const rowBg = origItem ? "" : "bg-green-100";
+                                const ud = getUkuranDisplay(item.ukuran);
+                                return (
+                                  <tr key={idx} className={rowBg}>
+                                    <td className="border p-1 text-center">
+                                      {idx + 1}
+                                    </td>
+                                    <td
+                                      className={`border p-1 font-medium ${changed.kadar ? diffCell : ""}`}
+                                    >
+                                      {item.kadar.toUpperCase()}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.warna ? diffCell : getWarnaColor(item.warna)}`}
+                                    >
+                                      {getWarnaLabel(item.warna)}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.ukuran ? diffCell : ""}`}
+                                    >
+                                      {ud.showUnit
+                                        ? `${ud.value} cm`
+                                        : ud.value}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.berat ? diffCell : ""}`}
+                                    >
+                                      {item.berat || "-"}
+                                    </td>
+                                    <td
+                                      className={`border p-1 ${changed.pcs ? diffCell : ""}`}
+                                    >
+                                      {item.pcs}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              <div className="flex gap-3 justify-end">
+                {/* Only show Reject if user hasn't approved */}
+                {!(userRole === "jb" && currentOrder.jbApproved) &&
+                  !(userRole === "sales" && currentOrder.salesApproved) && (
+                    <Button
+                      variant="outline"
+                      onClick={handleRejectSupplierRevision}
+                      className="border-red-300 text-red-600 hover:bg-red-50"
+                    >
+                      Reject Revision
+                    </Button>
+                  )}
+                {/* Only show Approve if current user hasn't already approved */}
+                {!(userRole === "jb" && currentOrder.jbApproved) &&
+                  !(userRole === "sales" && currentOrder.salesApproved) && (
+                    <Button
+                      onClick={handleApproveSupplierRevision}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      Approve
+                    </Button>
+                  )}
+                {/* Show waiting message if already approved */}
+                {((userRole === "jb" && currentOrder.jbApproved) ||
+                  (userRole === "sales" && currentOrder.salesApproved)) && (
+                  <span className="text-sm text-green-700 font-medium self-center">
+                    ✓ You have approved. Waiting for{" "}
+                    {userRole === "jb" ? "Sales" : "JB"} to approve.
+                  </span>
+                )}
+              </div>
+            </Card>
+          );
+        })()}
+
       {/* Order Items Card */}
-      <DetailItemsTable
-        items={order.detailItems}
-        mode="readonly"
-        getKadarColor={getKadarColor}
-        getWarnaColor={getWarnaColor}
-        getWarnaLabel={getWarnaLabel}
-        getUkuranLabel={(ukuran) => {
-          const display = getUkuranDisplay(ukuran);
-          return display.showUnit ? `${display.value} cm` : display.value;
-        }}
-        title="Order Items"
-      />
+      {currentOrder.status !== "Change Pending Approval" && (
+        <DetailItemsTable
+          items={order.detailItems}
+          mode="readonly"
+          getKadarColor={getKadarColor}
+          getWarnaColor={getWarnaColor}
+          getWarnaLabel={getWarnaLabel}
+          getUkuranLabel={(ukuran) => {
+            const display = getUkuranDisplay(ukuran);
+            return display.showUnit ? `${display.value} cm` : display.value;
+          }}
+          title="Order Items"
+        />
+      )}
 
       {/* Supplier Action Buttons */}
       {userRole === "supplier" &&
@@ -643,14 +989,14 @@ export function OrderDetails({
                 {/* Vertical timeline line */}
                 <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
 
-                <div className="space-y-0">
+                <div className="flex flex-col">
                   {/* Initial Version */}
                   {(() => {
                     const isExpanded = expandedRevisions.has(-1);
                     const firstRevision = currentOrder.revisionHistory[0];
 
                     return (
-                      <div className="flex gap-4 pb-6">
+                      <div className="flex gap-4 pb-6 order-last">
                         {/* Left: date/time column */}
                         <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
                           <div className="font-medium text-gray-700">
@@ -888,9 +1234,10 @@ export function OrderDetails({
                   })()}
 
                   {/* Revision entries */}
-                  {currentOrder.revisionHistory.map((revision, index) => {
+                  {[...currentOrder.revisionHistory].slice().reverse().map((revision, revIdx, arr) => {
+                    // Reverse index for expandedRevisions
+                    const index = currentOrder.revisionHistory.length - 1 - revIdx;
                     const isExpanded = expandedRevisions.has(index);
-
                     return (
                       <div key={index} className="flex gap-4 pb-6">
                         {/* Left: date/time column */}
@@ -1263,7 +1610,7 @@ export function OrderDetails({
                 {/* Vertical timeline line */}
                 <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
 
-                <div className="space-y-0">
+                <div className="flex flex-col">
                   {/* Initial Version */}
                   {(() => {
                     const isExpanded = expandedRequestRevisions.has(-1);
@@ -1290,7 +1637,7 @@ export function OrderDetails({
                       relatedRequest.detailItems;
 
                     return (
-                      <div className="flex gap-4 pb-6">
+                      <div className="flex gap-4 pb-6 order-last">
                         <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
                           <div className="font-medium text-gray-700">
                             {new Date(
@@ -1468,7 +1815,7 @@ export function OrderDetails({
                   })()}
 
                   {/* Revision entries */}
-                  {relatedRequest.revisionHistory!.map((revision, index) => {
+                  {[...relatedRequest.revisionHistory!].slice().reverse().map((revision, index) => {
                     const isExpanded = expandedRequestRevisions.has(index);
 
                     const revPabrikLabel =
@@ -1558,9 +1905,7 @@ export function OrderDetails({
                             <div>
                               <p className="font-medium text-sm">
                                 Revision #{revision.revisionNumber}
-                                {index ===
-                                  relatedRequest.revisionHistory!.length -
-                                    1 && (
+                                {index === 0 && (
                                   <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
                                     Latest
                                   </span>
@@ -1733,347 +2078,6 @@ export function OrderDetails({
             )}
           </Card>
         )}
-
-      {/* Supplier Revision Review - shown for Sales/JB when supplier has proposed changes */}
-      {(userRole === "sales" || userRole === "jb") &&
-        currentOrder.status === "Change Pending Approval" &&
-        currentOrder.revisionHistory &&
-        currentOrder.revisionHistory.length > 0 &&
-        (() => {
-          const lastRevision =
-            currentOrder.revisionHistory[
-              currentOrder.revisionHistory.length - 1
-            ];
-          const etaChanged =
-            lastRevision.previousValues.waktuKirim !== currentOrder.waktuKirim;
-
-          return (
-            <Card className="p-4 mb-4 border-orange-300 bg-orange-50">
-              <h3 className="font-semibold text-lg mb-1 text-orange-900">
-                Supplier Proposed Changes
-              </h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Proposed by{" "}
-                <span className="font-medium">
-                  {getFullNameFromUsername(lastRevision.updatedBy)}
-                </span>{" "}
-                on {new Date(lastRevision.timestamp).toLocaleString("id-ID")}
-              </p>
-
-              {/* Approval status badges */}
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <span className="text-xs font-semibold text-gray-600">
-                  Approvals needed:
-                </span>
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    currentOrder.salesApproved
-                      ? "bg-green-100 text-green-800 border border-green-300"
-                      : "bg-gray-100 text-gray-500 border border-gray-200"
-                  }`}
-                >
-                  {currentOrder.salesApproved ? "✓" : "○"} Sales
-                  {currentOrder.salesApproved && currentOrder.sales && (
-                    <span className="ml-1 font-normal">
-                      ({getFullNameFromUsername(currentOrder.sales)})
-                    </span>
-                  )}
-                  {!currentOrder.salesApproved && (
-                    <span className="ml-1 font-normal text-gray-400">
-                      — pending
-                    </span>
-                  )}
-                </span>
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    currentOrder.jbApproved
-                      ? "bg-green-100 text-green-800 border border-green-300"
-                      : "bg-gray-100 text-gray-500 border border-gray-200"
-                  }`}
-                >
-                  {currentOrder.jbApproved ? "✓" : "○"} JB
-                  {currentOrder.jbApproved && currentOrder.jbId && (
-                    <span className="ml-1 font-normal">
-                      ({getFullNameFromUsername(currentOrder.jbId)})
-                    </span>
-                  )}
-                  {!currentOrder.jbApproved && (
-                    <span className="ml-1 font-normal text-gray-400">
-                      — pending
-                    </span>
-                  )}
-                </span>
-              </div>
-
-              {etaChanged && (
-                <div className="bg-white p-3 rounded border border-orange-200 mb-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">
-                    Proposed ETA Change:
-                  </p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-red-600 line-through">
-                      {lastRevision.previousValues.waktuKirim
-                        ? new Date(
-                            lastRevision.previousValues.waktuKirim,
-                          ).toLocaleDateString("id-ID")
-                        : "-"}
-                    </span>
-                    <span className="text-gray-500">→</span>
-                    <span className="text-green-600 font-semibold">
-                      {currentOrder.waktuKirim
-                        ? new Date(currentOrder.waktuKirim).toLocaleDateString(
-                            "id-ID",
-                          )
-                        : "-"}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {lastRevision.revisionNotes && (
-                <div className="bg-white p-3 rounded border border-orange-200 mb-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">
-                    Supplier Notes:
-                  </p>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                    {lastRevision.revisionNotes}
-                  </p>
-                </div>
-              )}
-
-              {/* Photo before/after in comparison panel */}
-              {(lastRevision.previousValues.photoId ||
-                lastRevision.changes.photoId) &&
-                (() => {
-                  const beforeImg = lastRevision.previousValues.photoId
-                    ? getImage(lastRevision.previousValues.photoId)
-                    : null;
-                  const afterImg = lastRevision.changes.photoId
-                    ? getImage(lastRevision.changes.photoId)
-                    : null;
-                  const photoChanged =
-                    lastRevision.previousValues.photoId !==
-                    lastRevision.changes.photoId;
-                  if (!beforeImg && !afterImg) return null;
-                  return (
-                    <div className="bg-white p-3 rounded border border-orange-200 mb-3">
-                      <p className="text-xs font-semibold text-gray-700 mb-2">
-                        Product Photo:
-                      </p>
-                      {photoChanged && beforeImg && afterImg ? (
-                        <div className="flex gap-4 flex-wrap">
-                          <div>
-                            <p className="text-xs text-gray-500 mb-1">Before</p>
-                            <img
-                              src={beforeImg}
-                              alt="Before"
-                              className="w-36 h-36 object-cover rounded border border-red-200"
-                            />
-                          </div>
-                          <div>
-                            <p className="text-xs text-green-700 font-medium mb-1">
-                              After (proposed)
-                            </p>
-                            <img
-                              src={afterImg}
-                              alt="After"
-                              className="w-36 h-36 object-cover rounded border border-green-400"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <img
-                          src={afterImg || beforeImg || ""}
-                          alt="Product"
-                          className="w-36 h-36 object-cover rounded border"
-                        />
-                      )}
-                    </div>
-                  );
-                })()}
-
-              {lastRevision.previousValues.detailItems &&
-                (() => {
-                  const origItems = lastRevision.previousValues.detailItems!;
-                  const propItems = currentOrder.detailItems;
-                  const maxLen = Math.max(origItems.length, propItems.length);
-                  const diffCell = "bg-amber-200";
-                  const getChanged = (
-                    oi: (typeof origItems)[0] | undefined,
-                    pi: (typeof propItems)[0] | undefined,
-                  ) =>
-                    !oi || !pi
-                      ? {}
-                      : {
-                          kadar: oi.kadar !== pi.kadar,
-                          warna: oi.warna !== pi.warna,
-                          ukuran: oi.ukuran !== pi.ukuran,
-                          berat: (oi.berat || "") !== (pi.berat || ""),
-                          pcs: oi.pcs !== pi.pcs,
-                        };
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-700 mb-1">
-                          Original Items:
-                        </p>
-                        <div className="overflow-auto max-h-[200px]">
-                          <table className="w-full border-collapse border text-xs">
-                            <thead className="bg-gray-100 sticky top-0">
-                              <tr>
-                                <th className="border p-1">#</th>
-                                <th className="border p-1">Kadar</th>
-                                <th className="border p-1">Warna</th>
-                                <th className="border p-1">Ukuran</th>
-                                <th className="border p-1">Berat</th>
-                                <th className="border p-1">Pcs</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Array.from({ length: maxLen }, (_, idx) => {
-                                const item = origItems[idx];
-                                if (!item) return null;
-                                const propItem = propItems[idx];
-                                const changed = getChanged(item, propItem);
-                                const rowBg = propItem ? "" : "bg-red-100";
-                                const ud = getUkuranDisplay(item.ukuran);
-                                return (
-                                  <tr key={idx} className={rowBg}>
-                                    <td className="border p-1 text-center">
-                                      {idx + 1}
-                                    </td>
-                                    <td
-                                      className={`border p-1 font-medium ${changed.kadar ? diffCell : ""}`}
-                                    >
-                                      {item.kadar.toUpperCase()}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.warna ? diffCell : getWarnaColor(item.warna)}`}
-                                    >
-                                      {getWarnaLabel(item.warna)}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.ukuran ? diffCell : ""}`}
-                                    >
-                                      {ud.showUnit
-                                        ? `${ud.value} cm`
-                                        : ud.value}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.berat ? diffCell : ""}`}
-                                    >
-                                      {item.berat || "-"}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.pcs ? diffCell : ""}`}
-                                    >
-                                      {item.pcs}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold text-green-700 mb-1">
-                          Proposed Items:
-                        </p>
-                        <div className="overflow-auto max-h-[200px]">
-                          <table className="w-full border-collapse border text-xs">
-                            <thead className="bg-green-50 sticky top-0">
-                              <tr>
-                                <th className="border p-1">#</th>
-                                <th className="border p-1">Kadar</th>
-                                <th className="border p-1">Warna</th>
-                                <th className="border p-1">Ukuran</th>
-                                <th className="border p-1">Berat</th>
-                                <th className="border p-1">Pcs</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Array.from({ length: maxLen }, (_, idx) => {
-                                const item = propItems[idx];
-                                if (!item) return null;
-                                const origItem = origItems[idx];
-                                const changed = getChanged(origItem, item);
-                                const rowBg = origItem ? "" : "bg-green-100";
-                                const ud = getUkuranDisplay(item.ukuran);
-                                return (
-                                  <tr key={idx} className={rowBg}>
-                                    <td className="border p-1 text-center">
-                                      {idx + 1}
-                                    </td>
-                                    <td
-                                      className={`border p-1 font-medium ${changed.kadar ? diffCell : ""}`}
-                                    >
-                                      {item.kadar.toUpperCase()}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.warna ? diffCell : getWarnaColor(item.warna)}`}
-                                    >
-                                      {getWarnaLabel(item.warna)}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.ukuran ? diffCell : ""}`}
-                                    >
-                                      {ud.showUnit
-                                        ? `${ud.value} cm`
-                                        : ud.value}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.berat ? diffCell : ""}`}
-                                    >
-                                      {item.berat || "-"}
-                                    </td>
-                                    <td
-                                      className={`border p-1 ${changed.pcs ? diffCell : ""}`}
-                                    >
-                                      {item.pcs}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-              <div className="flex gap-3 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={handleRejectSupplierRevision}
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  Reject Revision
-                </Button>
-                {/* Only show Approve if current user hasn't already approved */}
-                {!(userRole === "jb" && currentOrder.jbApproved) &&
-                  !(userRole === "sales" && currentOrder.salesApproved) && (
-                    <Button
-                      onClick={handleApproveSupplierRevision}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      Approve
-                    </Button>
-                  )}
-                {/* Show waiting message if already approved */}
-                {((userRole === "jb" && currentOrder.jbApproved) ||
-                  (userRole === "sales" && currentOrder.salesApproved)) && (
-                  <span className="text-sm text-green-700 font-medium self-center">
-                    ✓ You have approved. Waiting for{" "}
-                    {userRole === "jb" ? "Sales" : "JB"} to approve.
-                  </span>
-                )}
-              </div>
-            </Card>
-          );
-        })()}
 
       {/* Review Action Buttons - Only shown in review mode */}
       {reviewMode && onApproveRevision && onCancelOrder && (

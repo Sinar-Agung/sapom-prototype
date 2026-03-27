@@ -100,16 +100,14 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "negotiation",
       label: "Negotiation",
-      orderStatuses: ["New Order", "Viewed", "Change Pending Approval"],
+      orderStatuses: ["New Order", "Viewed", "Change Pending Approval", "Order Revised"],
     },
     {
       value: "finalized",
       label: "Finalized",
       orderStatuses: [
-        "Order Revised",
         "In Production",
         "Stock Ready",
-        "Unable to Fulfill",
       ],
     },
     {
@@ -120,7 +118,7 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "closed",
       label: "Closed",
-      orderStatuses: ["Closed", "Completed", "Rejected", "Cancelled"],
+      orderStatuses: ["Closed", "Completed", "Rejected", "Cancelled", "Unable to Fulfill"],
       requestStatuses: ["Cancelled", "Rejected", "Request Expired"],
     },
   ],
@@ -134,16 +132,14 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "negotiation",
       label: "In Negotiation",
-      orderStatuses: ["New Order", "Viewed", "Change Pending Approval"],
+      orderStatuses: ["New Order", "Viewed", "Change Pending Approval", "Order Revised"],
     },
     {
       value: "finalized",
       label: "Finalized",
       orderStatuses: [
-        "Order Revised",
         "In Production",
         "Stock Ready",
-        "Unable to Fulfill",
       ],
     },
     {
@@ -154,7 +150,7 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "closed",
       label: "Closed",
-      orderStatuses: ["Closed", "Rejected"],
+      orderStatuses: ["Closed", "Rejected", "Unable to Fulfill"],
       requestStatuses: ["Rejected", "Cancelled", "Request Expired"],
     },
   ],
@@ -173,7 +169,7 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "finalized",
       label: "Finalized",
-      orderStatuses: ["In Production", "Stock Ready", "Unable to Fulfill"],
+      orderStatuses: ["In Production", "Stock Ready"],
     },
     {
       value: "shipping",
@@ -184,6 +180,11 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       value: "rejected",
       label: "Rejected",
       orderStatuses: ["Rejected", "Cancelled"],
+    },
+    {
+      value: "closed",
+      label: "Closed",
+      orderStatuses: ["Unable to Fulfill"],
     },
     {
       value: "delivered",
