@@ -100,15 +100,17 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "negotiation",
       label: "Negotiation",
-      orderStatuses: ["New Order", "Viewed", "Change Pending Approval", "Order Revised"],
+      orderStatuses: [
+        "New Order",
+        "Viewed",
+        "Change Pending Approval",
+        "Order Revised",
+      ],
     },
     {
       value: "finalized",
       label: "Finalized",
-      orderStatuses: [
-        "In Production",
-        "Stock Ready",
-      ],
+      orderStatuses: ["In Production", "Stock Ready"],
     },
     {
       value: "shipping",
@@ -118,7 +120,13 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "closed",
       label: "Closed",
-      orderStatuses: ["Closed", "Completed", "Rejected", "Cancelled", "Unable to Fulfill"],
+      orderStatuses: [
+        "Closed",
+        "Completed",
+        "Rejected",
+        "Cancelled",
+        "Unable to Fulfill",
+      ],
       requestStatuses: ["Cancelled", "Rejected", "Request Expired"],
     },
   ],
@@ -132,15 +140,17 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     {
       value: "negotiation",
       label: "In Negotiation",
-      orderStatuses: ["New Order", "Viewed", "Change Pending Approval", "Order Revised"],
+      orderStatuses: [
+        "New Order",
+        "Viewed",
+        "Change Pending Approval",
+        "Order Revised",
+      ],
     },
     {
       value: "finalized",
       label: "Finalized",
-      orderStatuses: [
-        "In Production",
-        "Stock Ready",
-      ],
+      orderStatuses: ["In Production", "Stock Ready"],
     },
     {
       value: "shipping",
