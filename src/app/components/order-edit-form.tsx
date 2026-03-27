@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/app/components/ui/alert-dialog";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { DatePicker } from "@/app/components/ui/date-picker";
@@ -26,7 +36,10 @@ import {
 } from "@/app/data/order-data";
 import { Order, OrderRevision } from "@/app/types/order";
 import { getImage, storeImage } from "@/app/utils/image-storage";
-import { notifyOrderRevised } from "@/app/utils/notification-helper";
+import {
+  notifyOrderRevised,
+  notifyOrderStatusChanged,
+} from "@/app/utils/notification-helper";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -37,7 +50,7 @@ import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, Camera, ImagePlus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DetailItemInput } from "./request-form/detail-item-input";
 import {
@@ -72,15 +85,22 @@ interface OrderEditFormProps {
   userRole?: "sales" | "stockist" | "jb" | "supplier";
 }
 
-export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }: OrderEditFormProps) {
+export function OrderEditForm({
+  order,
+  onBack,
+  onSave,
+  userRole: propUserRole,
+}: OrderEditFormProps) {
   const currentUser =
     sessionStorage.getItem("username") ||
     localStorage.getItem("username") ||
     "";
-  
-  const userRole = propUserRole || (sessionStorage.getItem("userRole") ||
-    localStorage.getItem("userRole") ||
-    "sales") as "sales" | "stockist" | "jb" | "supplier";
+
+  const userRole =
+    propUserRole ||
+    ((sessionStorage.getItem("userRole") ||
+      localStorage.getItem("userRole") ||
+      "sales") as "sales" | "stockist" | "jb" | "supplier");
 
   const [formData, setFormData] = useState({
     kategoriBarang: order.kategoriBarang,
@@ -126,6 +146,43 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
   const [showCameraPreview, setShowCameraPreview] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [showSubmitConfirmDialog, setShowSubmitConfirmDialog] = useState(false);
+  const [revisionNotesError, setRevisionNotesError] = useState(false);
+  const revisionNotesRef = useRef<HTMLTextAreaElement>(null);
+
+  // Detect if any values have changed from the original order
+  const hasChanges = useMemo(() => {
+    const originalEta = order.waktuKirim
+      ? new Date(order.waktuKirim).toDateString()
+      : "";
+    const currentEta = formData.waktuKirim
+      ? formData.waktuKirim.toDateString()
+      : "";
+    if (originalEta !== currentEta) return true;
+
+    if (formData.revisionNotes !== (order.revisionNotes || "")) return true;
+
+    if (formData.photoId !== (order.photoId || "")) return true;
+
+    const normalizeItems = (items: DetailBarangItem[]) =>
+      [...items]
+        .map(
+          ({ kadar, warna, ukuran, berat, pcs }) =>
+            `${kadar}|${warna}|${ukuran}|${berat}|${pcs}`,
+        )
+        .sort()
+        .join(";");
+    if (normalizeItems(detailItems) !== normalizeItems(order.detailItems || []))
+      return true;
+
+    return false;
+  }, [
+    formData.waktuKirim,
+    formData.revisionNotes,
+    formData.photoId,
+    detailItems,
+    order,
+  ]);
 
   // Sort detail items whenever they change
   useEffect(() => {
@@ -365,7 +422,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
     // Optional: handle row click if needed
   };
 
-  const handleSubmit = () => {
+  const handleValidateAndConfirm = () => {
     // Sales role - should not reach here as they have different buttons
     if (userRole === "sales") {
       toast.error("Sales users cannot edit orders directly");
@@ -383,6 +440,23 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
       return;
     }
 
+    if (
+      (userRole === "supplier" || userRole === "jb") &&
+      !formData.revisionNotes.trim()
+    ) {
+      setRevisionNotesError(true);
+      revisionNotesRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      revisionNotesRef.current?.focus();
+      return;
+    }
+
+    setShowSubmitConfirmDialog(true);
+  };
+
+  const handleSubmit = () => {
     // Get existing orders
     const ordersString = localStorage.getItem("orders");
     const orders: Order[] = ordersString ? JSON.parse(ordersString) : [];
@@ -422,8 +496,9 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
       },
     };
 
-    // Update the order with new status - always goes to Revised - Internal Review
-    const newStatus = "Revised - Internal Review";
+    // Supplier revisions go to Change Pending Approval; JB/Sales revisions are applied directly
+    const newStatus =
+      userRole === "supplier" ? "Change Pending Approval" : "Order Revised";
 
     const updatedOrder: Order = {
       ...existingOrder,
@@ -446,8 +521,16 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
     orders[orderIndex] = updatedOrder;
     localStorage.setItem("orders", JSON.stringify(orders));
 
-    // Notify the sales person who created the original request
-    if (updatedOrder.sales) {
+    // Notify relevant parties based on who submitted the revision
+    if (userRole === "supplier") {
+      notifyOrderStatusChanged(
+        updatedOrder,
+        existingOrder.status,
+        "Change Pending Approval",
+        currentUser,
+        "supplier",
+      );
+    } else if (updatedOrder.sales) {
       notifyOrderRevised(updatedOrder, currentUser);
     }
 
@@ -466,7 +549,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
     }
 
     const currentOrder = orders[orderIndex];
-    
+
     // Mark approval based on user role
     if (userRole === "jb") {
       currentOrder.jbApproved = true;
@@ -477,9 +560,13 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
     // If both JB and Sales have approved, change status to Order Revised
     if (currentOrder.jbApproved && currentOrder.salesApproved) {
       currentOrder.status = "Order Revised";
-      toast.success("Order revision fully approved - Status changed to Order Revised");
+      toast.success(
+        "Order revision fully approved - Status changed to Order Revised",
+      );
     } else {
-      toast.success(`Order approved by ${userRole.toUpperCase()} - Waiting for ${userRole === "jb" ? "Sales" : "JB"} approval`);
+      toast.success(
+        `Order approved by ${userRole.toUpperCase()} - Waiting for ${userRole === "jb" ? "Sales" : "JB"} approval`,
+      );
     }
 
     currentOrder.updatedDate = Date.now();
@@ -517,7 +604,6 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
     onSave();
   };
 
-
   const pabrikLabel = getLabelFromValue(
     [
       { value: "king-halim", label: "King Halim" },
@@ -537,7 +623,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
   return (
     <div className="min-h-screen pb-20 md:pb-4">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm -mx-4 px-4 py-2 mb-2 flex items-center gap-3">
         <Button
           variant="ghost"
           size="sm"
@@ -602,26 +688,41 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
                 />
               ) : (
                 <p className="font-medium mt-1">
-                  {formData.waktuKirim ? formData.waktuKirim.toLocaleDateString("id-ID") : "-"}
+                  {formData.waktuKirim
+                    ? formData.waktuKirim.toLocaleDateString("id-ID")
+                    : "-"}
                 </p>
               )}
             </div>
             {(userRole === "supplier" || userRole === "jb") && (
               <div className="md:col-span-2">
-                <Label htmlFor="revisionNotes" className="text-gray-600 font-bold text-base">
-                  Revision Notes <span className="text-red-500">*</span> <span className="text-sm text-gray-500">(Required - visible to JB and Sales)</span>
+                <Label
+                  htmlFor="revisionNotes"
+                  className="text-gray-600 font-bold text-base"
+                >
+                  Revision Notes <span className="text-red-500">*</span>{" "}
+                  <span className="text-sm text-gray-500">
+                    (Required - visible to JB and Sales)
+                  </span>
                 </Label>
                 <Textarea
                   id="revisionNotes"
+                  ref={revisionNotesRef}
                   value={formData.revisionNotes}
-                  onChange={(e) =>
-                    setFormData({ ...formData, revisionNotes: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, revisionNotes: e.target.value });
+                    if (revisionNotesError) setRevisionNotesError(false);
+                  }}
                   placeholder="Add notes about changes made to this order (required)..."
                   rows={3}
-                  className="mt-1"
+                  className={`mt-1${revisionNotesError ? " border-red-500 focus-visible:ring-red-500" : ""}`}
                   required
                 />
+                {revisionNotesError && (
+                  <p className="text-red-500 text-xs mt-1">
+                    Revision notes are required before submitting.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -678,7 +779,9 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
             {/* Conditional: Product Photo - Show preview for Basic, show uploader+preview for Model */}
             {formData.kategoriBarang === "basic" && formData.namaBasic ? (
               <>
-                <Label className="text-gray-600 font-bold text-base">Product Photo</Label>
+                <Label className="text-gray-600 font-bold text-base">
+                  Product Photo
+                </Label>
                 <div className="border rounded-md p-2 bg-gray-50 relative">
                   <img
                     src={
@@ -699,7 +802,9 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
                             className="h-8 px-3 bg-white/90 hover:bg-white shadow-md"
                           >
                             <Camera className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Change Image</span>
+                            <span className="hidden sm:inline">
+                              Change Image
+                            </span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -785,7 +890,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
                       className="h-9 sm:h-8 text-sm"
                       onChange={handlePhotoChange}
                     />
-                  ): null}
+                  ) : null}
                 </div>
               </>
             ) : null}
@@ -863,54 +968,73 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
         </Card>
 
         {/* Revision Summary for Sales */}
-        {userRole === "sales" && order.revisionHistory && order.revisionHistory.length > 0 && (
-          <Card className="p-4 bg-blue-50 border-blue-200">
-            <h3 className="font-semibold text-lg mb-3 text-blue-900">Revision Details</h3>
-            <div className="space-y-3 text-sm">
-              {(() => {
-                const latestRevision = order.revisionHistory[order.revisionHistory.length - 1];
-                const etaChanged = latestRevision.previousValues.waktuKirim !== latestRevision.changes.waktuKirim;
-                
-                return (
-                  <>
-                    {etaChanged && (
-                      <div className="bg-white p-3 rounded border border-blue-200">
-                        <p className="font-semibold text-gray-700 mb-1">ETA Changed:</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-red-600 line-through">
-                            {latestRevision.previousValues.waktuKirim 
-                              ? new Date(latestRevision.previousValues.waktuKirim).toLocaleDateString("id-ID")
-                              : "-"}
-                          </span>
-                          <span className="text-gray-500">→</span>
-                          <span className="text-green-600 font-semibold">
-                            {latestRevision.changes.waktuKirim 
-                              ? new Date(latestRevision.changes.waktuKirim).toLocaleDateString("id-ID")
-                              : "-"}
-                          </span>
+        {userRole === "sales" &&
+          order.revisionHistory &&
+          order.revisionHistory.length > 0 && (
+            <Card className="p-4 bg-blue-50 border-blue-200">
+              <h3 className="font-semibold text-lg mb-3 text-blue-900">
+                Revision Details
+              </h3>
+              <div className="space-y-3 text-sm">
+                {(() => {
+                  const latestRevision =
+                    order.revisionHistory[order.revisionHistory.length - 1];
+                  const etaChanged =
+                    latestRevision.previousValues.waktuKirim !==
+                    latestRevision.changes.waktuKirim;
+
+                  return (
+                    <>
+                      {etaChanged && (
+                        <div className="bg-white p-3 rounded border border-blue-200">
+                          <p className="font-semibold text-gray-700 mb-1">
+                            ETA Changed:
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-red-600 line-through">
+                              {latestRevision.previousValues.waktuKirim
+                                ? new Date(
+                                    latestRevision.previousValues.waktuKirim,
+                                  ).toLocaleDateString("id-ID")
+                                : "-"}
+                            </span>
+                            <span className="text-gray-500">→</span>
+                            <span className="text-green-600 font-semibold">
+                              {latestRevision.changes.waktuKirim
+                                ? new Date(
+                                    latestRevision.changes.waktuKirim,
+                                  ).toLocaleDateString("id-ID")
+                                : "-"}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    
-                    {latestRevision.revisionNotes && (
+                      )}
+
+                      {latestRevision.revisionNotes && (
+                        <div className="bg-white p-3 rounded border border-blue-200">
+                          <p className="font-semibold text-gray-700 mb-1">
+                            Notes from {latestRevision.updatedBy}:
+                          </p>
+                          <p className="text-gray-600 whitespace-pre-wrap">
+                            {latestRevision.revisionNotes}
+                          </p>
+                        </div>
+                      )}
+
                       <div className="bg-white p-3 rounded border border-blue-200">
-                        <p className="font-semibold text-gray-700 mb-1">Notes from {latestRevision.updatedBy}:</p>
-                        <p className="text-gray-600 whitespace-pre-wrap">{latestRevision.revisionNotes}</p>
+                        <p className="text-gray-600">
+                          <span className="font-semibold">Last updated:</span>{" "}
+                          {new Date(latestRevision.timestamp).toLocaleString(
+                            "id-ID",
+                          )}
+                        </p>
                       </div>
-                    )}
-                    
-                    <div className="bg-white p-3 rounded border border-blue-200">
-                      <p className="text-gray-600">
-                        <span className="font-semibold">Last updated:</span>{" "}
-                        {new Date(latestRevision.timestamp).toLocaleString("id-ID")}
-                      </p>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </Card>
-        )}
+                    </>
+                  );
+                })()}
+              </div>
+            </Card>
+          )}
 
         {/* Action Buttons */}
         {userRole === "sales" ? (
@@ -919,8 +1043,10 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
             <div className="space-y-4">
               <div>
                 <Label htmlFor="cancelReason">
-                  Cancellation Reason {" "}
-                  <span className="text-sm text-gray-500">(Required if rejecting)</span>
+                  Cancellation Reason{" "}
+                  <span className="text-sm text-gray-500">
+                    (Required if rejecting)
+                  </span>
                 </Label>
                 <Textarea
                   id="cancelReason"
@@ -935,10 +1061,7 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
                 <Button variant="outline" onClick={onBack}>
                   Back
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleCancelOrder}
-                >
+                <Button variant="destructive" onClick={handleCancelOrder}>
                   Reject Changes
                 </Button>
                 <Button
@@ -950,27 +1073,14 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
               </div>
             </div>
           </Card>
-        ) : userRole === "jb" && order.status === "Revised - Internal Review" ? (
-          <Card className="p-4">
-            <h3 className="font-semibold text-lg mb-4">Review Order Changes</h3>
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={onBack}>
-                Back
-              </Button>
-              <Button
-                onClick={handleApproveRevision}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Approve Revision
-              </Button>
-            </div>
-          </Card>
         ) : (
           <div className="flex gap-3 justify-end">
             <Button variant="outline" onClick={onBack}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>Submit Changes</Button>
+            <Button onClick={handleValidateAndConfirm} disabled={!hasChanges}>
+              Submit Changes
+            </Button>
           </div>
         )}
       </div>
@@ -1026,6 +1136,30 @@ export function OrderEditForm({ order, onBack, onSave, userRole: propUserRole }:
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Submit Changes Confirmation Dialog */}
+      <AlertDialog
+        open={showSubmitConfirmDialog}
+        onOpenChange={setShowSubmitConfirmDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit Proposed Changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your proposed changes will be sent to Sales and JB for review. The
+              order status will be set to{" "}
+              <strong>Change Pending Approval</strong> until they approve or
+              reject your changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSubmit}>
+              Submit Changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

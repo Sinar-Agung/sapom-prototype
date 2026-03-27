@@ -10,6 +10,7 @@ import {
 } from "@/app/components/ui/alert-dialog";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
+import { storeImageDeduped } from "@/app/utils/image-storage";
 import {
   notifyRequestCreated,
   notifyRequestUpdated,
@@ -108,6 +109,9 @@ export function OrderForm(props: OrderFormProps) {
 
   // Track file input key to force remount when photo is cleared
   const [fileInputKey, setFileInputKey] = useState(0);
+
+  // Track existing photoId when editing or duplicating a model request
+  const [existingPhotoId, setExistingPhotoId] = useState<string | null>(null);
 
   // Ref for file input to manually clear it
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -422,7 +426,9 @@ export function OrderForm(props: OrderFormProps) {
     // Berat is mandatory only for Barang Basic
     (formData.kategoriBarang === "basic" && !detailInput.berat) ||
     // Foto Barang is mandatory for Barang Model
-    (formData.kategoriBarang === "model" && !formData.fotoBarang) ||
+    (formData.kategoriBarang === "model" &&
+      !formData.fotoBarang &&
+      !existingPhotoId) ||
     // Ukuran is required only for Barang Basic when jenis produk requires it
     (formData.kategoriBarang === "basic" &&
       ukuranRequired &&
@@ -523,7 +529,7 @@ export function OrderForm(props: OrderFormProps) {
     formData.jenisProduk &&
     (formData.kategoriBarang === "basic"
       ? formData.namaBasic // For Basic, namaBasic must be filled (shows auto image)
-      : formData.fotoBarang); // For Model, only fotoBarang is required (namaProduk is optional)
+      : formData.fotoBarang || existingPhotoId); // For Model, only fotoBarang is required (namaProduk is optional)
 
   // Disable all detail input controls when dialogs are open or when form is not ready
   const isDetailInputDisabled =
@@ -537,7 +543,7 @@ export function OrderForm(props: OrderFormProps) {
     !formData.jenisProduk ||
     (formData.kategoriBarang === "basic"
       ? !formData.namaBasic
-      : !formData.fotoBarang) ||
+      : !formData.fotoBarang && !existingPhotoId) ||
     detailItems.length === 0;
 
   // Reset entire form
@@ -913,19 +919,28 @@ export function OrderForm(props: OrderFormProps) {
   };
 
   const handleSaveOrder = async (action: "save" | "saveAndAddMore") => {
-    // Convert image to base64 if it's a Model with uploaded photo
-    let fotoBarangBase64 = "";
+    // Convert image to photoId if it's a Model with uploaded photo
+    let photoId: string | undefined;
     if (formData.kategoriBarang === "model" && formData.fotoBarang) {
       const reader = new FileReader();
-      fotoBarangBase64 = await new Promise<string>((resolve) => {
+      const base64Data = await new Promise<string>((resolve) => {
         reader.onloadend = () => {
           resolve(reader.result as string);
         };
         reader.readAsDataURL(formData.fotoBarang!);
       });
-    } else if (mode === "edit" && initialData?.fotoBarangBase64) {
-      // Keep existing base64 image when editing
-      fotoBarangBase64 = initialData.fotoBarangBase64;
+      photoId = storeImageDeduped(base64Data);
+    } else if (
+      (mode === "edit" || mode === "duplicate") &&
+      initialData?.photoId
+    ) {
+      photoId = initialData.photoId;
+    } else if (
+      (mode === "edit" || mode === "duplicate") &&
+      initialData?.fotoBarangBase64
+    ) {
+      // Migrate legacy base64 to deduped image store
+      photoId = storeImageDeduped(initialData.fotoBarangBase64);
     }
 
     // Get existing orders from local storage
@@ -957,7 +972,8 @@ export function OrderForm(props: OrderFormProps) {
           waktuKirim: formData.waktuKirim?.toISOString() || "",
           customerExpectation: formData.customerExpectation,
           detailItems: detailItems,
-          fotoBarangBase64: fotoBarangBase64,
+          photoId: photoId,
+          fotoBarangBase64: undefined,
           updatedDate: Date.now(),
           updatedBy: currentUser,
           // Keep existing id, timestamp, and status
@@ -991,7 +1007,7 @@ export function OrderForm(props: OrderFormProps) {
         waktuKirim: formData.waktuKirim?.toISOString() || "",
         customerExpectation: formData.customerExpectation,
         detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
-        fotoBarangBase64: fotoBarangBase64,
+        photoId: photoId,
         status: "Open", // Default status for new orders
       };
 
@@ -1038,6 +1054,22 @@ export function OrderForm(props: OrderFormProps) {
     }
   };
 
+  // Calculate delivery date from today based on customer expectation
+  const calcDeliveryDateFromExpectation = (expectation: string): Date => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (expectation === "ready-pabrik") {
+      const d = new Date(today);
+      d.setDate(today.getDate() + 7);
+      return d;
+    } else if (expectation === "order-pabrik") {
+      const d = new Date(today);
+      d.setMonth(today.getMonth() + 1);
+      return d;
+    }
+    return today;
+  };
+
   // Initialize form with initial data if provided
   useEffect(() => {
     if (initialData && mode !== "new") {
@@ -1049,13 +1081,25 @@ export function OrderForm(props: OrderFormProps) {
         namaBasic: initialData.namaBasic,
         fotoBarang: null, // Reset fotoBarang as it's not stored in initialData
         namaPelanggan: initialData.namaPelanggan,
-        waktuKirim: initialData.waktuKirim
-          ? new Date(initialData.waktuKirim)
-          : undefined,
+        waktuKirim:
+          mode === "duplicate"
+            ? calcDeliveryDateFromExpectation(
+                initialData.customerExpectation ?? "",
+              )
+            : initialData.waktuKirim
+              ? new Date(initialData.waktuKirim)
+              : undefined,
         customerExpectation: initialData.customerExpectation,
       };
       setFormData(initialFormData);
       setDetailItems(initialData.detailItems);
+
+      // Restore existing photo ID for edit and duplicate modes
+      if ((mode === "edit" || mode === "duplicate") && initialData.photoId) {
+        setExistingPhotoId(initialData.photoId);
+      } else {
+        setExistingPhotoId(null);
+      }
 
       // Store initial state for change detection
       initialStateRef.current = {
@@ -1307,14 +1351,6 @@ export function OrderForm(props: OrderFormProps) {
               }}
             >
               Save
-            </Button>
-            <Button
-              onClick={() => {
-                setShowSaveConfirmDialog(false);
-                handleSaveOrder("saveAndAddMore");
-              }}
-            >
-              Save & Add More
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

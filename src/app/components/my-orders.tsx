@@ -1,3 +1,4 @@
+import { getImage } from "@/app/utils/image-storage";
 import { getCurrentUserDetails } from "@/app/utils/user-data";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -95,17 +96,7 @@ export function MyOrders({
     "";
 
   // Get Kadar background color
-  const getKadarColor = (kadar: string) => {
-    const colors: Record<string, string> = {
-      "6k": "bg-green-500 text-white",
-      "8k": "bg-blue-500 text-white",
-      "9k": "bg-blue-700 text-white",
-      "16k": "bg-orange-500 text-white",
-      "17k": "bg-pink-500 text-white",
-      "24k": "bg-red-500 text-white",
-    };
-    return colors[kadar.toLowerCase()] || "bg-gray-500 text-white";
-  };
+  const getKadarColor = (_kadar: string) => "";
 
   // Get Pabrik background color
   const getPabrikColor = (pabrikName: string) => {
@@ -309,14 +300,7 @@ export function MyOrders({
     if (activeTab === "open") {
       return order.status === "Open";
     } else if (activeTab === "in-progress") {
-      // For stockist role, only show requests assigned to them
-      if (userRole === "stockist") {
-        return (
-          order.status === "Stockist Processing" &&
-          order.stockistId === currentUser
-        );
-      }
-      return order.status === "Stockist Processing";
+      return false;
     } else if (activeTab === "done") {
       return (
         order.status === "Done" ||
@@ -337,15 +321,7 @@ export function MyOrders({
   const openCount = requestNoFiltered.filter((order: Request) => {
     return order.status === "Open";
   }).length;
-  const inProgressCount = requestNoFiltered.filter((order: Request) => {
-    if (userRole === "stockist") {
-      return (
-        order.status === "Stockist Processing" &&
-        order.stockistId === currentUser
-      );
-    }
-    return order.status === "Stockist Processing";
-  }).length;
+  const inProgressCount = 0;
   const doneCount = requestNoFiltered.filter((order: Request) => {
     return (
       order.status === "Done" ||
@@ -373,11 +349,7 @@ export function MyOrders({
     // - All Done/Cancelled/Assigned orders
     if (userRole === "stockist") {
       if (order.status === "Open") return true;
-      if (
-        order.status === "Stockist Processing" &&
-        order.stockistId === currentUser
-      )
-        return true;
+
       if (
         order.status === "Done" ||
         order.status === "Ready Stock Marketing" ||
@@ -517,8 +489,12 @@ export function MyOrders({
   const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
-    } else if (order.kategoriBarang === "model" && order.fotoBarangBase64) {
-      return order.fotoBarangBase64;
+    } else if (order.kategoriBarang === "model") {
+      if (order.photoId) {
+        const stored = getImage(order.photoId);
+        if (stored) return stored;
+      }
+      if (order.fotoBarangBase64) return order.fotoBarangBase64;
     }
     return italySanta; // Default fallback
   };

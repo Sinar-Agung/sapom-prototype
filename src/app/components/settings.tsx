@@ -1,6 +1,8 @@
-import { Languages, LogOut, User } from "lucide-react";
+import { FlaskConical, Languages, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { populateMockData } from "../utils/mock-data";
 import type { LanguageCode } from "../utils/user-data";
 import {
   AlertDialog,
@@ -37,6 +39,13 @@ export function Settings({
 }: SettingsProps) {
   const { t, i18n } = useTranslation();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  const handlePopulate = () => {
+    const result = populateMockData();
+    toast.success(
+      `Populated ${result.requests} requests, ${result.orders} orders, ${result.notifications} notifications`,
+    );
+  };
 
   const handleLogoutClick = () => {
     setShowLogoutDialog(true);
@@ -128,6 +137,20 @@ export function Settings({
             </Button>
           </div>
         </div>
+      </Card>
+
+      {/* Testing Tools */}
+      <Card className="p-6 border-dashed border-amber-300">
+        <h3 className="font-medium mb-1 flex items-center gap-2 text-amber-700">
+          <FlaskConical className="w-4 h-4" />
+          Testing
+        </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Adds a fresh batch of mock data (new IDs, future dates) into local storage, merged with existing data.
+        </p>
+        <Button variant="outline" className="w-full border-amber-300 text-amber-700 hover:bg-amber-50" onClick={handlePopulate}>
+          Populate
+        </Button>
       </Card>
 
       {/* App Information */}

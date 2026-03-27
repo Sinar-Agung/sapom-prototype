@@ -113,7 +113,6 @@ export function StockistHome({
         branchFiltered.filter(
           (order) =>
             order.status === "In Progress" ||
-            order.status === "Stockist Processing" ||
             order.status === "Requested to JB",
         ).length,
       );

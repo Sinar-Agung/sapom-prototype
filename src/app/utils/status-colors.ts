@@ -80,6 +80,11 @@ export const STATUS_COLORS: Record<string, StatusConfig> = {
     text: "text-white",
     label: "Stock Ready",
   },
+  Shipping: {
+    bg: "bg-blue-100",
+    text: "text-blue-800",
+    label: "Shipping",
+  },
   "Ordered to Supplier": {
     bg: "bg-[#8B5CF6]",
     text: "text-white",
@@ -119,25 +124,20 @@ export const STATUS_COLORS: Record<string, StatusConfig> = {
   },
 
   // Order-Specific Statuses
-  New: {
+  "New Order": {
     bg: "bg-blue-100",
     text: "text-blue-800",
-    label: "New",
+    label: "New Order",
   },
   Viewed: {
     bg: "bg-purple-100",
     text: "text-purple-800",
     label: "Viewed",
   },
-  "Change Requested": {
-    bg: "bg-orange-100",
-    text: "text-orange-800",
-    label: "Change Requested",
-  },
-  "Revised - Internal Review": {
+  "Change Pending Approval": {
     bg: "bg-amber-100",
     text: "text-amber-800",
-    label: "Revised - Internal Review",
+    label: "Change Pending Approval",
   },
   "Order Revised": {
     bg: "bg-green-100",

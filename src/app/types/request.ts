@@ -19,6 +19,7 @@ export interface DetailBarangItem {
   availablePcs?: string;
   orderPcs?: string;
   verified?: boolean;
+  notes?: string;
 }
 
 /**
@@ -86,6 +87,43 @@ export interface Request {
 
   // Status tracking
   status: string;
+  rejectionReason?: string;
+
+  // Revision history
+  revisionHistory?: RequestRevision[];
+}
+
+/**
+ * Request Revision - tracks changes made to a request
+ */
+export interface RequestRevision {
+  revisionNumber: number;
+  timestamp: number;
+  updatedBy: string;
+  changes: {
+    pabrik?: EntityReference | string;
+    kategoriBarang?: string;
+    jenisProduk?: string;
+    namaProduk?: string;
+    namaBasic?: string;
+    namaPelanggan?: EntityReference | string;
+    waktuKirim?: string;
+    customerExpectation?: string;
+    detailItems?: DetailBarangItem[];
+    photoId?: string;
+  };
+  previousValues: {
+    pabrik?: EntityReference | string;
+    kategoriBarang?: string;
+    jenisProduk?: string;
+    namaProduk?: string;
+    namaBasic?: string;
+    namaPelanggan?: EntityReference | string;
+    waktuKirim?: string;
+    customerExpectation?: string;
+    detailItems?: DetailBarangItem[];
+    photoId?: string;
+  };
 }
 
 /**

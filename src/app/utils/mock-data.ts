@@ -104,7 +104,56 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-003",
-      status: "New",
+      status: "New Order",
+      updatedDate: 1770858925077,
+      updatedBy: "sales1",
+      revisionHistory: [
+        {
+          revisionNumber: 1,
+          timestamp: 1770858925077,
+          updatedBy: "sales1",
+          changes: {
+            kategoriBarang: "model",
+            jenisProduk: "gelang-kaku",
+            namaProduk: "gelang-cuff-tebal",
+            namaBasic: "",
+            waktuKirim: "2026-02-26T06:08:15.262Z",
+            detailItems: [
+              {
+                id: "item-1770790095262-2hcykjyyl",
+                kadar: "24k",
+                warna: "ap",
+                ukuran: "18",
+                berat: "12.0",
+                pcs: "10",
+                availablePcs: "0",
+                orderPcs: "10",
+              },
+            ],
+            photoId: "photo-003",
+          },
+          previousValues: {
+            kategoriBarang: "model",
+            jenisProduk: "gelang-kaku",
+            namaProduk: "gelang-cuff-tebal",
+            namaBasic: "",
+            waktuKirim: "2026-02-20T06:08:15.262Z",
+            detailItems: [
+              {
+                id: "item-1770790095262-2hcykjyyl",
+                kadar: "24k",
+                warna: "ap",
+                ukuran: "16",
+                berat: "10.0",
+                pcs: "5",
+                availablePcs: "0",
+                orderPcs: "5",
+              },
+            ],
+            photoId: "photo-003",
+          },
+        },
+      ],
     },
     {
       id: "order-1770791472862",
@@ -347,7 +396,131 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-004",
-      status: "New",
+      status: "New Order",
+      updatedDate: 1770870938767,
+      updatedBy: "sales2",
+      revisionHistory: [
+        {
+          revisionNumber: 1,
+          timestamp: 1770835938767,
+          updatedBy: "sales2",
+          changes: {
+            kategoriBarang: "model",
+            jenisProduk: "gelang-keroncong",
+            namaProduk: "gelang-modern",
+            namaBasic: "",
+            waktuKirim: "2026-02-28T06:08:15.262Z",
+            detailItems: [
+              {
+                id: "item-1770790095262-y7y1khm0e",
+                kadar: "16k",
+                warna: "2w-ap-rg",
+                ukuran: "16",
+                berat: "8.5",
+                pcs: "8",
+                availablePcs: "0",
+                orderPcs: "8",
+              },
+              {
+                id: "item-1770790095262-g7kw8la2r",
+                kadar: "17k",
+                warna: "ap",
+                ukuran: "18",
+                berat: "9.2",
+                pcs: "6",
+                availablePcs: "0",
+                orderPcs: "6",
+              },
+            ],
+            photoId: "photo-004",
+          },
+          previousValues: {
+            kategoriBarang: "model",
+            jenisProduk: "gelang-keroncong",
+            namaProduk: "gelang-modern",
+            namaBasic: "",
+            waktuKirim: "2026-03-01T06:08:15.262Z",
+            detailItems: [
+              {
+                id: "item-1770790095262-y7y1khm0e",
+                kadar: "16k",
+                warna: "2w-ap-rg",
+                ukuran: "16",
+                berat: "8.5",
+                pcs: "5",
+                availablePcs: "0",
+                orderPcs: "5",
+              },
+            ],
+            photoId: "photo-004",
+          },
+        },
+        {
+          revisionNumber: 2,
+          timestamp: 1770870938767,
+          updatedBy: "sales2",
+          changes: {
+            kategoriBarang: "model",
+            jenisProduk: "gelang-keroncong",
+            namaProduk: "gelang-modern",
+            namaBasic: "",
+            waktuKirim: "2026-03-01T06:08:15.262Z",
+            detailItems: [
+              {
+                id: "item-1770790095262-y7y1khm0e",
+                kadar: "16k",
+                warna: "2w-ap-rg",
+                ukuran: "16",
+                berat: "8.5",
+                pcs: "8",
+                availablePcs: "0",
+                orderPcs: "8",
+              },
+              {
+                id: "item-1770790095262-g7kw8la2r",
+                kadar: "17k",
+                warna: "ap",
+                ukuran: "18",
+                berat: "9.2",
+                pcs: "6",
+                availablePcs: "0",
+                orderPcs: "6",
+              },
+            ],
+            photoId: "photo-004",
+          },
+          previousValues: {
+            kategoriBarang: "model",
+            jenisProduk: "gelang-keroncong",
+            namaProduk: "gelang-modern",
+            namaBasic: "",
+            waktuKirim: "2026-02-28T06:08:15.262Z",
+            detailItems: [
+              {
+                id: "item-1770790095262-y7y1khm0e",
+                kadar: "16k",
+                warna: "2w-ap-rg",
+                ukuran: "16",
+                berat: "8.5",
+                pcs: "8",
+                availablePcs: "0",
+                orderPcs: "8",
+              },
+              {
+                id: "item-1770790095262-g7kw8la2r",
+                kadar: "17k",
+                warna: "ap",
+                ukuran: "18",
+                berat: "9.2",
+                pcs: "6",
+                availablePcs: "0",
+                orderPcs: "6",
+              },
+            ],
+            photoId: "photo-004",
+          },
+        },
+      ],
     },
     {
       id: "order-1770798934255",
@@ -974,7 +1147,7 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-002",
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771238680870",
@@ -1158,7 +1331,7 @@ export const generateMockOrders = (): Order[] => {
           orderPcs: "10",
         },
       ],
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771299982747",
@@ -1211,7 +1384,7 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-007",
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771302483948",
@@ -1264,7 +1437,7 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-005",
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771302938318",
@@ -1307,7 +1480,7 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-009",
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771311179068",
@@ -1357,7 +1530,7 @@ export const generateMockOrders = (): Order[] => {
           orderPcs: "2",
         },
       ],
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771311393562",
@@ -1407,7 +1580,7 @@ export const generateMockOrders = (): Order[] => {
           orderPcs: "2",
         },
       ],
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771311782069",
@@ -1457,7 +1630,7 @@ export const generateMockOrders = (): Order[] => {
           orderPcs: "2",
         },
       ],
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771311938376",
@@ -1507,7 +1680,7 @@ export const generateMockOrders = (): Order[] => {
           orderPcs: "2",
         },
       ],
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771312074354",
@@ -1558,7 +1731,7 @@ export const generateMockOrders = (): Order[] => {
           orderPcs: "2",
         },
       ],
-      status: "New",
+      status: "New Order",
     },
     {
       id: "order-1771312575337",
@@ -1694,11 +1867,21 @@ export const generateMockOrders = (): Order[] => {
         },
       ],
       photoId: "photo-007",
-      status: "New",
+      status: "New Order",
     },
   ];
 
-  return orders;
+  // Normalize: ensure every order has updatedDate, updatedBy, and timestamp set.
+  // timestamp mirrors createdDate because these objects are stored under "requests"
+  // and consumed as Request (which requires timestamp, not createdDate).
+  return orders.map((order) => ({
+    ...order,
+    timestamp:
+      (order as unknown as { timestamp?: number }).timestamp ??
+      order.createdDate,
+    updatedDate: order.updatedDate ?? order.createdDate,
+    updatedBy: order.updatedBy ?? order.createdBy,
+  })) as unknown as Order[];
 };
 
 // Mock notification data generator
@@ -1792,7 +1975,11 @@ export const generateMockNotifications = (): Notification[] => {
       message:
         "King Halim Workshop changed order RPO-20260116-0022 status to Unable to Fulfill",
       changes: [
-        { field: "status", oldValue: "New", newValue: "Unable to Fulfill" },
+        {
+          field: "status",
+          oldValue: "New Order",
+          newValue: "Unable to Fulfill",
+        },
       ],
       metadata: {
         supplierId: "king-halim",
@@ -1910,7 +2097,9 @@ export const generateMockNotifications = (): Notification[] => {
       title: "Order Status Changed",
       message:
         "King Halim Workshop changed order RPO-20260209-0021 status to Stock Ready",
-      changes: [{ field: "status", oldValue: "New", newValue: "Stock Ready" }],
+      changes: [
+        { field: "status", oldValue: "New Order", newValue: "Stock Ready" },
+      ],
       metadata: {
         supplierId: "king-halim",
         supplierName: "King Halim",
@@ -1978,7 +2167,9 @@ export const generateMockNotifications = (): Notification[] => {
       title: "Order Status Changed",
       message:
         "King Halim Workshop changed order SAJKTKH202602110002 status to Stock Ready",
-      changes: [{ field: "status", oldValue: "New", newValue: "Stock Ready" }],
+      changes: [
+        { field: "status", oldValue: "New Order", newValue: "Stock Ready" },
+      ],
       metadata: {
         supplierId: "king-halim",
         supplierName: "King Halim",
@@ -2792,8 +2983,242 @@ export const initializeMockData = () => {
     );
     return mockOrders;
   } else {
-    console.log("📦 Existing orders found, skipping mock data initialization");
-    return JSON.parse(existingOrders);
+    // Migrate existing data: fill in missing updatedDate/updatedBy and timestamp
+    let parsed = JSON.parse(existingOrders);
+    let patched = false;
+    parsed = parsed.map((r: Record<string, unknown>) => {
+      const updates: Record<string, unknown> = {};
+      if (!r.updatedDate && r.createdDate) {
+        updates.updatedDate = r.createdDate;
+        updates.updatedBy = r.updatedBy ?? r.createdBy;
+        patched = true;
+      }
+      if (!r.timestamp && r.createdDate) {
+        updates.timestamp = r.createdDate;
+        patched = true;
+      }
+      // Backfill revisionHistory for two demo requests that now have it in mock data
+      if (r.id === "order-1770791325077" && !r.revisionHistory) {
+        updates.revisionHistory = [
+          {
+            revisionNumber: 1,
+            timestamp: 1770858925077,
+            updatedBy: "sales1",
+            changes: {
+              kategoriBarang: "model",
+              jenisProduk: "gelang-kaku",
+              namaProduk: "gelang-cuff-tebal",
+              namaBasic: "",
+              waktuKirim: "2026-02-26T06:08:15.262Z",
+              detailItems: [
+                {
+                  id: "item-1770790095262-2hcykjyyl",
+                  kadar: "24k",
+                  warna: "ap",
+                  ukuran: "18",
+                  berat: "12.0",
+                  pcs: "10",
+                  availablePcs: "0",
+                  orderPcs: "10",
+                },
+              ],
+              photoId: "photo-003",
+            },
+            previousValues: {
+              kategoriBarang: "model",
+              jenisProduk: "gelang-kaku",
+              namaProduk: "gelang-cuff-tebal",
+              namaBasic: "",
+              waktuKirim: "2026-02-20T06:08:15.262Z",
+              detailItems: [
+                {
+                  id: "item-1770790095262-2hcykjyyl",
+                  kadar: "24k",
+                  warna: "ap",
+                  ukuran: "16",
+                  berat: "10.0",
+                  pcs: "5",
+                  availablePcs: "0",
+                  orderPcs: "5",
+                },
+              ],
+              photoId: "photo-003",
+            },
+          },
+        ];
+        patched = true;
+      }
+      if (r.id === "order-1770793938767" && !r.revisionHistory) {
+        updates.revisionHistory = [
+          {
+            revisionNumber: 1,
+            timestamp: 1770835938767,
+            updatedBy: "sales2",
+            changes: {
+              kategoriBarang: "model",
+              jenisProduk: "gelang-keroncong",
+              namaProduk: "gelang-modern",
+              namaBasic: "",
+              waktuKirim: "2026-02-28T06:08:15.262Z",
+              detailItems: [
+                {
+                  id: "item-1770790095262-y7y1khm0e",
+                  kadar: "16k",
+                  warna: "2w-ap-rg",
+                  ukuran: "16",
+                  berat: "8.5",
+                  pcs: "8",
+                  availablePcs: "0",
+                  orderPcs: "8",
+                },
+                {
+                  id: "item-1770790095262-g7kw8la2r",
+                  kadar: "17k",
+                  warna: "ap",
+                  ukuran: "18",
+                  berat: "9.2",
+                  pcs: "6",
+                  availablePcs: "0",
+                  orderPcs: "6",
+                },
+              ],
+              photoId: "photo-004",
+            },
+            previousValues: {
+              kategoriBarang: "model",
+              jenisProduk: "gelang-keroncong",
+              namaProduk: "gelang-modern",
+              namaBasic: "",
+              waktuKirim: "2026-03-01T06:08:15.262Z",
+              detailItems: [
+                {
+                  id: "item-1770790095262-y7y1khm0e",
+                  kadar: "16k",
+                  warna: "2w-ap-rg",
+                  ukuran: "16",
+                  berat: "8.5",
+                  pcs: "5",
+                  availablePcs: "0",
+                  orderPcs: "5",
+                },
+              ],
+              photoId: "photo-004",
+            },
+          },
+          {
+            revisionNumber: 2,
+            timestamp: 1770870938767,
+            updatedBy: "sales2",
+            changes: {
+              kategoriBarang: "model",
+              jenisProduk: "gelang-keroncong",
+              namaProduk: "gelang-modern",
+              namaBasic: "",
+              waktuKirim: "2026-03-01T06:08:15.262Z",
+              detailItems: [
+                {
+                  id: "item-1770790095262-y7y1khm0e",
+                  kadar: "16k",
+                  warna: "2w-ap-rg",
+                  ukuran: "16",
+                  berat: "8.5",
+                  pcs: "8",
+                  availablePcs: "0",
+                  orderPcs: "8",
+                },
+                {
+                  id: "item-1770790095262-g7kw8la2r",
+                  kadar: "17k",
+                  warna: "ap",
+                  ukuran: "18",
+                  berat: "9.2",
+                  pcs: "6",
+                  availablePcs: "0",
+                  orderPcs: "6",
+                },
+              ],
+              photoId: "photo-004",
+            },
+            previousValues: {
+              kategoriBarang: "model",
+              jenisProduk: "gelang-keroncong",
+              namaProduk: "gelang-modern",
+              namaBasic: "",
+              waktuKirim: "2026-02-28T06:08:15.262Z",
+              detailItems: [
+                {
+                  id: "item-1770790095262-y7y1khm0e",
+                  kadar: "16k",
+                  warna: "2w-ap-rg",
+                  ukuran: "16",
+                  berat: "8.5",
+                  pcs: "8",
+                  availablePcs: "0",
+                  orderPcs: "8",
+                },
+                {
+                  id: "item-1770790095262-g7kw8la2r",
+                  kadar: "17k",
+                  warna: "ap",
+                  ukuran: "18",
+                  berat: "9.2",
+                  pcs: "6",
+                  availablePcs: "0",
+                  orderPcs: "6",
+                },
+              ],
+              photoId: "photo-004",
+            },
+          },
+        ];
+        patched = true;
+      }
+      return Object.keys(updates).length ? { ...r, ...updates } : r;
+    });
+    if (patched) {
+      localStorage.setItem("requests", JSON.stringify(parsed));
+      console.log(
+        "🔧 Patched missing updatedDate/timestamp in existing mock data",
+      );
+    } else {
+      console.log(
+        "📦 Existing orders found, skipping mock data initialization",
+      );
+    }
+
+    // Migrate "New" → "New Order" in "orders" localStorage key
+    const existingOrdersRaw = localStorage.getItem("orders");
+    if (existingOrdersRaw) {
+      const existingOrdersParsed: Record<string, unknown>[] =
+        JSON.parse(existingOrdersRaw);
+      let orderPatched = false;
+      const migratedOrders = existingOrdersParsed.map((o) => {
+        if (o.status === "New") {
+          orderPatched = true;
+          return { ...o, status: "New Order" };
+        }
+        return o;
+      });
+      if (orderPatched) {
+        localStorage.setItem("orders", JSON.stringify(migratedOrders));
+        console.log("🔧 Migrated order status 'New' → 'New Order' in 'orders'");
+      }
+    }
+
+    // Migrate "New" → "New Order" in "requests" localStorage key (Order objects stored there)
+    const reMigratedRequests = parsed.map((r: Record<string, unknown>) => {
+      if (r.status === "New") return { ...r, status: "New Order" };
+      return r;
+    });
+    const hasStatusMigration = reMigratedRequests.some(
+      (r: Record<string, unknown>, i: number) => r.status !== parsed[i]?.status,
+    );
+    if (hasStatusMigration) {
+      localStorage.setItem("requests", JSON.stringify(reMigratedRequests));
+      console.log("🔧 Migrated order status 'New' → 'New Order' in 'requests'");
+    }
+
+    return parsed;
   }
 };
 
@@ -2838,4 +3263,263 @@ export const getPhotoDatabase = (): Photo[] => mockPhotos;
 
 export const getPhotoById = (photoId: string): Photo | undefined => {
   return mockPhotos.find((photo) => photo.id === photoId);
+};
+
+/**
+ * Populate mock data – adds exactly 15 requests and 15 orders (with revisions)
+ * into localStorage, merged with whatever data already exists.
+ * Intended for testing only.
+ */
+export const populateMockData = (): { requests: number; orders: number } => {
+  const now = Date.now();
+  const DAY = 86_400_000;
+  const HR = 3_600_000;
+  const tag = now.toString(36); // short unique tag
+  const uid = (prefix: string, i: number) => `${prefix}-pop-${tag}-${i}`;
+
+  // ── Shared lookup tables ────────────────────────────────────────────────
+  const SUPPLIERS = [
+    { id: "ubs-gold", name: "UBS Gold" },
+    { id: "king-halim", name: "King Halim" },
+    { id: "ayu", name: "Ayu" },
+    { id: "lestari-gold", name: "Lestari Gold" },
+    { id: "hwt", name: "HWT" },
+  ];
+  const SALES = ["sales1", "sales2", "sales3", "sales4"];
+  const CUSTOMERS = [
+    { id: "c1", name: "Toko Emas Sejahtera" },
+    { id: "c2", name: "Toko Perhiasan Mulia" },
+    { id: "c3", name: "Perhiasan Permata" },
+    { id: "c4", name: "Butik Emas Indah" },
+    { id: "c5", name: "Toko Mas Berkah" },
+  ];
+  const PRODUCTS = [
+    {
+      kategoriBarang: "basic",
+      jenisProduk: "kalung",
+      namaProduk: "",
+      namaBasic: "italy-santa",
+      photoId: "photo-001",
+    },
+    {
+      kategoriBarang: "basic",
+      jenisProduk: "cincin",
+      namaProduk: "",
+      namaBasic: "milano",
+      photoId: "photo-005",
+    },
+    {
+      kategoriBarang: "basic",
+      jenisProduk: "anting",
+      namaProduk: "",
+      namaBasic: "sunny-vanessa",
+      photoId: "photo-007",
+    },
+    {
+      kategoriBarang: "model",
+      jenisProduk: "gelang-rantai",
+      namaProduk: "gelang-keroncong",
+      namaBasic: "",
+      photoId: "photo-003",
+    },
+    {
+      kategoriBarang: "basic",
+      jenisProduk: "kalung",
+      namaProduk: "",
+      namaBasic: "tambang",
+      photoId: "photo-009",
+    },
+    {
+      kategoriBarang: "model",
+      jenisProduk: "gelang-kaku",
+      namaProduk: "gelang-cuff-tebal",
+      namaBasic: "",
+      photoId: "photo-003",
+    },
+    {
+      kategoriBarang: "basic",
+      jenisProduk: "cincin",
+      namaProduk: "",
+      namaBasic: "italy-kaca",
+      photoId: "photo-006",
+    },
+  ];
+  const KADAR = ["8k", "9k", "16k", "17k", "24k"];
+  const WARNA = ["ap", "rg", "kn", "2w-ap-rg"];
+  const UKURAN = ["14", "15", "16", "17", "18", "p"];
+
+  const makeItem = (seed: number, overridePcs?: string) => ({
+    id: uid("item", seed),
+    kadar: KADAR[seed % KADAR.length],
+    warna: WARNA[seed % WARNA.length],
+    ukuran: UKURAN[seed % UKURAN.length],
+    berat: String(3 + (seed % 7)),
+    pcs: overridePcs ?? String(5 + (seed % 16)),
+    availablePcs: "0",
+    orderPcs: overridePcs ?? String(5 + (seed % 16)),
+  });
+
+  const dateStr = new Date(now).toISOString().slice(0, 10).replace(/-/g, "");
+
+  // ── 1. Requests (15) ────────────────────────────────────────────────────
+  const REQ_STATUSES = [
+    "Open",
+    "Open",
+    "Open",
+    "Open",
+    "Open", // 5
+    "JB Verifying",
+    "JB Verifying",
+    "JB Verifying", // 3
+    "Rejected",
+    "Rejected", // 2
+    "Cancelled",
+    "Cancelled", // 2
+    "Done",
+    "Done", // 2
+    "Open", // 1 extra
+  ];
+
+  const newRequests = REQ_STATUSES.map((status, i) => {
+    const prod = PRODUCTS[i % PRODUCTS.length];
+    const sup = SUPPLIERS[i % SUPPLIERS.length];
+    const cust = CUSTOMERS[i % CUSTOMERS.length];
+    const sales = SALES[i % SALES.length];
+    return {
+      id: uid("req", i),
+      timestamp: now - DAY * (i + 1),
+      requestNo: `RPO-${dateStr}-P${String(i + 1).padStart(2, "0")}`,
+      createdBy: sales,
+      updatedDate: now - DAY * i,
+      updatedBy: sales,
+      pabrik: { id: sup.id, name: sup.name },
+      namaPelanggan: { id: cust.id, name: cust.name },
+      kategoriBarang: prod.kategoriBarang,
+      jenisProduk: prod.jenisProduk,
+      namaProduk: prod.namaProduk,
+      namaBasic: prod.namaBasic,
+      photoId: prod.photoId,
+      waktuKirim: new Date(now + DAY * (20 + i * 4)).toISOString(),
+      customerExpectation: i % 2 === 0 ? "ready-marketing" : "ready-pabrik",
+      detailItems: [makeItem(i * 3), makeItem(i * 3 + 1, String(8 + (i % 10)))],
+      status,
+    };
+  });
+
+  // ── 2. Orders (15) with revisions ───────────────────────────────────────
+  //   [status, revisionCount, daysAgo]
+  const ORDER_SPECS: [string, number, number][] = [
+    ["New Order", 0, 1],
+    ["New Order", 0, 2],
+    ["New Order", 0, 3],
+    ["Negotiating", 1, 4],
+    ["Negotiating", 1, 5],
+    ["Change Pending Approval", 2, 6],
+    ["Order Revised", 2, 7],
+    ["In Production", 2, 10],
+    ["In Production", 1, 12],
+    ["Stock Ready", 1, 15],
+    ["Stock Ready", 2, 18],
+    ["Cannot Fulfill", 1, 8],
+    ["Rejected", 1, 9],
+    ["Fully Delivered", 3, 20],
+    ["Fully Delivered", 2, 25],
+  ];
+
+  const newOrders = ORDER_SPECS.map(([status, revCount, daysAgo], i) => {
+    const prod = PRODUCTS[i % PRODUCTS.length];
+    const sup = SUPPLIERS[i % SUPPLIERS.length];
+    const reqId = uid("req", i % 15);
+
+    // Build final detail items (the current state of the order)
+    const finalItems = [
+      makeItem(i * 5),
+      makeItem(i * 5 + 1),
+      ...(i % 3 === 0 ? [makeItem(i * 5 + 2)] : []),
+    ];
+
+    // Build revision history – each revision shows a previous smaller item set
+    const revisionHistory = Array.from({ length: revCount }, (_, r) => {
+      const revNum = r + 1;
+      const revTime = now - DAY * daysAgo + revNum * 4 * HR;
+      const prevItems = [
+        makeItem(i * 5 + r),
+        ...(r === 0 ? [] : [makeItem(i * 5 + r + 1)]),
+      ];
+      return {
+        revisionNumber: revNum,
+        timestamp: revTime,
+        updatedBy: "jb1",
+        revisionNotes: `Revision ${revNum}: adjusted specifications`,
+        changes: {
+          kategoriBarang: prod.kategoriBarang,
+          jenisProduk: prod.jenisProduk,
+          namaProduk: prod.namaProduk,
+          namaBasic: prod.namaBasic,
+          detailItems:
+            revNum === revCount
+              ? finalItems
+              : [makeItem(i * 5 + r), makeItem(i * 5 + r + 1)],
+          photoId: prod.photoId,
+        },
+        previousValues: {
+          kategoriBarang: prod.kategoriBarang,
+          jenisProduk: prod.jenisProduk,
+          namaProduk: prod.namaProduk,
+          namaBasic: prod.namaBasic,
+          detailItems: prevItems,
+          photoId: prod.photoId,
+        },
+      };
+    });
+
+    const poSuffix = String(i + 1).padStart(4, "0");
+    return {
+      id: uid("order", i),
+      PONumber:
+        i >= 3
+          ? `SAJKT${sup.id.slice(0, 2).toUpperCase()}${dateStr}${poSuffix}`
+          : "",
+      requestNo: `RPO-${dateStr}-P${String((i % 15) + 1).padStart(2, "0")}`,
+      requestId: reqId,
+      createdDate: now - DAY * daysAgo,
+      createdBy: "jb1",
+      jbId: "jb1",
+      pabrik: { id: sup.id, name: sup.name },
+      kategoriBarang: prod.kategoriBarang,
+      jenisProduk: prod.jenisProduk,
+      namaProduk: prod.namaProduk,
+      namaBasic: prod.namaBasic,
+      waktuKirim: new Date(now + DAY * (25 + i * 3)).toISOString(),
+      customerExpectation: i % 2 === 0 ? "ready-marketing" : "order-pabrik",
+      detailItems: finalItems,
+      photoId: prod.photoId,
+      status,
+      updatedDate: now - DAY * (daysAgo - 1),
+      updatedBy: "jb1",
+      ...(revisionHistory.length > 0 ? { revisionHistory } : {}),
+    };
+  });
+
+  // ── 3. Merge into localStorage ───────────────────────────────────────────
+  const existingRequests: unknown[] = JSON.parse(
+    localStorage.getItem("requests") || "[]",
+  );
+  localStorage.setItem(
+    "requests",
+    JSON.stringify([...existingRequests, ...newRequests]),
+  );
+
+  const existingOrders: unknown[] = JSON.parse(
+    localStorage.getItem("orders") || "[]",
+  );
+  localStorage.setItem(
+    "orders",
+    JSON.stringify([...existingOrders, ...newOrders]),
+  );
+
+  console.log(
+    `🧪 Populated: ${newRequests.length} requests, ${newOrders.length} orders`,
+  );
+  return { requests: newRequests.length, orders: newOrders.length };
 };

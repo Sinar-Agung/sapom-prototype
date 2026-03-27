@@ -43,11 +43,8 @@ export const upsertRequestExpiringNotification = (
   let shouldNotify = false;
   const targetAudience: NotificationTargetAudience[] = [];
 
-  // Stockist: see all expiring requests with status Open or Stockist Processing
-  if (
-    (request.status === "Open" || request.status === "Stockist Processing") &&
-    userRole === "stockist"
-  ) {
+  // Stockist: see all expiring requests with status Open
+  if (request.status === "Open" && userRole === "stockist") {
     shouldNotify = true;
     if (!targetAudience.includes("stockist")) targetAudience.push("stockist");
   }
@@ -254,8 +251,8 @@ export const upsertETAReminderForStockist = (
   );
   if (daysToETA < 0 || daysToETA > 7) return; // Only remind within 7 days before ETA
 
-  // Only for Open or Stockist Processing
-  if (request.status !== "Open" && request.status !== "Stockist Processing")
+  // Only for Open
+  if (request.status !== "Open")
     return;
 
   // Remove any previous ETA reminder for this request and stockist
@@ -319,22 +316,28 @@ const STORAGE_KEY = "notifications";
 export const sortExistingNotifications = (): void => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return;
-  
+
   const notifications = JSON.parse(stored);
   // Sort by timestamp (newest first)
-  const sorted = notifications.sort((a: Notification, b: Notification) => b.timestamp - a.timestamp);
+  const sorted = notifications.sort(
+    (a: Notification, b: Notification) => b.timestamp - a.timestamp,
+  );
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
-  console.log(`✅ Sorted ${sorted.length} existing notifications (newest to oldest)`);
+  console.log(
+    `✅ Sorted ${sorted.length} existing notifications (newest to oldest)`,
+  );
 };
 
 // Get all notifications from localStorage
 export const getAllNotifications = (): Notification[] => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return [];
-  
+
   const notifications = JSON.parse(stored);
   // Always return sorted by timestamp (newest first)
-  return notifications.sort((a: Notification, b: Notification) => b.timestamp - a.timestamp);
+  return notifications.sort(
+    (a: Notification, b: Notification) => b.timestamp - a.timestamp,
+  );
 };
 
 // Save notifications to localStorage
@@ -397,11 +400,10 @@ export const getNotificationsForUser = (
             (r: any) => r.id === notification.entityId,
           );
           if (request) {
-            // Stockist: only see Open or Stockist Processing
+            // Stockist: only see Open
             if (
               userRole === "stockist" &&
-              request.status !== "Open" &&
-              request.status !== "Stockist Processing"
+              request.status !== "Open"
             ) {
               return false;
             }
@@ -734,7 +736,6 @@ export const notifyRequestStatusChanged = (
   changedByRole: "sales" | "stockist" | "jb" | "supplier",
   order?: Order, // Optional order parameter for when status becomes "Ordered"
 ) => {
-  const changerName = getFullNameFromUsername(changedBy);
   const targets: NotificationTargetAudience[] = [];
   const specificTargets: string[] = [];
 
@@ -794,6 +795,18 @@ export const notifyRequestStatusChanged = (
 
     const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
+    const orderedSalesName = getFullNameFromUsername(request.createdBy || "");
+    const orderedEta = (() => {
+      if (!order.waktuKirim) return "-";
+      return new Date(order.waktuKirim).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    })();
+    const orderedItems = order.detailItems?.length || 0;
+    const orderedMessage = `Supplier: ${supplierName}\nETA: ${orderedEta}\nSales: ${orderedSalesName}\nItems: ${orderedItems}`;
+
     return createNotification(
       "request_status_changed",
       changedBy,
@@ -802,7 +815,7 @@ export const notifyRequestStatusChanged = (
       request.id,
       request.requestNo || request.id,
       title,
-      `${changerName} has written an order for Request ${request.requestNo || request.id} to Supplier ${supplierName}`,
+      orderedMessage,
       ["jb", "sales"],
       salesTargets,
       [{ field: "status", oldValue: "Assigned to JB", newValue: newStatus }],
@@ -820,45 +833,36 @@ export const notifyRequestStatusChanged = (
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
+  // Standardized format for all status changes
+  const pabrikLabel =
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+
+  const formatStatusDate = (isoString: string) => {
+    if (!isoString) return "-";
+    return new Date(isoString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const etaDate = formatStatusDate(request.waktuKirim);
+  const itemCount = request.detailItems?.length || 0;
+  const salesName = getFullNameFromUsername(request.createdBy || "");
+
   // Determine event type based on new status
   let eventType: NotificationEventType = "request_status_changed";
-  let message = `${changerName} changed status from "${oldStatus}" to "${newStatus}"`;
+  const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nSales: ${salesName}\nItem count: ${itemCount}`;
 
-  // For specific notification types, use standardized format
-  if (
-    newStatus === "Requested to JB" ||
-    newStatus === "Ready Stock Marketing" ||
-    newStatus === "Stock Unavailable"
-  ) {
-    // Get additional info for standardized message
-    const pabrikLabel =
-      typeof request.pabrik === "string"
-        ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
-        : request.pabrik?.name ||
-          getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
-
-    const formatDate = (isoString: string) => {
-      if (!isoString) return "-";
-      return new Date(isoString).toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-    };
-
-    const etaDate = formatDate(request.waktuKirim);
-    const itemCount = request.detailItems?.length || 0;
-    const salesName = getFullNameFromUsername(request.createdBy || "");
-
-    message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nSales: ${salesName}\nItem count: ${itemCount}`;
-
-    if (newStatus === "Requested to JB") {
-      eventType = "request_to_jb";
-    } else if (newStatus === "Ready Stock Marketing") {
-      eventType = "request_stock_ready";
-    } else if (newStatus === "Stock Unavailable") {
-      eventType = "request_stock_unavailable";
-    }
+  if (newStatus === "Requested to JB") {
+    eventType = "request_to_jb";
+  } else if (newStatus === "Ready Stock Marketing") {
+    eventType = "request_stock_ready";
+  } else if (newStatus === "Stock Unavailable") {
+    eventType = "request_stock_unavailable";
   }
 
   return createNotification(
@@ -968,9 +972,6 @@ export const notifyRequestReviewed = (
   approved: boolean,
   stockistUsername: string,
 ) => {
-  const stockistName = getFullNameFromUsername(stockistUsername);
-  const action = approved ? "approved" : "rejected";
-
   // Get product name (Jenis Produk + Nama Basic/Nama Model)
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
@@ -991,6 +992,24 @@ export const notifyRequestReviewed = (
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
+  const pabrikLabelR =
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+  const formatDateR = (iso: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "-";
+  const etaDateR = formatDateR(request.waktuKirim);
+  const salesNameR = getFullNameFromUsername(request.createdBy || "");
+  const itemCountR = request.detailItems?.length || 0;
+  const message = `Supplier: ${pabrikLabelR}\nETA: ${etaDateR}\nSales: ${salesNameR}\nItems: ${itemCountR}`;
+
   return createNotification(
     approved ? "request_approved_by_stockist" : "request_rejected_by_stockist",
     stockistUsername,
@@ -999,7 +1018,7 @@ export const notifyRequestReviewed = (
     request.id,
     request.requestNo || request.id,
     title,
-    `${stockistName} ${action} request ${request.requestNo || request.id}`,
+    message,
     ["sales", "stockist"],
     request.createdBy ? [request.createdBy] : undefined,
     undefined,
@@ -1083,8 +1102,6 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
 
 // Helper: Create notification for order revision by JB
 export const notifyOrderRevised = (order: Order, revisedBy: string) => {
-  const reviserName = getFullNameFromUsername(revisedBy);
-
   // Get product name (Jenis Produk + Nama Basic/Nama Model)
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
@@ -1114,6 +1131,19 @@ export const notifyOrderRevised = (order: Order, revisedBy: string) => {
     atasNama: atasNama,
   });
 
+  const formatDateRev = (iso: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "-";
+  const revSalesName = getFullNameFromUsername(order.sales || "");
+  const revEta = formatDateRev(order.waktuKirim);
+  const revItems = order.detailItems?.length || 0;
+  const revMessage = `Supplier: ${supplierName}\nETA: ${revEta}\nSales: ${revSalesName}\nItems: ${revItems}`;
+
   return createNotification(
     "order_revised",
     revisedBy,
@@ -1122,7 +1152,7 @@ export const notifyOrderRevised = (order: Order, revisedBy: string) => {
     order.id,
     order.PONumber,
     title,
-    `${reviserName} revised order ${order.PONumber} - ${productName} for ${atasNama}`,
+    revMessage,
     ["sales"], // Only notify sales
     order.sales ? [order.sales] : undefined, // Specific target: sales who created the original request
     undefined,
@@ -1146,7 +1176,6 @@ export const notifyOrderStatusChanged = (
   changedBy: string,
   changedByRole: "sales" | "stockist" | "jb" | "supplier",
 ) => {
-  const changerName = getFullNameFromUsername(changedBy);
   const targets: NotificationTargetAudience[] = [];
 
   // Helper to format dates
@@ -1190,10 +1219,12 @@ export const notifyOrderStatusChanged = (
   const supplierId =
     typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
-  // Special handling for "Change Requested" status
-  if (changedByRole === "supplier" && newStatus === "Change Requested") {
+  // Special handling for "Change Pending Approval" status
+  if (changedByRole === "supplier" && newStatus === "Change Pending Approval") {
     // Supplier should also receive their own change request notification
     targets.push("supplier");
+    // Sales also needs to review the proposed changes
+    targets.push("sales");
 
     // Create special notification for Order Change Requested
     const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
@@ -1217,7 +1248,7 @@ export const notifyOrderStatusChanged = (
       title,
       message,
       targets,
-      undefined,
+      order.sales ? [order.sales] : undefined,
       [{ field: "status", oldValue: oldStatus, newValue: newStatus }],
       {
         supplierId: supplierId,
@@ -1231,20 +1262,10 @@ export const notifyOrderStatusChanged = (
 
   // Use standard title format
   const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
-  let message = `${changerName} changed status from "${oldStatus}" to "${newStatus}"`;
-
-  if (changedByRole === "supplier") {
-    // Supplier actions with custom messages
-    if (newStatus === "Stock Ready") {
-      message = `${changerName} from ${supplierName} has marked the stock as ready for Order ${order.PONumber}`;
-    } else if (newStatus === "Unable to Fulfill") {
-      message = `${changerName} from ${supplierName} has marked Order ${order.PONumber} as unable to fulfill`;
-    } else if (newStatus === "In Production") {
-      message = `${changerName} from ${supplierName} has started production for Order ${order.PONumber}`;
-    } else if (newStatus === "Change Requested") {
-      message = `${changerName} from ${supplierName} has requested a change in the Order ${order.PONumber}`;
-    }
-  }
+  const stdSalesName = getFullNameFromUsername(order.sales || "");
+  const stdEta = order.waktuKirim ? formatDate(order.waktuKirim) : "N/A";
+  const stdItems = order.detailItems?.length || 0;
+  const message = `Supplier: ${supplierName}\nETA: ${stdEta}\nSales: ${stdSalesName}\nItems: ${stdItems}`;
 
   return createNotification(
     "order_status_changed",
@@ -1274,7 +1295,6 @@ export const notifyOrderArrival = (
   recordedBy: string,
   pcsDelivered: number,
 ) => {
-  const recorderName = getFullNameFromUsername(recordedBy);
   const supplierName =
     typeof order.pabrik === "string"
       ? order.pabrik
@@ -1298,6 +1318,19 @@ export const notifyOrderArrival = (
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 
+  const formatDateArr = (iso: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "-";
+  const arrSalesName = getFullNameFromUsername(order.sales || "");
+  const arrEta = formatDateArr(order.waktuKirim);
+  const arrItems = order.detailItems?.length || 0;
+  const arrMessage = `Supplier: ${supplierName}\nETA: ${arrEta}\nSales: ${arrSalesName}\nItems: ${arrItems}\nPCS Delivered: ${pcsDelivered}`;
+
   return createNotification(
     "order_arrival_recorded",
     recordedBy,
@@ -1306,7 +1339,7 @@ export const notifyOrderArrival = (
     order.id,
     order.PONumber,
     title,
-    `${recorderName} recorded arrival of ${pcsDelivered} pieces for order ${order.PONumber}`,
+    arrMessage,
     ["supplier"],
     undefined,
     undefined,
@@ -1322,7 +1355,6 @@ export const notifyOrderArrival = (
 
 // Helper: Create notification for order closure
 export const notifyOrderClosed = (order: Order, closedBy: string) => {
-  const closerName = getFullNameFromUsername(closedBy);
   const supplierName =
     typeof order.pabrik === "string"
       ? order.pabrik
@@ -1346,6 +1378,19 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 
+  const formatDateCl = (iso: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "-";
+  const clSalesName = getFullNameFromUsername(order.sales || "");
+  const clEta = formatDateCl(order.waktuKirim);
+  const clItems = order.detailItems?.length || 0;
+  const clMessage = `Supplier: ${supplierName}\nETA: ${clEta}\nSales: ${clSalesName}\nItems: ${clItems}`;
+
   return createNotification(
     "order_closed",
     closedBy,
@@ -1354,7 +1399,7 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
     order.id,
     order.PONumber,
     title,
-    `${closerName} closed and confirmed order ${order.PONumber}`,
+    clMessage,
     ["supplier"],
     undefined,
     undefined,
@@ -1374,7 +1419,6 @@ export const notifyRequestUpdated = (
   newRequest: Request,
   updatedBy: string,
 ) => {
-  const updaterName = getFullNameFromUsername(updatedBy);
   const changes: NotificationChange[] = [];
 
   // Get product name (Jenis Produk + Nama Basic/Nama Model)
@@ -1523,6 +1567,24 @@ export const notifyRequestUpdated = (
   // Target both stockists and the sales user who made the update
   const specificTargets = [updatedBy];
 
+  const updPabrikLabel =
+    typeof newRequest.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, newRequest.pabrik)
+      : newRequest.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, newRequest.pabrik?.id || "");
+  const formatDateUpd = (iso: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "-";
+  const updEta = formatDateUpd(newRequest.waktuKirim);
+  const updSalesName = getFullNameFromUsername(newRequest.createdBy || "");
+  const updItems = newRequest.detailItems?.length || 0;
+  const updMessage = `Supplier: ${updPabrikLabel}\nETA: ${updEta}\nSales: ${updSalesName}\nItems: ${updItems}`;
+
   return createNotification(
     "request_updated",
     updatedBy,
@@ -1531,7 +1593,7 @@ export const notifyRequestUpdated = (
     newRequest.id,
     newRequest.requestNo || newRequest.id,
     title,
-    `${updaterName} updated request ${newRequest.requestNo || newRequest.id} (${changes.length} change${changes.length > 1 ? "s" : ""})`,
+    updMessage,
     ["stockist", "sales"],
     specificTargets,
     changes,
@@ -1547,8 +1609,6 @@ export const notifyRequestCancelled = (
   request: Request,
   cancelledBy: string,
 ) => {
-  const cancellerName = getFullNameFromUsername(cancelledBy);
-
   // Get product name (Jenis Produk + Nama Basic/Nama Model)
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
@@ -1569,6 +1629,24 @@ export const notifyRequestCancelled = (
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
+  const canPabrikLabel =
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+  const formatDateCan = (iso: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "-";
+  const canEta = formatDateCan(request.waktuKirim);
+  const canSalesName = getFullNameFromUsername(request.createdBy || "");
+  const canItems = request.detailItems?.length || 0;
+  const canMessage = `Supplier: ${canPabrikLabel}\nETA: ${canEta}\nSales: ${canSalesName}\nItems: ${canItems}`;
+
   return createNotification(
     "request_cancelled",
     cancelledBy,
@@ -1577,7 +1655,7 @@ export const notifyRequestCancelled = (
     request.id,
     request.requestNo || request.id,
     title,
-    `${cancellerName} cancelled request ${request.requestNo || request.id}`,
+    canMessage,
     ["stockist", "sales"],
     undefined,
     undefined,

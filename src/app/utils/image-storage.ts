@@ -1,6 +1,6 @@
 /**
  * Image Storage Utility
- * Manages image storage in localStorage with ID-based references
+ * Manages image storage in localStorage with ID-based references and content deduplication
  */
 
 export interface StoredImage {
@@ -11,6 +11,51 @@ export interface StoredImage {
 }
 
 const IMAGE_STORAGE_KEY = "stored_images";
+const IMAGE_HASH_INDEX_KEY = "stored_images_hash_index";
+
+/** Simple djb2 hash for content deduplication */
+function simpleHash(str: string): string {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+    hash = hash >>> 0; // keep unsigned 32-bit
+  }
+  return hash.toString(36);
+}
+
+function getHashIndex(): Record<string, string> {
+  const stored = localStorage.getItem(IMAGE_HASH_INDEX_KEY);
+  return stored ? JSON.parse(stored) : {};
+}
+
+function setHashIndex(index: Record<string, string>): void {
+  localStorage.setItem(IMAGE_HASH_INDEX_KEY, JSON.stringify(index));
+}
+
+/**
+ * Store an image with deduplication — returns existing ID if the same content is already stored.
+ */
+export function storeImageDeduped(
+  base64Data: string,
+  type: string = "image/jpeg",
+): string {
+  const hash = simpleHash(base64Data);
+  const hashIndex = getHashIndex();
+  if (hashIndex[hash]) {
+    const existingId = hashIndex[hash];
+    const images = getStoredImages();
+    if (images[existingId]) {
+      return existingId; // already stored, reuse
+    }
+    // was deleted; fall through to re-store
+    delete hashIndex[hash];
+    setHashIndex(hashIndex);
+  }
+  const imageId = storeImage(base64Data, type);
+  hashIndex[hash] = imageId;
+  setHashIndex(hashIndex);
+  return imageId;
+}
 
 /**
  * Store an image and return its ID

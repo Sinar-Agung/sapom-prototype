@@ -36,12 +36,6 @@ export function FilterSortControls({
   onSortDirectionChange,
   sortOptions,
 }: FilterSortControlsProps) {
-  const label =
-    type === "request"
-      ? "Request No"
-      : type === "order"
-        ? "Order No"
-        : "Notification";
   const itemName =
     type === "request"
       ? "requests"
@@ -59,7 +53,7 @@ export function FilterSortControls({
       {/* Filter box - takes remaining space on mobile, fixed width on desktop */}
       <div className="flex-1 sm:flex-none relative min-w-[150px] sm:min-w-0 sm:w-52">
         <Input
-          placeholder={`Filter by ${label}...`}
+          placeholder="Search"
           value={filterValue}
           onChange={(e) => onFilterChange(e.target.value)}
           className="h-8 sm:h-9 pr-8 text-xs sm:text-sm"

@@ -5,6 +5,7 @@ import {
   NAMA_PRODUK_OPTIONS,
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
+import { getImage } from "@/app/utils/image-storage";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -75,7 +76,7 @@ export function RequestCard({
 }: RequestCardProps) {
   // Check if current user has viewed this request
   const isUnviewed = currentUser && !order.viewedBy?.includes(currentUser);
-  
+
   const formatDate = (isoString: string) => {
     if (!isoString) return "";
     return new Date(isoString).toLocaleDateString("id-ID", {
@@ -110,6 +111,10 @@ export function RequestCard({
   };
 
   const getOrderImage = (order: Request) => {
+    if (order.photoId) {
+      const storedImage = getImage(order.photoId);
+      if (storedImage) return storedImage;
+    }
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     }
@@ -293,6 +298,14 @@ export function RequestCard({
             {formatDate(order.waktuKirim) || "-"}
           </p>
 
+          {/* Reason of Rejection - only for Rejected requests */}
+          {order.status === "Rejected" && order.rejectionReason && (
+            <p className="text-[11px] sm:text-sm text-red-700 bg-red-50 rounded px-2 py-1 mb-2 sm:mb-3">
+              <span className="font-medium">Reason of Rejection: </span>
+              {order.rejectionReason}
+            </p>
+          )}
+
           {/* Action Buttons */}
           {(onToggleExpand ||
             onEditOrder ||
@@ -335,47 +348,52 @@ export function RequestCard({
               {/* Sales actions */}
               {userRole === "sales" && (
                 <>
-                  {/* Only show Cancel and Edit buttons in Open tab */}
-                  {activeTab === "open" && (
-                    <>
-                      {onCancelOrder && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onCancelOrder(order.id)}
-                              className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                              <span className="hidden sm:inline">Cancel</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Cancel this request</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {onEditOrder && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onEditOrder(order)}
-                              className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                            >
-                              <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                              <span className="hidden sm:inline">Edit</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Edit this request</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </>
-                  )}
+                  {/* Cancel: visible for Open and JB Verifying */}
+                  {(activeTab === "open" ||
+                    (activeTab === "internal" &&
+                      (order.status === "Open" ||
+                        order.status === "JB Verifying"))) &&
+                    onCancelOrder && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onCancelOrder(order.id)}
+                            className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                            <span className="hidden sm:inline">Cancel</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Cancel this request</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  {/* Edit: only for Open status, not JB Verifying */}
+                  {(activeTab === "open" ||
+                    (activeTab === "internal" && order.status === "Open")) &&
+                    onEditOrder && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onEditOrder(order)}
+                            className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                          >
+                            <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                            <span className="hidden sm:inline">Edit</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Edit this request</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  {/* Placeholder to close old block */}
+                  {false && null}
                   {/* Duplicate button visible except in Cancelled tab */}
                   {activeTab !== "cancelled" && onDuplicateOrder && (
                     <Tooltip>
@@ -420,9 +438,7 @@ export function RequestCard({
               {/* Stockist actions */}
               {userRole === "stockist" &&
                 onViewRequestDetails &&
-                (order.status === "Open" ||
-                  order.status === "Stockist Processing" ||
-                  order.status === "In Progress") && (
+                (order.status === "Open" || order.status === "In Progress") && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -441,8 +457,9 @@ export function RequestCard({
                   </Tooltip>
                 )}
 
-              {/* See Detail button - show in done, cancelled, assigned tabs, and in-progress for sales */}
-              {(activeTab === "done" ||
+              {/* See Detail button - always show for JB; also for done, cancelled, assigned, waiting, in-progress (sales) tabs */}
+              {(userRole === "jb" ||
+                activeTab === "done" ||
                 activeTab === "cancelled" ||
                 activeTab === "assigned" ||
                 (activeTab === "in-progress" && userRole === "sales") ||
@@ -461,6 +478,11 @@ export function RequestCard({
                           {userRole === "jb" && activeTab === "assigned"
                             ? "Write Order"
                             : "See Details"}
+                        </span>
+                        <span className="sm:hidden">
+                          {userRole === "jb" && activeTab === "assigned"
+                            ? "Write"
+                            : "Details"}
                         </span>
                       </Button>
                     </TooltipTrigger>
