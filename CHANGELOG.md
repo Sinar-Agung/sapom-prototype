@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+### Fixed
+
+**Notifications — `isRefreshing` ReferenceError**: Declared missing state variable
+
+- `isRefreshing` was used in JSX and a refresh handler but was never declared via `useState`
+- Added `const [isRefreshing, setIsRefreshing] = useState(false)` to the component
+- Updated: `notifications.tsx`
+
 ### Added
 
 **"Ordered" Tab in My Requests**: New tab for Sales and Stockist roles
