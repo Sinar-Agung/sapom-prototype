@@ -441,72 +441,90 @@ export function OrderDetails({
               {userRole !== "supplier" && (
                 <div className="grid grid-cols-5 gap-x-3">
                   <span className="text-gray-600 justify-self-start pr-1">
-                    Created By:
+                    Created By
                   </span>
-                  <span className="font-bold">
-                    {getFullNameFromUsername(order.jbId)}
+                  <span>
+                    <span>:</span>
+                    <span className="font-bold">
+                      {getFullNameFromUsername(order.jbId)}
+                    </span>
                   </span>
                 </div>
               )}
               <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-600 pr-1">PO Number:</span>
-                <span className="font-mono font-semibold text-blue-700">
-                  {order.PONumber}
+                <span className="text-gray-600 pr-1">PO Number</span>
+                <span>
+                  <span>:</span>
+                  <span className="font-mono font-semibold text-blue-700">
+                    {order.PONumber}
+                  </span>
                 </span>
               </div>
               {userRole !== "supplier" && (
-                <p>
-                  <span className="text-gray-600">Request No:</span>{" "}
-                  {order.requestNo ? (
-                    <button
-                      onClick={() => setShowRequestDialog(true)}
-                      className="font-mono text-blue-600 underline hover:text-blue-800"
-                    >
-                      {order.requestNo}
-                    </button>
-                  ) : (
-                    <span className="font-mono">-</span>
-                  )}
-                </p>
-              )}
-              {userRole !== "supplier" && (
                 <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Request No:</span>
-                  <span className="font-mono">{order.requestNo || "-"}</span>
+                  <span className="text-gray-600">Request No</span>
+                  <span>
+                    <span>:</span>
+                    {order.requestNo ? (
+                      <a
+                        onClick={() => setShowRequestDialog(true)}
+                        className="font-mono text-blue-600 underline hover:text-blue-800"
+                      >
+                      {order.requestNo}
+                    </a>
+                    ) : (
+                      <span className="font-mono">-</span>
+                    )}
+                  </span>
                 </div>
               )}
+
               <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-600 pr-1">Created:</span>
-                <span>{formatTimestamp(order.createdDate)}</span>
+                <span className="text-gray-600 pr-1">Created</span>
+                <span>
+                  <span>:</span>
+                  <span>{formatTimestamp(order.createdDate)}</span>
+                </span>
               </div>
               {order.branchCode && (
                 <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Branch:</span>
-                  <span className="font-medium">
-                    {getBranchName(order.branchCode)}
+                  <span className="text-gray-600 pr-1">Branch</span>
+                  <span>
+                    <span>:</span>
+                    <span className="font-medium">
+                      {getBranchName(order.branchCode)}
+                    </span>
                   </span>
                 </div>
               )}
               <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-600 pr-1">Supplier:</span>
-                <span className="font-medium">{pabrikLabel}</span>
+                <span className="text-gray-600 pr-1">Supplier</span>
+                <span>
+                  <span>:</span>
+                  <span className="font-medium">{pabrikLabel}</span>
+                </span>
               </div>
               <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-600 pr-1">ETA:</span>
-                <span>{formatDate(order.waktuKirim)}</span>
+                <span className="text-gray-600 pr-1">ETA</span>
+                <span>
+                  <span>:</span>
+                  <span>{formatDate(order.waktuKirim)}</span>
+                </span>
               </div>
               <div className="grid grid-cols-5 gap-x-3 items-center">
-                <span className="text-gray-600 pr-1">Status:</span>
-                <span
-                  className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium w-fit`}
-                >
-                  {currentOrder.status}
+                <span className="text-gray-600 pr-1">Status</span>
+                <span>
+                  <span>:</span>
+                  <span
+                    className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium w-fit`}
+                  >
+                    {currentOrder.status}
+                  </span>
                 </span>
               </div>
             </div>
           </div>
         </div>
-      </Card>
 
       {/* Supplier Revision Review - shown for Sales/JB when supplier has proposed changes */}
       {(userRole === "sales" || userRole === "jb") &&
@@ -853,115 +871,21 @@ export function OrderDetails({
           );
         })()}
 
-      {/* Order Items Card */}
+      {/* Order Items */}
       {currentOrder.status !== "Change Pending Approval" && (
-        <DetailItemsTable
-          items={order.detailItems}
-          mode="readonly"
-          getKadarColor={getKadarColor}
-          getWarnaColor={getWarnaColor}
-          getWarnaLabel={getWarnaLabel}
-          getUkuranLabel={(ukuran) => {
-            const display = getUkuranDisplay(ukuran);
-            return display.showUnit ? `${display.value} cm` : display.value;
-          }}
-          title="Order Items"
-        />
-      )}
-
-      {/* Supplier Action Buttons */}
-      {userRole === "supplier" &&
-        (currentOrder.status === "New Order" ||
-          currentOrder.status === "Viewed") && (
-          <div className="flex gap-2 flex-wrap justify-end mt-6">
-            <Button
-              onClick={() =>
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "In Production",
-                  "You've marked the Order as In Production",
-                )
-              }
-              className="bg-yellow-500 hover:bg-yellow-600 text-white"
-            >
-              Start Production
-            </Button>
-            <Button
-              onClick={() =>
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "Stock Ready",
-                  "You've marked the Order as Ready Stock",
-                )
-              }
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              Mark Stock Ready
-            </Button>
-            <Button
-              onClick={() => onUpdateOrder?.(currentOrder)}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              Request Change
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() =>
-                handleUpdateStatus(currentOrder.id, "Unable to Fulfill")
-              }
-            >
-              Unable to Fulfill
-            </Button>
-          </div>
-        )}
-
-      {/* Supplier Action Buttons - In Production / Stock Ready */}
-      {userRole === "supplier" &&
-        (currentOrder.status === "In Production" ||
-          currentOrder.status === "Stock Ready") && (
-          <div className="flex gap-2 flex-wrap justify-end mt-6">
-            <Button
-              onClick={() => setShowShippingDialog(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Submit Shipping
-            </Button>
-          </div>
-        )}
-
-      {/* Supplier Action Buttons - Order Revised */}
-      {userRole === "supplier" && currentOrder.status === "Order Revised" && (
-        <div className="flex gap-2 flex-wrap justify-end mt-6">
-          <Button
-            onClick={() =>
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "In Production",
-                "You've marked the Order as In Production",
-              )
-            }
-            className="bg-yellow-500 hover:bg-yellow-600 text-white"
-          >
-            Start Production
-          </Button>
-          <Button
-            onClick={() =>
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "Stock Ready",
-                "You've marked the Order as Ready Stock",
-              )
-            }
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            Mark Stock Ready
-          </Button>
-          <Button
-            onClick={() => onUpdateOrder?.(currentOrder)}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-          >
-            Request Change
-          </Button>
+        <div className="border-t pt-4 mt-4">
+          <DetailItemsTable
+            items={order.detailItems}
+            mode="readonly"
+            getKadarColor={getKadarColor}
+            getWarnaColor={getWarnaColor}
+            getWarnaLabel={getWarnaLabel}
+            getUkuranLabel={(ukuran) => {
+              const display = getUkuranDisplay(ukuran);
+              return display.showUnit ? `${display.value} cm` : display.value;
+            }}
+            title="Order Items"
+          />
         </div>
       )}
 
@@ -971,10 +895,10 @@ export function OrderDetails({
         currentOrder.status === "Change Pending Approval") &&
         currentOrder.revisionHistory &&
         currentOrder.revisionHistory.length > 0 && (
-          <Card className="p-4 mb-4">
+          <div className="border-t pt-4 mt-4">
             <button
               onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
-              className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
+              className="w-full flex items-center justify-between hover:bg-gray-50 py-1 rounded-lg transition-colors"
             >
               <h3 className="font-semibold text-gray-900">Revision History</h3>
               {isRevisionHistoryOpen ? (
@@ -1597,7 +1521,7 @@ export function OrderDetails({
                 </div>
               </div>
             )}
-          </Card>
+          </div>
         )}
 
       {/* Request Revision History - visible to non-supplier users when linked request has revisions */}
@@ -1605,12 +1529,12 @@ export function OrderDetails({
         relatedRequest &&
         relatedRequest.revisionHistory &&
         relatedRequest.revisionHistory.length > 0 && (
-          <Card className="p-4 mb-4">
+          <div className="border-t pt-4 mt-4">
             <button
               onClick={() =>
                 setIsRequestRevisionHistoryOpen(!isRequestRevisionHistoryOpen)
               }
-              className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
+              className="w-full flex items-center justify-between hover:bg-gray-50 py-1 rounded-lg transition-colors"
             >
               <h3 className="font-semibold text-gray-900">
                 Request Revision History
@@ -2100,8 +2024,105 @@ export function OrderDetails({
                 </div>
               </div>
             )}
-          </Card>
+          </div>
         )}
+      </Card>
+
+      {/* Supplier Action Buttons */}
+      {userRole === "supplier" &&
+        (currentOrder.status === "New Order" ||
+          currentOrder.status === "Viewed") && (
+          <div className="flex gap-2 flex-wrap justify-end mt-4">
+            <Button
+              onClick={() =>
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "In Production",
+                  "You've marked the Order as In Production",
+                )
+              }
+              className="bg-yellow-500 hover:bg-yellow-600 text-white"
+            >
+              Start Production
+            </Button>
+            <Button
+              onClick={() =>
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Stock Ready",
+                  "You've marked the Order as Ready Stock",
+                )
+              }
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Mark Stock Ready
+            </Button>
+            <Button
+              onClick={() => onUpdateOrder?.(currentOrder)}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              Request Change
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                handleUpdateStatus(currentOrder.id, "Unable to Fulfill")
+              }
+            >
+              Unable to Fulfill
+            </Button>
+          </div>
+        )}
+
+      {/* Supplier Action Buttons - In Production / Stock Ready */}
+      {userRole === "supplier" &&
+        (currentOrder.status === "In Production" ||
+          currentOrder.status === "Stock Ready") && (
+          <div className="flex gap-2 flex-wrap justify-end mt-4">
+            <Button
+              onClick={() => setShowShippingDialog(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Submit Shipping
+            </Button>
+          </div>
+        )}
+
+      {/* Supplier Action Buttons - Order Revised */}
+      {userRole === "supplier" && currentOrder.status === "Order Revised" && (
+        <div className="flex gap-2 flex-wrap justify-end mt-4">
+          <Button
+            onClick={() =>
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "In Production",
+                "You've marked the Order as In Production",
+              )
+            }
+            className="bg-yellow-500 hover:bg-yellow-600 text-white"
+          >
+            Start Production
+          </Button>
+          <Button
+            onClick={() =>
+              handleUpdateStatusWithToast(
+                currentOrder.id,
+                "Stock Ready",
+                "You've marked the Order as Ready Stock",
+              )
+            }
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            Mark Stock Ready
+          </Button>
+          <Button
+            onClick={() => onUpdateOrder?.(currentOrder)}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Request Change
+          </Button>
+        </div>
+      )}
 
       {/* Review Action Buttons - Only shown in review mode */}
       {reviewMode && onApproveRevision && onCancelOrder && (

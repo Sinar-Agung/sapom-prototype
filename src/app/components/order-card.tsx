@@ -17,7 +17,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ChevronDown, ChevronRight, ClipboardCheck, Copy } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardCheck, Copy, Edit, Trash2 } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { NewBadge } from "./new-badge";
 import { Badge } from "./ui/badge";
@@ -61,6 +61,9 @@ interface OrderCardProps {
   onSeeDetail?: (order: Order) => void;
   onUpdateOrder?: (order: Order) => void;
   onDuplicateOrder?: (order: Order) => void;
+  onCancelOrder?: (id: string) => void;
+  onEditOrder?: (order: Order) => void;
+  activeTab?: string;
   currentUser?: string;
   userRole?: "sales" | "jb" | "supplier" | "stockist";
 }
@@ -72,6 +75,9 @@ export function OrderCard({
   onSeeDetail,
   onUpdateOrder,
   onDuplicateOrder,
+  onCancelOrder,
+  onEditOrder,
+  activeTab,
   currentUser,
   userRole,
 }: OrderCardProps) {
@@ -228,46 +234,79 @@ export function OrderCard({
 
           {/* Order Information Grid - All fields in one consistent grid */}
           <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
-            {/* PO Number */}
-            <div className="grid grid-cols-5 gap-x-3">
-              <span className="text-gray-500">PO Number:</span>
-              <span className="font-mono font-semibold text-blue-700">
-                {order.PONumber}
-              </span>
-            </div>
+            {/* PO Number - only show when available */}
+            {order.PONumber && (
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">PO Number</span>
+                <span>
+                  <span>:</span>
+                  <span className="font-mono font-semibold text-blue-700">
+                    {order.PONumber}
+                  </span>
+                </span>
+              </div>
+            )}
+
+            {/* Request No - for Sales/JB when status is Open or JB Verifying */}
+            {(userRole === "sales" || userRole === "jb") &&
+              order.requestNo &&
+              ((order.status as string) === "Open" ||
+                (order.status as string) === "JB Verifying") && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-500">Request No</span>
+                  <span>
+                    <span>:</span>
+                    <span className="font-mono text-gray-700">
+                      {order.requestNo}
+                    </span>
+                  </span>
+                </div>
+              )}
 
             {/* Updated Date */}
             <div className="grid grid-cols-5 gap-x-3">
-              <span className="text-gray-500">Updated:</span>
-              <span className="font-medium">
-                {formatTimestampWithTime(
-                  order.updatedDate || order.createdDate,
-                ) || "-"}
+              <span className="text-gray-500">Updated</span>
+              <span>
+                <span>:</span>
+                <span className="font-medium">
+                  {formatTimestampWithTime(
+                    order.updatedDate || order.createdDate,
+                  ) || "-"}
+                </span>
               </span>
             </div>
 
             {/* Created Date */}
             <div className="grid grid-cols-5 gap-x-3">
-              <span className="text-gray-500">Created:</span>
+              <span className="text-gray-500">Created</span>
               <span>
-                {formatTimestamp(order.createdDate) || "-"}
+                <span>:</span>
+                <span>
+                  {formatTimestamp(order.createdDate) || "-"}
+                </span>
               </span>
             </div>
 
             {/* ETA */}
             <div className="grid grid-cols-5 gap-x-3">
-              <span className="text-gray-500">ETA:</span>
+              <span className="text-gray-500">ETA</span>
               <span>
-                {formatDate(order.waktuKirim) || "-"}
+                <span>:</span>
+                <span>
+                  {formatDate(order.waktuKirim) || "-"}
+                </span>
               </span>
             </div>
 
             {/* JB Name - Hidden for suppliers */}
             {userRole !== "supplier" && order.jbId && (
               <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-500">JB:</span>
-                <span className="text-gray-700">
-                  {getJBFullName(order.jbId)}
+                <span className="text-gray-500">JB</span>
+                <span>
+                  <span>:</span>
+                  <span className="text-gray-700">
+                    {getJBFullName(order.jbId)}
+                  </span>
                 </span>
               </div>
             )}
@@ -275,9 +314,12 @@ export function OrderCard({
             {/* Sales Name - Hidden for suppliers */}
             {/* {userRole !== "supplier" && order.sales && (
               <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-500">Sales:</span>
-                <span className="text-gray-700">
-                  {getFullNameFromUsername(order.sales)}
+                <span className="text-gray-500">Sales</span>
+                <span>
+                  <span>:</span>
+                  <span className="text-gray-700">
+                    {getFullNameFromUsername(order.sales)}
+                  </span>
                 </span>
               </div>
             )} */}
@@ -285,21 +327,27 @@ export function OrderCard({
             {/* Customer Name - Hidden for suppliers */}
             {userRole !== "supplier" && order.atasNama && (
               <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-500">Customer Name:</span>
-                <span className="text-gray-700">{order.atasNama}</span>
+                <span className="text-gray-500">Customer Name</span>
+                <span>
+                  <span>:</span>
+                  <span className="text-gray-700">{order.atasNama}</span>
+                </span>
               </div>
             )}
 
             {/* Supplier - Hidden for suppliers */}
             {userRole !== "supplier" && (
               <div className="grid grid-cols-5 gap-x-3 items-center">
-                <span className="text-gray-500">Supplier:</span>
-                <Badge
-                  variant="secondary"
-                  className={`${getPabrikColor(pabrikLabel)}`}
-                >
-                  {pabrikLabel}
-                </Badge>
+                <span className="text-gray-500">Supplier</span>
+                <span>
+                  <span>:</span>
+                  <Badge
+                    variant="secondary"
+                    className={`${getPabrikColor(pabrikLabel)}`}
+                  >
+                    {pabrikLabel}
+                  </Badge>
+                </span>
               </div>
             )}
           </div>
@@ -308,27 +356,10 @@ export function OrderCard({
           {(onToggleExpand ||
             onSeeDetail ||
             onUpdateOrder ||
-            onDuplicateOrder) && (
+            onDuplicateOrder ||
+            onCancelOrder ||
+            onEditOrder) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
-              {/* Update Order Button - Only if not JB */}
-              {onUpdateOrder && userRole !== "jb" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      onClick={() => onUpdateOrder(order)}
-                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                    >
-                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Update Order</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Update order details</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
               {/* Show/Hide Items Button */}
               {onToggleExpand && (
                 <Tooltip>
@@ -356,6 +387,74 @@ export function OrderCard({
                     <p>
                       {isExpanded ? "Hide order items" : "Show order items"}
                     </p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Cancel Button - for Sales when Open or JB Verifying */}
+              {onCancelOrder &&
+                userRole === "sales" &&
+                (activeTab === "open" ||
+                  (activeTab === "internal" &&
+                    ((order.status as string) === "Open" ||
+                      (order.status as string) === "JB Verifying"))) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onCancelOrder(order.id)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Cancel</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Cancel this request</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Edit Button - for Sales when Open only */}
+              {onEditOrder &&
+                userRole === "sales" &&
+                (activeTab === "open" ||
+                  (activeTab === "internal" &&
+                    (order.status as string) === "Open")) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEditOrder(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                    >
+                      <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Edit this request</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Update Order Button - Only if not JB */}
+              {onUpdateOrder && userRole !== "jb" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      onClick={() => onUpdateOrder(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                    >
+                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Update Order</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Update order details</p>
                   </TooltipContent>
                 </Tooltip>
               )}

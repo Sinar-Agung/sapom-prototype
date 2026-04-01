@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+### Changed
+
+**Order Details Page — Fully Merged into Single Card**: Header, Order Items, and Revision History combined
+
+- Header info, Order Items (`DetailItemsTable`), Revision History, and Request Revision History all inside one `<Card className="p-4 mb-4">`
+- Each section separated by `border-t pt-4 mt-4` dividers (replaced per-section Cards)
+- Supplier Revision Review (Change Pending Approval) remains its own orange-tinted card between header and items
+- All action buttons (Supplier: Start Production, Mark Stock Ready, Request Change, Unable to Fulfill, Submit Shipping) moved to **below** the merged card
+- Updated: `order-details.tsx`
+
+**OrderCard — Show Items Button Moved to First Position**
+
+- Show Items / Hide Items toggle button is now the leftmost button in the action row
+- Previously appeared after Cancel and Edit buttons
+- Updated: `order-card.tsx`
+
+**OrderCard — Request No / PO Number Visibility**
+
+- Request No now shown whenever `order.requestNo` is present (removed role + status restriction)
+- PO Number continues to show whenever `order.PONumber` is present
+- Both fields are purely availability-based; no role or status gating
+- Updated: `order-card.tsx`
+
+**unified-orders — Closed Tab Uses OrderCard for Rejected/Cancelled/Expired Requests**
+
+- For `sales` and `jb` roles in the Closed tab, requests with status `"Rejected"`, `"Cancelled"`, or `"Request Expired"` now render as `<OrderCard>` (via `requestToOrder()` adapter) instead of `<RequestCard>`
+- No Cancel or Edit buttons shown (terminal statuses); only `onSeeDetail` is wired
+- Updated: `unified-orders.tsx`
+
 ### Added
 
 **"Ordered" Tab in My Requests**: New tab for Sales and Stockist roles

@@ -50,7 +50,10 @@
     "notifications": "Notifications",
     "inbound": "Inbound",
     "questions": "Inquiry",
-    "newRequest": "New Request"
+    "newRequest": "New Request",
+    "salesOrders": "Sales Orders",
+    "jbOrders": "JB Orders",
+    "supplierOrders": "Supplier Orders"
   },
   "settings": {
     "title": "Settings",
