@@ -11,7 +11,6 @@ import {
 import { getBranchName, getFullNameFromUsername } from "../utils/user-data";
 import { FilterSortControls } from "./filter-sort-controls";
 import { OrderCard } from "./order-card";
-import { RequestCard } from "./request-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +58,7 @@ function requestToOrder(request: Request): Order {
     status: request.status as any,
     photoId: request.photoId,
     viewedBy: request.viewedBy || [],
+    rejectionReason: request.rejectionReason,
   };
 }
 
@@ -945,113 +945,43 @@ export function UnifiedOrders({
                 {displayedItems.map((item) => {
                   if (item.type === "request") {
                     const request = item.data as Request;
-
-                    // Use OrderCard for Open/JB Verifying requests in internal tab
-                    if (
-                      (userRole === "sales" || userRole === "jb") &&
-                      activeTab === "internal" &&
-                      (request.status === "Open" ||
-                        request.status === "JB Verifying")
-                    ) {
-                      const orderData = requestToOrder(request);
-                      return (
-                        <OrderCard
-                          key={request.id}
-                          order={orderData}
-                          userRole={userRole}
-                          activeTab={activeTab}
-                          isExpanded={expandedOrderId === request.id}
-                          onToggleExpand={() => {
-                            toggleExpand(request.id);
-                            markAsViewed(request.id, "request");
-                          }}
-                          onCancelOrder={handleCancelRequest}
-                          onEditOrder={
-                            onEditRequest
-                              ? (_o) => onEditRequest(request)
-                              : undefined
-                          }
-                          onSeeDetail={
-                            onViewRequestDetails
-                              ? (_o) => onViewRequestDetails(request, activeTab)
-                              : userRole === "jb"
-                                ? (_o) =>
-                                    handleVerifyRequest(request, activeTab)
-                                : undefined
-                          }
-                          currentUser={currentUser}
-                        />
-                      );
-                    }
-
-                    // Use OrderCard for Rejected/Cancelled/Request Expired requests in closed tab
-                    if (
-                      (userRole === "sales" || userRole === "jb") &&
-                      activeTab === "closed" &&
-                      (request.status === "Rejected" ||
-                        request.status === "Cancelled" ||
-                        request.status === "Request Expired")
-                    ) {
-                      const orderData = requestToOrder(request);
-                      return (
-                        <OrderCard
-                          key={request.id}
-                          order={orderData}
-                          userRole={userRole}
-                          activeTab={activeTab}
-                          isExpanded={expandedOrderId === request.id}
-                          onToggleExpand={() => {
-                            toggleExpand(request.id);
-                            markAsViewed(request.id, "request");
-                          }}
-                          onSeeDetail={
-                            onViewRequestDetails
-                              ? (_o) => onViewRequestDetails(request, activeTab)
-                              : userRole === "jb"
-                                ? (_o) =>
-                                    handleVerifyRequest(request, activeTab)
-                                : undefined
-                          }
-                          currentUser={currentUser}
-                        />
-                      );
-                    }
+                    const orderData = requestToOrder(request);
+                    const effectiveRole =
+                      userRole === "personal"
+                        ? "sales"
+                        : userRole === "supplier"
+                          ? "jb"
+                          : userRole;
 
                     return (
-                      <RequestCard
+                      <OrderCard
                         key={request.id}
-                        order={request}
-                        userRole={
-                          userRole === "personal"
-                            ? "sales"
-                            : userRole === "supplier"
-                              ? "jb"
-                              : userRole
-                        }
+                        order={orderData}
+                        userRole={effectiveRole}
                         activeTab={activeTab}
                         isExpanded={expandedOrderId === request.id}
                         onToggleExpand={() => {
                           toggleExpand(request.id);
                           markAsViewed(request.id, "request");
                         }}
-                        onEditOrder={onEditRequest}
-                        onDuplicateOrder={
-                          onDuplicateRequest
-                            ? (req) => onDuplicateRequest(req, activeTab)
+                        onCancelOrder={handleCancelRequest}
+                        onEditOrder={
+                          onEditRequest
+                            ? (_o) => onEditRequest(request)
                             : undefined
                         }
-                        onCancelOrder={handleCancelRequest}
-                        onViewRequestDetails={
-                          onViewRequestDetails
-                            ? (req) => onViewRequestDetails(req, activeTab)
+                        onDuplicateOrder={
+                          onDuplicateRequest
+                            ? (_o) => onDuplicateRequest(request, activeTab)
                             : undefined
                         }
                         onSeeDetail={
                           onViewRequestDetails
-                            ? (req) => onViewRequestDetails(req, activeTab)
+                            ? (_o) =>
+                                onViewRequestDetails(request, activeTab)
                             : userRole === "jb"
-                              ? (req: Request) =>
-                                  handleVerifyRequest(req, activeTab)
+                              ? (_o) =>
+                                  handleVerifyRequest(request, activeTab)
                               : undefined
                         }
                         currentUser={currentUser}

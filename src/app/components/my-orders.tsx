@@ -1,13 +1,50 @@
-import { useImageMap } from "@/app/utils/image-storage";
 import { getCurrentUserDetails } from "@/app/utils/user-data";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Request } from "../types/request";
+import { Order } from "../types/order";
+import { EntityReference, Request } from "../types/request";
 import { notifyRequestCancelled } from "../utils/notification-helper";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
-import { RequestCard } from "./request-card";
+import { OrderCard } from "./order-card";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+
+// Convert a Request to an Order-compatible structure for rendering with OrderCard
+function requestToOrder(request: Request): Order {
+  const pabrik: EntityReference =
+    typeof request.pabrik === "string"
+      ? { id: "", name: request.pabrik }
+      : (request.pabrik as EntityReference) || { id: "", name: "Unknown" };
+
+  return {
+    id: request.id,
+    PONumber: "",
+    requestNo: request.requestNo,
+    requestId: request.id,
+    sales: request.createdBy,
+    atasNama:
+      typeof request.namaPelanggan === "string"
+        ? request.namaPelanggan
+        : (request.namaPelanggan as EntityReference)?.name || "",
+    createdDate: request.timestamp,
+    createdBy: request.createdBy || "",
+    updatedDate: request.updatedDate,
+    jbId: "",
+    branchCode: request.branchCode,
+    pabrik,
+    kategoriBarang: request.kategoriBarang,
+    jenisProduk: request.jenisProduk,
+    namaProduk: request.namaProduk || "",
+    namaBasic: request.namaBasic || "",
+    waktuKirim: request.waktuKirim || "",
+    customerExpectation: request.customerExpectation || "",
+    detailItems: request.detailItems || [],
+    status: request.status as any,
+    photoId: request.photoId,
+    viewedBy: request.viewedBy || [],
+    rejectionReason: request.rejectionReason,
+  };
+}
 
 interface MyOrdersProps {
   onEditOrder?: (order: Request) => void;
@@ -486,41 +523,35 @@ export function MyOrders({
     return `${dateStr} ${timeStr}`;
   };
 
-  const imageMap = useImageMap(orders.map((o) => o.photoId));
-
-  const getOrderImage = (order: Request) => {
-    if (order.kategoriBarang === "basic" && order.namaBasic) {
-      return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
-    } else if (order.kategoriBarang === "model") {
-      if (order.photoId) {
-        const stored = imageMap.get(order.photoId);
-        if (stored) return stored;
-      }
-      if (order.fotoBarangBase64) return order.fotoBarangBase64;
-    }
-    return italySanta; // Default fallback
-  };
-
   const renderOrderCard = (order: Request) => {
     const isExpanded = expandedOrderId === order.id;
-
-    // Check if we should show sales name (show if order is NOT created by current user)
-    const showSalesName = order.createdBy && order.createdBy !== currentUser;
+    const showSalesName = !!(order.createdBy && order.createdBy !== currentUser);
+    const orderData = requestToOrder(order);
 
     return (
-      <RequestCard
+      <OrderCard
         key={order.id}
-        order={order}
+        order={orderData}
         userRole={userRole}
         showSalesName={showSalesName}
         activeTab={activeTab}
         isExpanded={isExpanded}
         onToggleExpand={() => toggleExpand(order.id)}
-        onEditOrder={onEditOrder}
-        onDuplicateOrder={onDuplicateOrder}
+        onEditOrder={
+          onEditOrder ? (_o) => onEditOrder(order) : undefined
+        }
+        onDuplicateOrder={
+          onDuplicateOrder ? (_o) => onDuplicateOrder(order) : undefined
+        }
         onCancelOrder={cancelOrder}
-        onViewRequestDetails={onViewRequestDetails}
-        onSeeDetail={onSeeDetail}
+        onSeeDetail={
+          onSeeDetail
+            ? (_o) => onSeeDetail(order, activeTab)
+            : onViewRequestDetails
+              ? (_o) => onViewRequestDetails(order, activeTab)
+              : undefined
+        }
+        currentUser={currentUser}
       />
     );
   };

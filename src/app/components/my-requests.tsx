@@ -1,12 +1,49 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Request } from "../types/request";
-import { useImageMap } from "../utils/image-storage";
+import { Order } from "../types/order";
+import { EntityReference, Request } from "../types/request";
 import { notifyRequestCancelled } from "../utils/notification-helper";
 import { getCurrentUserDetails } from "../utils/user-data";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
-import { RequestCard } from "./request-card";
+import { OrderCard } from "./order-card";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+
+// Convert a Request to an Order-compatible structure for rendering with OrderCard
+function requestToOrder(request: Request): Order {
+  const pabrik: EntityReference =
+    typeof request.pabrik === "string"
+      ? { id: "", name: request.pabrik }
+      : (request.pabrik as EntityReference) || { id: "", name: "Unknown" };
+
+  return {
+    id: request.id,
+    PONumber: "",
+    requestNo: request.requestNo,
+    requestId: request.id,
+    sales: request.createdBy,
+    atasNama:
+      typeof request.namaPelanggan === "string"
+        ? request.namaPelanggan
+        : (request.namaPelanggan as EntityReference)?.name || "",
+    createdDate: request.timestamp,
+    createdBy: request.createdBy || "",
+    updatedDate: request.updatedDate,
+    jbId: "",
+    branchCode: request.branchCode,
+    pabrik,
+    kategoriBarang: request.kategoriBarang,
+    jenisProduk: request.jenisProduk,
+    namaProduk: request.namaProduk || "",
+    namaBasic: request.namaBasic || "",
+    waktuKirim: request.waktuKirim || "",
+    customerExpectation: request.customerExpectation || "",
+    detailItems: request.detailItems || [],
+    status: request.status as any,
+    photoId: request.photoId,
+    viewedBy: request.viewedBy || [],
+    rejectionReason: request.rejectionReason,
+  };
+}
 
 interface MyOrdersProps {
   onEditOrder?: (order: Request) => void;
@@ -570,64 +607,45 @@ export function MyOrders({
     return `${dateStr} ${timeStr}`;
   };
 
-  const imageMap = useImageMap(orders.map((o) => o.photoId));
-
-  const getOrderImage = (order: Request) => {
-    if (order.kategoriBarang === "basic" && order.namaBasic) {
-      return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
-    } else if (order.kategoriBarang === "model") {
-      if (order.photoId) {
-        const stored = imageMap.get(order.photoId);
-        if (stored) return stored;
-      }
-      if (order.fotoBarangBase64) return order.fotoBarangBase64;
-    }
-    return italySanta; // Default fallback
-  };
-
   const renderOrderCard = (order: Request) => {
     const isExpanded = expandedOrderId === order.id;
+    const showSalesName = !!(order.createdBy && order.createdBy !== currentUser);
+    const orderData = requestToOrder(order);
 
-    // Check if we should show sales name (show if order is NOT created by current user)
-    const showSalesName = order.createdBy && order.createdBy !== currentUser;
-
-    // Wrap onViewRequestDetails to mark as viewed
-    const handleViewRequestDetails = onViewRequestDetails
-      ? (order: Request, tab: string) => {
-          markRequestAsViewed(order.id);
-          onViewRequestDetails(order, tab);
-        }
-      : undefined;
-
-    // Wrap onSeeDetail to mark as viewed
+    // Wrap callbacks to mark as viewed
     const handleSeeDetail = onSeeDetail
-      ? (order: Request, tab: string) => {
+      ? (_o: Order) => {
           markRequestAsViewed(order.id);
-          onSeeDetail(order, tab);
+          onSeeDetail(order, activeTab);
         }
-      : undefined;
+      : onViewRequestDetails
+        ? (_o: Order) => {
+            markRequestAsViewed(order.id);
+            onViewRequestDetails(order, activeTab);
+          }
+        : undefined;
 
-    // Wrap onDuplicateOrder to mark as viewed
     const handleDuplicateOrder = onDuplicateOrder
-      ? (order: Request) => {
+      ? (_o: Order) => {
           markRequestAsViewed(order.id);
           onDuplicateOrder(order);
         }
       : undefined;
 
     return (
-      <RequestCard
+      <OrderCard
         key={order.id}
-        order={order}
+        order={orderData}
         userRole={userRole}
         showSalesName={showSalesName}
         activeTab={activeTab}
         isExpanded={isExpanded}
         onToggleExpand={() => toggleExpand(order.id)}
-        onEditOrder={onEditOrder}
+        onEditOrder={
+          onEditOrder ? (_o) => onEditOrder(order) : undefined
+        }
         onDuplicateOrder={handleDuplicateOrder}
         onCancelOrder={cancelOrder}
-        onViewRequestDetails={handleViewRequestDetails}
         onSeeDetail={handleSeeDetail}
         currentUser={currentUser}
       />

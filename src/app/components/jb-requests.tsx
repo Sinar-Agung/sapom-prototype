@@ -1,10 +1,48 @@
 import { getCurrentUserDetails } from "@/app/utils/user-data";
 import { useEffect, useState } from "react";
-import { Request } from "../types/request";
+import { Order } from "../types/order";
+import { EntityReference, Request } from "../types/request";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
-import { RequestCard } from "./request-card";
+import { OrderCard } from "./order-card";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+
+// Convert a Request to an Order-compatible structure for rendering with OrderCard
+function requestToOrder(request: Request): Order {
+  const pabrik: EntityReference =
+    typeof request.pabrik === "string"
+      ? { id: "", name: request.pabrik }
+      : (request.pabrik as EntityReference) || { id: "", name: "Unknown" };
+
+  return {
+    id: request.id,
+    PONumber: "",
+    requestNo: request.requestNo,
+    requestId: request.id,
+    sales: request.createdBy,
+    atasNama:
+      typeof request.namaPelanggan === "string"
+        ? request.namaPelanggan
+        : (request.namaPelanggan as EntityReference)?.name || "",
+    createdDate: request.timestamp,
+    createdBy: request.createdBy || "",
+    updatedDate: request.updatedDate,
+    jbId: "",
+    branchCode: request.branchCode,
+    pabrik,
+    kategoriBarang: request.kategoriBarang,
+    jenisProduk: request.jenisProduk,
+    namaProduk: request.namaProduk || "",
+    namaBasic: request.namaBasic || "",
+    waktuKirim: request.waktuKirim || "",
+    customerExpectation: request.customerExpectation || "",
+    detailItems: request.detailItems || [],
+    status: request.status as any,
+    photoId: request.photoId,
+    viewedBy: request.viewedBy || [],
+    rejectionReason: request.rejectionReason,
+  };
+}
 
 interface JBRequestsProps {
   onSeeDetail?: (order: Request, currentTab: string) => void;
@@ -331,19 +369,20 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
               <div className="space-y-3 pb-4">
                 {filteredOrders.map((order) => {
                   const isExpanded = expandedOrderId === order.id;
+                  const orderData = requestToOrder(order);
                   
                   // Wrap onSeeDetail to mark as viewed
                   const handleSeeDetail = onSeeDetail
-                    ? (order: Request, tab: string) => {
+                    ? (_o: Order) => {
                         markRequestAsViewed(order.id);
-                        onSeeDetail(order, tab);
+                        onSeeDetail(order, activeTab);
                       }
                     : undefined;
                   
                   return (
-                    <RequestCard
+                    <OrderCard
                       key={order.id}
-                      order={order}
+                      order={orderData}
                       userRole="jb"
                       activeTab={activeTab}
                       isExpanded={isExpanded}

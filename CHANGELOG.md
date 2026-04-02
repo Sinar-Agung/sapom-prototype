@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+### Changed
+
+**Unified Card Component — OrderCard replaces RequestCard**
+
+- Migrated all views (unified-orders, my-orders, my-requests, jb-requests) to use `OrderCard` exclusively
+- `RequestCard` is no longer imported anywhere; `OrderCard` now handles both Request and Order display
+- Added `requestToOrder()` adapter function to convert Request data for OrderCard consumption
+- OrderCard now includes: Sales name field, Branch display, Rejection reason for rejected items
+- Cancel/Edit buttons are now purely status-based (not tab-dependent), ensuring consistent behavior
+- Duplicate button now available on all tabs (Internal, Closed) for Sales users
+- Added `rejectionReason` field to Order type
+- See Details button uses Eye icon; JB gets "Write Order" text variant
+
 ### Added
 
 **ETA Calendar View for Sales & JB**

@@ -8,6 +8,7 @@ import { Order } from "@/app/types/order";
 import { getImage } from "@/app/utils/image-storage";
 import { formatRelativeTime } from "@/app/utils/relative-time";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -23,6 +24,7 @@ import {
   ClipboardCheck,
   Copy,
   Edit,
+  Eye,
   Trash2,
 } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
@@ -73,6 +75,7 @@ interface OrderCardProps {
   activeTab?: string;
   currentUser?: string;
   userRole?: "sales" | "jb" | "supplier" | "stockist";
+  showSalesName?: boolean;
 }
 
 export function OrderCard({
@@ -87,6 +90,7 @@ export function OrderCard({
   activeTab,
   currentUser,
   userRole,
+  showSalesName,
 }: OrderCardProps) {
   // Check if current user has viewed this order
   const isUnviewed = currentUser && !order.viewedBy?.includes(currentUser);
@@ -263,19 +267,16 @@ export function OrderCard({
               </>
             )}
 
-            {/* Request No - for Sales/JB when status is Open or JB Verifying */}
-            {(userRole === "sales" || userRole === "jb") &&
-              order.requestNo &&
-              ((order.status as string) === "Open" ||
-                (order.status as string) === "JB Verifying") && (
-                <>
-                  <span className="text-gray-500">Request No</span>
-                  <span>:</span>
-                  <span className="font-mono text-gray-700">
-                    {order.requestNo}
-                  </span>
-                </>
-              )}
+            {/* Request No - show when available and no PO Number yet */}
+            {!order.PONumber && order.requestNo && (
+              <>
+                <span className="text-gray-500">Request No</span>
+                <span>:</span>
+                <span className="font-mono text-gray-700">
+                  {order.requestNo}
+                </span>
+              </>
+            )}
 
             {/* Updated Date */}
             <span className="text-gray-500">Updated</span>
@@ -307,16 +308,20 @@ export function OrderCard({
               </>
             )}
 
-            {/* Sales Name - Hidden for suppliers */}
-            {/* {userRole !== "supplier" && order.sales && (
-              <>
-                <span className="text-gray-500">Sales</span>
-                <span>:</span>
-                <span className="text-gray-700">
-                  {getFullNameFromUsername(order.sales)}
-                </span>
-              </>
-            )} */}
+            {/* Sales Name - for JB/stockist, or when showSalesName is set */}
+            {userRole !== "supplier" &&
+              order.sales &&
+              (userRole === "jb" ||
+                userRole === "stockist" ||
+                showSalesName) && (
+                <>
+                  <span className="text-gray-500">Sales</span>
+                  <span>:</span>
+                  <span className="text-gray-700">
+                    {getFullNameFromUsername(order.sales)}
+                  </span>
+                </>
+              )}
 
             {/* Customer Name - Hidden for suppliers */}
             {userRole !== "supplier" && order.atasNama && (
@@ -340,7 +345,27 @@ export function OrderCard({
                 </Badge>
               </>
             )}
+
+            {/* Branch - show when available */}
+            {order.branchCode && (
+              <>
+                <span className="text-gray-500">Branch</span>
+                <span>:</span>
+                <span className="font-medium text-gray-700">
+                  {getBranchName(order.branchCode)}
+                </span>
+              </>
+            )}
           </div>
+
+          {/* Reason of Rejection - only for Rejected status */}
+          {(order.status as string) === "Rejected" &&
+            order.rejectionReason && (
+              <p className="text-[11px] sm:text-sm text-red-700 bg-red-50 rounded px-2 py-1 mb-2 sm:mb-3">
+                <span className="font-medium">Reason of Rejection: </span>
+                {order.rejectionReason}
+              </p>
+            )}
 
           {/* Action Buttons */}
           {(onToggleExpand ||
@@ -384,10 +409,8 @@ export function OrderCard({
               {/* Cancel Button - for Sales when Open or JB Verifying */}
               {onCancelOrder &&
                 userRole === "sales" &&
-                (activeTab === "open" ||
-                  (activeTab === "internal" &&
-                    ((order.status as string) === "Open" ||
-                      (order.status as string) === "JB Verifying"))) && (
+                ((order.status as string) === "Open" ||
+                  (order.status as string) === "JB Verifying") && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -409,9 +432,7 @@ export function OrderCard({
               {/* Edit Button - for Sales when Open only */}
               {onEditOrder &&
                 userRole === "sales" &&
-                (activeTab === "open" ||
-                  (activeTab === "internal" &&
-                    (order.status as string) === "Open")) && (
+                (order.status as string) === "Open" && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -459,12 +480,20 @@ export function OrderCard({
                       onClick={() => onSeeDetail(order)}
                       className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
                     >
-                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">See Details</span>
+                      <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">
+                        {userRole === "jb" && activeTab === "assigned"
+                          ? "Write Order"
+                          : "See Details"}
+                      </span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>See Details</p>
+                    <p>
+                      {userRole === "jb" && activeTab === "assigned"
+                        ? "Create order for this request"
+                        : "See Details"}
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               )}
