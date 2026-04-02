@@ -7,7 +7,7 @@ import {
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
-import { getImage } from "@/app/utils/image-storage";
+import { useImageMap } from "@/app/utils/image-storage";
 import {
   getBranchName,
   getCurrentUserDetails,
@@ -152,9 +152,11 @@ export function StockistHome({
     });
   };
 
+  const imageMap = useImageMap(openRequests.map((r) => r.photoId));
+
   const getOrderImage = (order: Request) => {
     if (order.photoId) {
-      const storedImage = getImage(order.photoId);
+      const storedImage = imageMap.get(order.photoId);
       if (storedImage) return storedImage;
     }
     if (order.kategoriBarang === "basic" && order.namaBasic) {

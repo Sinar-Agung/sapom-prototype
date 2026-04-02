@@ -83,6 +83,7 @@ export interface Notification {
   // Status
   readBy: string[]; // Array of usernames who have read this notification
   removedBy?: string[]; // Array of usernames who have removed this notification from their view
+  archivedBy?: string[]; // Array of usernames who have manually archived this notification
 }
 
 export interface NotificationFilter {

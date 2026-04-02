@@ -1,4 +1,4 @@
-import { getImage } from "@/app/utils/image-storage";
+import { useImageMap } from "@/app/utils/image-storage";
 import { getCurrentUserDetails } from "@/app/utils/user-data";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -486,12 +486,14 @@ export function MyOrders({
     return `${dateStr} ${timeStr}`;
   };
 
+  const imageMap = useImageMap(orders.map((o) => o.photoId));
+
   const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     } else if (order.kategoriBarang === "model") {
       if (order.photoId) {
-        const stored = getImage(order.photoId);
+        const stored = imageMap.get(order.photoId);
         if (stored) return stored;
       }
       if (order.fotoBarangBase64) return order.fotoBarangBase64;

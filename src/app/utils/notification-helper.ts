@@ -252,8 +252,7 @@ export const upsertETAReminderForStockist = (
   if (daysToETA < 0 || daysToETA > 7) return; // Only remind within 7 days before ETA
 
   // Only for Open
-  if (request.status !== "Open")
-    return;
+  if (request.status !== "Open") return;
 
   // Remove any previous ETA reminder for this request and stockist
   let notifications = getAllNotifications();
@@ -341,9 +340,12 @@ export const getAllNotifications = (): Notification[] => {
 };
 
 // Save notifications to localStorage
+const MAX_NOTIFICATIONS = 500;
 const saveNotifications = (notifications: Notification[]) => {
-  // Sort by timestamp (newest first) before saving
-  const sorted = [...notifications].sort((a, b) => b.timestamp - a.timestamp);
+  // Sort by timestamp (newest first) before saving, then cap
+  const sorted = [...notifications]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, MAX_NOTIFICATIONS);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
 };
 
@@ -401,10 +403,7 @@ export const getNotificationsForUser = (
           );
           if (request) {
             // Stockist: only see Open
-            if (
-              userRole === "stockist" &&
-              request.status !== "Open"
-            ) {
+            if (userRole === "stockist" && request.status !== "Open") {
               return false;
             }
             // JB: only see Requested to JB (Assigned to JB)
@@ -584,6 +583,37 @@ export const removeNotificationForUser = (
       return {
         ...n,
         removedBy: [...(n.removedBy || []), username],
+      };
+    }
+    return n;
+  });
+  saveNotifications(updated);
+};
+
+export const archiveNotificationForUser = (
+  notificationId: string,
+  username: string,
+) => {
+  const notifications = getAllNotifications();
+  const updated = notifications.map((n) => {
+    if (n.id === notificationId && !n.archivedBy?.includes(username)) {
+      return { ...n, archivedBy: [...(n.archivedBy || []), username] };
+    }
+    return n;
+  });
+  saveNotifications(updated);
+};
+
+export const unarchiveNotificationForUser = (
+  notificationId: string,
+  username: string,
+) => {
+  const notifications = getAllNotifications();
+  const updated = notifications.map((n) => {
+    if (n.id === notificationId) {
+      return {
+        ...n,
+        archivedBy: (n.archivedBy || []).filter((u) => u !== username),
       };
     }
     return n;

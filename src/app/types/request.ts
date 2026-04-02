@@ -77,6 +77,7 @@ export interface Request {
   // Delivery and expectations
   waktuKirim: string;
   customerExpectation: string;
+  notes?: string; // Free-text notes shown on notification cards
 
   // Detail items
   detailItems: DetailBarangItem[];

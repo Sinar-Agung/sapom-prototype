@@ -40,8 +40,8 @@ export function Settings({
   const { t, i18n } = useTranslation();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-  const handlePopulate = () => {
-    const result = populateMockData();
+  const handlePopulate = async () => {
+    const result = await populateMockData();
     toast.success(
       `Populated ${result.requests} requests, ${result.orders} orders, ${result.notifications} notifications`,
     );
@@ -146,9 +146,14 @@ export function Settings({
           Testing
         </h3>
         <p className="text-xs text-gray-500 mb-3">
-          Adds a fresh batch of mock data (new IDs, future dates) into local storage, merged with existing data.
+          Adds a fresh batch of mock data (new IDs, future dates) into local
+          storage, merged with existing data.
         </p>
-        <Button variant="outline" className="w-full border-amber-300 text-amber-700 hover:bg-amber-50" onClick={handlePopulate}>
+        <Button
+          variant="outline"
+          className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+          onClick={handlePopulate}
+        >
           Populate
         </Button>
       </Card>

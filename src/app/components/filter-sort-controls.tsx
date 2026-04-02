@@ -1,4 +1,5 @@
 import { ArrowDownNarrowWide, ArrowUpWideNarrow, X } from "lucide-react";
+import { RefObject } from "react";
 import { Input } from "./ui/input";
 import {
   Select,
@@ -23,6 +24,7 @@ interface FilterSortControlsProps {
   sortDirection: "asc" | "desc";
   onSortDirectionChange: (direction: "asc" | "desc") => void;
   sortOptions: SortOption[];
+  searchInputRef?: RefObject<HTMLInputElement>;
 }
 
 export function FilterSortControls({
@@ -35,6 +37,7 @@ export function FilterSortControls({
   sortDirection,
   onSortDirectionChange,
   sortOptions,
+  searchInputRef,
 }: FilterSortControlsProps) {
   const itemName =
     type === "request"
@@ -53,6 +56,7 @@ export function FilterSortControls({
       {/* Filter box - takes remaining space on mobile, fixed width on desktop */}
       <div className="flex-1 sm:flex-none relative min-w-[150px] sm:min-w-0 sm:w-52">
         <Input
+          ref={searchInputRef}
           placeholder="Search"
           value={filterValue}
           onChange={(e) => onFilterChange(e.target.value)}

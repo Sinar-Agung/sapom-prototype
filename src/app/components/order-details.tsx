@@ -1,15 +1,13 @@
 import {
-  ATAS_NAMA_OPTIONS,
   CUSTOMER_EXPECTATION_OPTIONS,
   JENIS_PRODUK_OPTIONS,
   NAMA_BASIC_OPTIONS,
   NAMA_PRODUK_OPTIONS,
-  PABRIK_OPTIONS,
   getLabelFromValue,
 } from "@/app/data/order-data";
-import { Order, OrderShipping } from "@/app/types/order";
+import { Order, OrderArrival, OrderShipping, OrderShippingEditHistory } from "@/app/types/order";
 import { Request } from "@/app/types/request";
-import { getImage } from "@/app/utils/image-storage";
+import { useImageMap } from "@/app/utils/image-storage";
 import { notifyOrderStatusChanged } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
@@ -22,7 +20,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCheck, CheckSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -38,6 +36,7 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { RevisionHistoryPanel } from "./ui/revision-history-panel";
 import { Textarea } from "./ui/textarea";
 
 // Image mapping for Nama Basic
@@ -72,15 +71,6 @@ export function OrderDetails({
 }: OrderDetailsProps) {
   const [relatedRequest, setRelatedRequest] = useState<Request | null>(null);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
-  const [isRevisionHistoryOpen, setIsRevisionHistoryOpen] = useState(false);
-  const [expandedRevisions, setExpandedRevisions] = useState<Set<number>>(
-    new Set(),
-  );
-  const [isRequestRevisionHistoryOpen, setIsRequestRevisionHistoryOpen] =
-    useState(false);
-  const [expandedRequestRevisions, setExpandedRequestRevisions] = useState<
-    Set<number>
-  >(new Set());
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
 
   useEffect(() => {
@@ -89,8 +79,11 @@ export function OrderDetails({
 
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
-  const [showShippingDialog, setShowShippingDialog] = useState(false);
   const [shippingPcs, setShippingPcs] = useState<Record<string, string>>({});
+  const [editingShipmentId, setEditingShipmentId] = useState<string | null>(null);
+  const [editingShipmentPcs, setEditingShipmentPcs] = useState<Record<number, string>>({});
+  // JB: received pcs per shipment entry – key: `${shipmentId}-${itemIdx}`
+  const [receivedPcs, setReceivedPcs] = useState<Record<string, string>>({});
   const userRole = (sessionStorage.getItem("userRole") ||
     localStorage.getItem("userRole") ||
     "sales") as "sales" | "stockist" | "jb" | "supplier";
@@ -247,31 +240,21 @@ export function OrderDetails({
     existing.push(shipping);
     localStorage.setItem("orderShippings", JSON.stringify(existing));
 
+    // Update only the updatedDate — do NOT change the order status
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const allOrders: Order[] = JSON.parse(savedOrders);
       const idx = allOrders.findIndex((o) => o.id === currentOrder.id);
       if (idx !== -1) {
-        const oldStatus = allOrders[idx].status;
-        allOrders[idx].status = "Shipping";
         allOrders[idx].updatedDate = Date.now();
         allOrders[idx].updatedBy = currentUser;
         localStorage.setItem("orders", JSON.stringify(allOrders));
-        notifyOrderStatusChanged(
-          allOrders[idx],
-          oldStatus,
-          "Shipping",
-          currentUser,
-          userRole,
-        );
         setCurrentOrder(allOrders[idx]);
       }
     }
 
-    setShowShippingDialog(false);
     setShippingPcs({});
-    toast.success("Shipping entry submitted successfully");
-    setTimeout(() => onBack(), 500);
+    toast.success("Shipment entry saved successfully");
   };
 
   useEffect(() => {
@@ -321,10 +304,15 @@ export function OrderDetails({
     return `${dateStr}, ${timeStr}`;
   };
 
+  const allRevisionPhotoIds = (currentOrder.revisionHistory || []).flatMap(
+    (r) => [r.previousValues.photoId, r.changes.photoId],
+  );
+  const imageMap = useImageMap([currentOrder.photoId, ...allRevisionPhotoIds]);
+
   const getOrderImage = () => {
     // First, check if there's a photoId and retrieve image from storage
     if (currentOrder.photoId) {
-      const storedImage = getImage(currentOrder.photoId);
+      const storedImage = imageMap.get(currentOrder.photoId);
       if (storedImage) {
         return storedImage;
       }
@@ -455,24 +443,18 @@ export function OrderDetails({
                 </span>
               </div>
               {userRole !== "supplier" && (
-                <p>
-                  <span className="text-gray-600">Request No:</span>{" "}
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Request No:</span>
                   {order.requestNo ? (
                     <button
                       onClick={() => setShowRequestDialog(true)}
-                      className="font-mono text-blue-600 underline hover:text-blue-800"
+                      className="font-mono text-blue-600 underline hover:text-blue-800 text-left"
                     >
                       {order.requestNo}
                     </button>
                   ) : (
                     <span className="font-mono">-</span>
                   )}
-                </p>
-              )}
-              {userRole !== "supplier" && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Request No:</span>
-                  <span className="font-mono">{order.requestNo || "-"}</span>
                 </div>
               )}
               <div className="grid grid-cols-5 gap-x-3">
@@ -620,10 +602,11 @@ export function OrderDetails({
                 lastRevision.changes.photoId) &&
                 (() => {
                   const beforeImg = lastRevision.previousValues.photoId
-                    ? getImage(lastRevision.previousValues.photoId)
+                    ? (imageMap.get(lastRevision.previousValues.photoId) ??
+                      null)
                     : null;
                   const afterImg = lastRevision.changes.photoId
-                    ? getImage(lastRevision.changes.photoId)
+                    ? (imageMap.get(lastRevision.changes.photoId) ?? null)
                     : null;
                   const photoChanged =
                     lastRevision.previousValues.photoId !==
@@ -854,20 +837,435 @@ export function OrderDetails({
         })()}
 
       {/* Order Items Card */}
-      {currentOrder.status !== "Change Pending Approval" && (
-        <DetailItemsTable
-          items={order.detailItems}
-          mode="readonly"
-          getKadarColor={getKadarColor}
-          getWarnaColor={getWarnaColor}
-          getWarnaLabel={getWarnaLabel}
-          getUkuranLabel={(ukuran) => {
-            const display = getUkuranDisplay(ukuran);
-            return display.showUnit ? `${display.value} cm` : display.value;
-          }}
-          title="Order Items"
-        />
-      )}
+      {currentOrder.status !== "Change Pending Approval" && (() => {
+        const isSupplierShippingView =
+          userRole === "supplier" &&
+          (currentOrder.status === "In Production" ||
+            currentOrder.status === "Stock Ready");
+
+        if (!isSupplierShippingView) {
+          return (
+            <DetailItemsTable
+              items={order.detailItems}
+              mode="readonly"
+              getKadarColor={getKadarColor}
+              getWarnaColor={getWarnaColor}
+              getWarnaLabel={getWarnaLabel}
+              getUkuranLabel={(ukuran) => {
+                const display = getUkuranDisplay(ukuran);
+                return display.showUnit ? `${display.value} cm` : display.value;
+              }}
+              title="Order Items"
+            />
+          );
+        }
+
+        // Compute shipped qty per item key for inline shipment UI
+        const shippingRecords: OrderShipping[] = JSON.parse(
+          localStorage.getItem("orderShippings") || "[]"
+        ).filter((s: OrderShipping) => s.orderId === currentOrder.id);
+        const shippedMap: Record<string, number> = {};
+        shippingRecords.forEach((s) =>
+          s.items.forEach((it) => {
+            const key = `${it.kadar}-${it.warna}-${it.ukuran}`;
+            shippedMap[key] = (shippedMap[key] || 0) + it.pcs;
+          })
+        );
+
+        // Compute received qty per item key from JB arrivals
+        const arrivalRecords: OrderArrival[] = JSON.parse(
+          localStorage.getItem("orderArrivals") || "[]"
+        ).filter((a: OrderArrival) => a.orderId === currentOrder.id);
+        const receivedMap: Record<string, number> = {};
+        arrivalRecords.forEach((a) =>
+          a.items.forEach((it) => {
+            const key = `${it.karat}-${it.warna}-${it.size}`;
+            receivedMap[key] = (receivedMap[key] || 0) + it.pcs;
+          })
+        );
+
+        return (
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm">Order Items &amp; Shipment Entry</h3>
+              <Button
+                size="sm"
+                onClick={handleSubmitShipping}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Submit Shipment
+              </Button>
+            </div>
+            <div className="border rounded-md overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Kadar</th>
+                    <th className="px-3 py-2 text-left">Warna</th>
+                    <th className="px-3 py-2 text-left">Ukuran</th>
+                    <th className="px-3 py-2 text-left">Berat</th>
+                    <th className="px-3 py-2 text-right">Ordered</th>
+                    <th className="px-3 py-2 text-right">Shipped</th>
+                    <th className="px-3 py-2 text-right">Received</th>
+                    <th className="px-3 py-2 text-right">Shipment Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentOrder.detailItems.map((item) => {
+                    const ukuranDisplay = getUkuranDisplay(item.ukuran);
+                    const key = `${item.kadar}-${item.warna}-${item.ukuran}`;
+                    const shipped = shippedMap[key] || 0;
+                    const received = receivedMap[key] || 0;
+                    const remaining = Math.max(0, item.pcs - shipped);
+                    return (
+                      <tr key={item.id} className="border-t">
+                        <td className={`px-3 py-2 font-medium ${getKadarColor(item.kadar)}`}>
+                          {item.kadar.toUpperCase()}
+                        </td>
+                        <td className={`px-3 py-2 ${getWarnaColor(item.warna)}`}>
+                          {getWarnaLabel(item.warna)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {ukuranDisplay.showUnit ? `${ukuranDisplay.value} cm` : ukuranDisplay.value}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600">{item.berat || "-"}</td>
+                        <td className="px-3 py-2 text-right">{item.pcs}</td>
+                        <td className="px-3 py-2 text-right text-blue-700 font-medium">{shipped}</td>
+                        <td className="px-3 py-2 text-right text-green-700 font-medium">{received}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1 justify-end">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={shippingPcs[item.id] || ""}
+                              onChange={(e) =>
+                                setShippingPcs((prev) => ({ ...prev, [item.id]: e.target.value }))
+                              }
+                              className="w-20 text-right"
+                              placeholder="0"
+                            />
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 shrink-0"
+                              title={`Auto-fill remaining (${remaining})`}
+                              onClick={() =>
+                                setShippingPcs((prev) => ({ ...prev, [item.id]: String(remaining) }))
+                              }
+                            >
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        );
+      })()}
+
+      {/* Shipment History Panel - visible to all roles when shipments exist */}
+      {(() => {
+        const CLOSED_STATUSES = ["Unable to Fulfill", "Completed", "Confirmed by JB", "Cancelled"];
+        const isClosed = CLOSED_STATUSES.includes(currentOrder.status);
+        const canSupplierEdit = userRole === "supplier" && !isClosed;
+        const isJB = userRole === "jb";
+
+        const allShipments: OrderShipping[] = JSON.parse(
+          localStorage.getItem("orderShippings") || "[]"
+        ).filter((s: OrderShipping) => s.orderId === currentOrder.id);
+        if (allShipments.length === 0) return null;
+
+        // Load already-recorded arrivals to show previously received totals
+        const allArrivals: OrderArrival[] = JSON.parse(
+          localStorage.getItem("orderArrivals") || "[]"
+        ).filter((a: OrderArrival) => a.orderId === currentOrder.id);
+
+        // Compute total already-received per shipment entry
+        const receivedPerShipmentItem = (shipmentId: string, itemIdx: number, kadar: string, warna: string, ukuran: string) => {
+          // Arrivals that reference this shipment entry by matching item attrs
+          return allArrivals.reduce((sum, a) => {
+            a.items.forEach((ai) => {
+              if (ai.karat === kadar && ai.warna === warna && ai.size === ukuran) sum += ai.pcs;
+            });
+            return sum;
+          }, 0);
+        };
+
+        // ---- Supplier edit handlers ----
+        const handleStartEdit = (s: OrderShipping) => {
+          const initialPcs: Record<number, string> = {};
+          s.items.forEach((it, idx) => { initialPcs[idx] = String(it.pcs); });
+          setEditingShipmentPcs(initialPcs);
+          setEditingShipmentId(s.id);
+        };
+
+        const handleSaveEdit = (s: OrderShipping) => {
+          const updatedItems = s.items.map((it, idx) => ({
+            ...it,
+            pcs: Number(editingShipmentPcs[idx] ?? it.pcs),
+          }));
+          const historyEntry: OrderShippingEditHistory = {
+            editedAt: Date.now(),
+            editedBy: currentUser,
+            previousItems: s.items,
+            newItems: updatedItems,
+          };
+          const allShippingsRaw: OrderShipping[] = JSON.parse(
+            localStorage.getItem("orderShippings") || "[]"
+          );
+          const updated = allShippingsRaw.map((entry) =>
+            entry.id === s.id
+              ? { ...entry, items: updatedItems, editHistory: [...(entry.editHistory || []), historyEntry] }
+              : entry
+          );
+          localStorage.setItem("orderShippings", JSON.stringify(updated));
+          setEditingShipmentId(null);
+          toast.success("Shipment entry updated.");
+        };
+
+        // ---- JB arrival handlers ----
+        const handleMatchRow = (shipmentId: string, idx: number, shippedPcs: number) => {
+          setReceivedPcs((prev) => ({ ...prev, [`${shipmentId}-${idx}`]: String(shippedPcs) }));
+        };
+
+        const handleMatchAll = (s: OrderShipping) => {
+          const updates: Record<string, string> = {};
+          s.items.forEach((it, idx) => {
+            updates[`${s.id}-${idx}`] = String(it.pcs);
+          });
+          setReceivedPcs((prev) => ({ ...prev, ...updates }));
+        };
+
+        const handleSubmitArrival = (s: OrderShipping) => {
+          const arrivalItems = s.items
+            .map((it, idx) => ({
+              karat: it.kadar,
+              warna: it.warna,
+              size: it.ukuran,
+              berat: it.berat,
+              pcs: Number(receivedPcs[`${s.id}-${idx}`] || 0),
+            }))
+            .filter((ai) => ai.pcs > 0);
+
+          if (arrivalItems.length === 0) {
+            toast.error("Please enter at least one received quantity.");
+            return;
+          }
+
+          const arrival: OrderArrival = {
+            id: `ARR${Date.now()}`,
+            orderId: currentOrder.id,
+            orderPONumber: currentOrder.PONumber,
+            createdDate: Date.now(),
+            createdBy: currentUser,
+            items: arrivalItems,
+          };
+
+          const existingArrivals: OrderArrival[] = JSON.parse(
+            localStorage.getItem("orderArrivals") || "[]"
+          );
+          existingArrivals.push(arrival);
+          localStorage.setItem("orderArrivals", JSON.stringify(existingArrivals));
+
+          // Clear the received inputs for this shipment
+          setReceivedPcs((prev) => {
+            const next = { ...prev };
+            s.items.forEach((_, idx) => { delete next[`${s.id}-${idx}`]; });
+            return next;
+          });
+
+          toast.success("Arrival recorded successfully.");
+        };
+
+        const fmtDate = (ts: number) =>
+          `${new Date(ts).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}, ${new Date(ts).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+
+        // Column count for colSpan
+        const colCount = isJB ? 6 : canSupplierEdit ? 5 : 4;
+
+        return (
+          <Card className="p-4">
+            <h3 className="font-semibold text-sm mb-3">Shipment Entries</h3>
+            <div className="border rounded-md overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Kadar</th>
+                    <th className="px-3 py-2 text-left">Warna</th>
+                    <th className="px-3 py-2 text-left">Ukuran</th>
+                    <th className="px-3 py-2 text-right">Shipped</th>
+                    {isJB && <th className="px-3 py-2 text-right">Received</th>}
+                    {isJB && <th className="px-3 py-2 w-8"></th>}
+                    {canSupplierEdit && <th className="px-3 py-2 w-20"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allShipments
+                    .slice()
+                    .sort((a, b) => b.createdDate - a.createdDate)
+                    .flatMap((s) => {
+                      const isEditing = editingShipmentId === s.id;
+                      const rows = [
+                        // Group header row
+                        <tr key={`header-${s.id}`} className="bg-gray-50 border-t">
+                          <td colSpan={colCount} className="px-3 py-1.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span>
+                                <span className="font-medium text-gray-700">{fmtDate(s.createdDate)}</span>
+                                <span className="text-gray-500 ml-2">by {s.createdBy}</span>
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {isJB && !isClosed && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-6 text-xs px-2 gap-1"
+                                      title="Match all shipped quantities"
+                                      onClick={() => handleMatchAll(s)}
+                                    >
+                                      <CheckCheck className="w-3 h-3" />
+                                      Match All
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700 text-white"
+                                      onClick={() => handleSubmitArrival(s)}
+                                    >
+                                      Submit Arrival
+                                    </Button>
+                                  </>
+                                )}
+                                {canSupplierEdit && !isEditing && (
+                                  <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleStartEdit(s)}>
+                                    Add Correction
+                                  </Button>
+                                )}
+                                {canSupplierEdit && isEditing && (
+                                  <div className="flex gap-1">
+                                    <Button size="sm" className="h-6 text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleSaveEdit(s)}>
+                                      Save
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => setEditingShipmentId(null)}>
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>,
+                        // Item rows
+                        ...s.items.map((it, idx) => (
+                          <tr key={`${s.id}-${idx}`} className="border-t">
+                            <td className={`px-3 py-2 font-medium ${getKadarColor(it.kadar)}`}>
+                              {it.kadar.toUpperCase()}
+                            </td>
+                            <td className={`px-3 py-2 ${getWarnaColor(it.warna)}`}>
+                              {getWarnaLabel(it.warna)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {(() => {
+                                const d = getUkuranDisplay(it.ukuran);
+                                return d.showUnit ? `${d.value} cm` : d.value;
+                              })()}
+                            </td>
+                            <td className="px-3 py-2 text-right font-medium">
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={editingShipmentPcs[idx] ?? String(it.pcs)}
+                                  onChange={(e) =>
+                                    setEditingShipmentPcs((prev) => ({ ...prev, [idx]: e.target.value }))
+                                  }
+                                  className="w-20 text-right h-7 text-sm ml-auto"
+                                />
+                              ) : it.pcs}
+                            </td>
+                            {isJB && (
+                              <td className="px-3 py-2 text-right">
+                                {isClosed ? (
+                                  <span className="font-medium text-gray-600">
+                                    {receivedPerShipmentItem(s.id, idx, it.kadar, it.warna, it.ukuran) || "-"}
+                                  </span>
+                                ) : (
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={receivedPcs[`${s.id}-${idx}`] ?? ""}
+                                    onChange={(e) =>
+                                      setReceivedPcs((prev) => ({ ...prev, [`${s.id}-${idx}`]: e.target.value }))
+                                    }
+                                    placeholder={String(receivedPerShipmentItem(s.id, idx, it.kadar, it.warna, it.ukuran) || "")}
+                                    className="w-20 text-right h-7 text-sm ml-auto"
+                                  />
+                                )}
+                              </td>
+                            )}
+                            {isJB && !isClosed && (
+                              <td className="px-1 py-2">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7"
+                                  title="Match shipped quantity"
+                                  onClick={() => handleMatchRow(s.id, idx, it.pcs)}
+                                >
+                                  <CheckSquare className="h-4 w-4 text-green-600" />
+                                </Button>
+                              </td>
+                            )}
+                            {isJB && isClosed && <td></td>}
+                            {canSupplierEdit && <td></td>}
+                          </tr>
+                        )),
+                        // Edit history / correction rows
+                        ...(s.editHistory || []).flatMap((h, hIdx) => [
+                          <tr key={`${s.id}-edit-header-${hIdx}`} className="bg-amber-50 border-t">
+                            <td colSpan={colCount} className="px-3 py-1 text-xs text-amber-700">
+                              <span className="font-medium">Correction</span> {fmtDate(h.editedAt)} by {h.editedBy}
+                            </td>
+                          </tr>,
+                          ...h.previousItems.map((prev, pIdx) => {
+                            const next = h.newItems[pIdx];
+                            const changed = next && next.pcs !== prev.pcs;
+                            if (!changed) return null;
+                            return (
+                              <tr key={`${s.id}-edit-${hIdx}-${pIdx}`} className="bg-amber-50 border-t">
+                                <td className={`px-3 py-1.5 text-xs font-medium ${getKadarColor(prev.kadar)}`}>
+                                  {prev.kadar.toUpperCase()}
+                                </td>
+                                <td className={`px-3 py-1.5 text-xs ${getWarnaColor(prev.warna)}`}>
+                                  {getWarnaLabel(prev.warna)}
+                                </td>
+                                <td className="px-3 py-1.5 text-xs">
+                                  {(() => {
+                                    const d = getUkuranDisplay(prev.ukuran);
+                                    return d.showUnit ? `${d.value} cm` : d.value;
+                                  })()}
+                                </td>
+                                <td className="px-3 py-1.5 text-xs text-right" colSpan={isJB ? 3 : canSupplierEdit ? 2 : 1}>
+                                  <span className="line-through text-red-500 mr-1">{prev.pcs}</span>
+                                  <span className="text-green-600 font-medium">→ {next.pcs}</span>
+                                </td>
+                              </tr>
+                            );
+                          }).filter(Boolean),
+                        ]),
+                      ];
+                      return rows;
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Supplier Action Buttons */}
       {userRole === "supplier" &&
@@ -879,7 +1277,7 @@ export function OrderDetails({
                 handleUpdateStatusWithToast(
                   currentOrder.id,
                   "In Production",
-                  "You've marked the Order as In Production",
+                  "Order marked as In Production. It will now appear in the Shipping tab.",
                 )
               }
               className="bg-yellow-500 hover:bg-yellow-600 text-white"
@@ -891,7 +1289,7 @@ export function OrderDetails({
                 handleUpdateStatusWithToast(
                   currentOrder.id,
                   "Stock Ready",
-                  "You've marked the Order as Ready Stock",
+                  "Order marked as Stock Ready. It will now appear in the Shipping tab.",
                 )
               }
               className="bg-green-600 hover:bg-green-700 text-white"
@@ -907,24 +1305,14 @@ export function OrderDetails({
             <Button
               variant="destructive"
               onClick={() =>
-                handleUpdateStatus(currentOrder.id, "Unable to Fulfill")
+                handleUpdateStatusWithToast(
+                  currentOrder.id,
+                  "Unable to Fulfill",
+                  "Order marked as Unable to Fulfill. It has been moved to the Closed tab.",
+                )
               }
             >
               Unable to Fulfill
-            </Button>
-          </div>
-        )}
-
-      {/* Supplier Action Buttons - In Production / Stock Ready */}
-      {userRole === "supplier" &&
-        (currentOrder.status === "In Production" ||
-          currentOrder.status === "Stock Ready") && (
-          <div className="flex gap-2 flex-wrap justify-end mt-6">
-            <Button
-              onClick={() => setShowShippingDialog(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Submit Shipping
             </Button>
           </div>
         )}
@@ -937,7 +1325,7 @@ export function OrderDetails({
               handleUpdateStatusWithToast(
                 currentOrder.id,
                 "In Production",
-                "You've marked the Order as In Production",
+                "Order marked as In Production. It will now appear in the Shipping tab.",
               )
             }
             className="bg-yellow-500 hover:bg-yellow-600 text-white"
@@ -949,7 +1337,7 @@ export function OrderDetails({
               handleUpdateStatusWithToast(
                 currentOrder.id,
                 "Stock Ready",
-                "You've marked the Order as Ready Stock",
+                "Order marked as Stock Ready. It will now appear in the Shipping tab.",
               )
             }
             className="bg-green-600 hover:bg-green-700 text-white"
@@ -971,633 +1359,21 @@ export function OrderDetails({
         currentOrder.status === "Change Pending Approval") &&
         currentOrder.revisionHistory &&
         currentOrder.revisionHistory.length > 0 && (
-          <Card className="p-4 mb-4">
-            <button
-              onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
-              className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
-            >
-              <h3 className="font-semibold text-gray-900">Revision History</h3>
-              {isRevisionHistoryOpen ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </button>
-
-            {isRevisionHistoryOpen && (
-              <div className="mt-6 relative">
-                {/* Vertical timeline line */}
-                <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
-
-                <div className="flex flex-col">
-                  {/* Initial Version */}
-                  {(() => {
-                    const isExpanded = expandedRevisions.has(-1);
-                    const firstRevision = currentOrder.revisionHistory[0];
-
-                    return (
-                      <div className="flex gap-4 pb-6 order-last">
-                        {/* Left: date/time column */}
-                        <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                          <div className="font-medium text-gray-700">
-                            {new Date(
-                              currentOrder.createdDate,
-                            ).toLocaleDateString("id-ID", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </div>
-                          <div>
-                            {new Date(
-                              currentOrder.createdDate,
-                            ).toLocaleTimeString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Timeline dot */}
-                        <div className="relative flex flex-col items-center">
-                          <div className="w-3 h-3 rounded-full bg-blue-400 border-2 border-white ring-1 ring-blue-400 mt-2 z-10" />
-                        </div>
-
-                        {/* Right: title + collapsible content */}
-                        <div className="flex-1 pb-2">
-                          <button
-                            onClick={() => {
-                              const newExpanded = new Set(expandedRevisions);
-                              if (isExpanded) {
-                                newExpanded.delete(-1);
-                              } else {
-                                newExpanded.add(-1);
-                              }
-                              setExpandedRevisions(newExpanded);
-                            }}
-                            className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                          >
-                            <div>
-                              <p className="font-medium text-sm">
-                                Initial version
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Created by{" "}
-                                {getFullNameFromUsername(
-                                  currentOrder.createdBy,
-                                )}
-                              </p>
-                            </div>
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                            )}
-                          </button>
-
-                          {isExpanded && (
-                            <div className="mt-2 border rounded-lg bg-white p-4 text-sm">
-                              <div className="flex flex-col md:flex-row gap-4">
-                                {/* Left side: Fields */}
-                                <div className="flex-1 space-y-3">
-                                  {/* Product Category */}
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-xs mb-1">
-                                      Product Category
-                                    </p>
-                                    <p className="text-gray-900">
-                                      {getLabelFromValue(
-                                        [
-                                          { value: "basic", label: "Basic" },
-                                          { value: "model", label: "Model" },
-                                        ],
-                                        firstRevision?.previousValues
-                                          .kategoriBarang ||
-                                          currentOrder.kategoriBarang,
-                                      )}
-                                    </p>
-                                  </div>
-
-                                  {/* Product Type */}
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-xs mb-1">
-                                      Product Type
-                                    </p>
-                                    <p className="text-gray-900">
-                                      {getLabelFromValue(
-                                        JENIS_PRODUK_OPTIONS,
-                                        firstRevision?.previousValues
-                                          .jenisProduk ||
-                                          currentOrder.jenisProduk,
-                                      )}
-                                    </p>
-                                  </div>
-
-                                  {/* Basic Name */}
-                                  {(firstRevision?.previousValues.namaBasic ||
-                                    currentOrder.namaBasic) && (
-                                    <div>
-                                      <p className="font-medium text-gray-700 text-xs mb-1">
-                                        Basic Name
-                                      </p>
-                                      <p className="text-gray-900">
-                                        {getLabelFromValue(
-                                          NAMA_BASIC_OPTIONS,
-                                          firstRevision?.previousValues
-                                            .namaBasic ||
-                                            currentOrder.namaBasic,
-                                        )}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {/* Nama Produk */}
-                                  {(firstRevision?.previousValues.namaProduk ||
-                                    currentOrder.namaProduk) && (
-                                    <div>
-                                      <p className="font-medium text-gray-700 text-xs mb-1">
-                                        Nama Produk
-                                      </p>
-                                      <p className="text-gray-900">
-                                        {getLabelFromValue(
-                                          NAMA_PRODUK_OPTIONS,
-                                          firstRevision?.previousValues
-                                            .namaProduk ||
-                                            currentOrder.namaProduk,
-                                        )}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Right side: Photo */}
-                                {(firstRevision?.previousValues.photoId ||
-                                  currentOrder.photoId) && (
-                                  <div className="md:w-48">
-                                    <p className="font-medium text-gray-700 text-xs mb-2">
-                                      Product Photo
-                                    </p>
-                                    <img
-                                      src={
-                                        getImage(
-                                          firstRevision?.previousValues
-                                            .photoId ||
-                                            currentOrder.photoId ||
-                                            "",
-                                        ) || ""
-                                      }
-                                      alt="Product"
-                                      className="w-full h-48 object-cover rounded border"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Detail Items */}
-                              {(() => {
-                                const detailItems =
-                                  firstRevision?.previousValues.detailItems ||
-                                  currentOrder.detailItems;
-                                return (
-                                  detailItems &&
-                                  detailItems.length > 0 && (
-                                    <div className="mt-4">
-                                      <p className="font-medium text-gray-700 text-xs mb-2">
-                                        Product Details ({detailItems.length}{" "}
-                                        items)
-                                      </p>
-                                      <div className="overflow-x-auto">
-                                        <table className="min-w-full text-xs border-collapse border">
-                                          <thead className="bg-gray-100">
-                                            <tr>
-                                              <th className="border px-2 py-1 text-left">
-                                                Kadar
-                                              </th>
-                                              <th className="border px-2 py-1 text-left">
-                                                Warna
-                                              </th>
-                                              <th className="border px-2 py-1 text-left">
-                                                Ukuran
-                                              </th>
-                                              <th className="border px-2 py-1 text-right">
-                                                Berat
-                                              </th>
-                                              <th className="border px-2 py-1 text-right">
-                                                Pcs
-                                              </th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {detailItems.map((item, idx) => (
-                                              <tr key={idx}>
-                                                <td
-                                                  className={`border px-2 py-1 font-medium ${getKadarColor(item.kadar)}`}
-                                                >
-                                                  {item.kadar}
-                                                </td>
-                                                <td
-                                                  className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                                >
-                                                  {getWarnaLabel(item.warna)}
-                                                </td>
-                                                <td className="border px-2 py-1">
-                                                  {(() => {
-                                                    const ukuranDisplay =
-                                                      getUkuranDisplay(
-                                                        item.ukuran,
-                                                      );
-                                                    return ukuranDisplay.showUnit
-                                                      ? `${ukuranDisplay.value} cm`
-                                                      : ukuranDisplay.value;
-                                                  })()}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right">
-                                                  {item.berat}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right">
-                                                  {item.pcs}
-                                                </td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </div>
-                                  )
-                                );
-                              })()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Revision entries */}
-                  {[...currentOrder.revisionHistory]
-                    .slice()
-                    .reverse()
-                    .map((revision, revIdx, arr) => {
-                      // Reverse index for expandedRevisions
-                      const index =
-                        currentOrder.revisionHistory.length - 1 - revIdx;
-                      const isExpanded = expandedRevisions.has(index);
-                      return (
-                        <div key={index} className="flex gap-4 pb-6">
-                          {/* Left: date/time column */}
-                          <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                            <div className="font-medium text-gray-700">
-                              {new Date(revision.timestamp).toLocaleDateString(
-                                "id-ID",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                },
-                              )}
-                            </div>
-                            <div>
-                              {new Date(revision.timestamp).toLocaleTimeString(
-                                "id-ID",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Timeline dot */}
-                          <div className="relative flex flex-col items-center">
-                            <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-400 mt-2 z-10" />
-                          </div>
-
-                          {/* Right: title + collapsible content */}
-                          <div className="flex-1 pb-2">
-                            <button
-                              onClick={() => {
-                                const newExpanded = new Set(expandedRevisions);
-                                if (isExpanded) {
-                                  newExpanded.delete(index);
-                                } else {
-                                  newExpanded.add(index);
-                                }
-                                setExpandedRevisions(newExpanded);
-                              }}
-                              className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                            >
-                              <div>
-                                <p className="font-medium text-sm">
-                                  Revision #{revision.revisionNumber}
-                                  {index ===
-                                    currentOrder.revisionHistory.length - 1 && (
-                                    <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
-                                      Latest
-                                    </span>
-                                  )}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Updated by{" "}
-                                  {getFullNameFromUsername(revision.updatedBy)}
-                                </p>
-                              </div>
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                              )}
-                            </button>
-
-                            {isExpanded && (
-                              <div className="mt-2 border rounded-lg bg-gray-50 p-4 text-sm">
-                                {/* ETA before/after */}
-                                {revision.changes.waktuKirim &&
-                                  revision.previousValues.waktuKirim !==
-                                    revision.changes.waktuKirim && (
-                                    <div className="mb-3 bg-yellow-50 border border-yellow-200 rounded p-2">
-                                      <p className="text-xs font-semibold text-gray-700 mb-1">
-                                        ETA Change
-                                      </p>
-                                      <div className="flex items-center gap-2 text-sm">
-                                        <span className="text-red-600 line-through">
-                                          {revision.previousValues.waktuKirim
-                                            ? new Date(
-                                                revision.previousValues
-                                                  .waktuKirim,
-                                              ).toLocaleDateString("id-ID")
-                                            : "—"}
-                                        </span>
-                                        <span className="text-gray-500">→</span>
-                                        <span className="text-green-700 font-semibold">
-                                          {new Date(
-                                            revision.changes.waktuKirim,
-                                          ).toLocaleDateString("id-ID")}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
-                                <div className="flex flex-col md:flex-row gap-4">
-                                  {/* Left side: Fields */}
-                                  <div className="flex-1 space-y-3">
-                                    {/* Product Category */}
-                                    {revision.changes.kategoriBarang && (
-                                      <div>
-                                        <p className="font-medium text-gray-700 text-xs mb-1">
-                                          Product Category
-                                        </p>
-                                        <p className="text-gray-900">
-                                          {getLabelFromValue(
-                                            [
-                                              {
-                                                value: "basic",
-                                                label: "Basic",
-                                              },
-                                              {
-                                                value: "model",
-                                                label: "Model",
-                                              },
-                                            ],
-                                            revision.changes.kategoriBarang,
-                                          )}
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    {/* Product Type */}
-                                    {revision.changes.jenisProduk && (
-                                      <div>
-                                        <p className="font-medium text-gray-700 text-xs mb-1">
-                                          Product Type
-                                        </p>
-                                        <p className="text-gray-900">
-                                          {getLabelFromValue(
-                                            JENIS_PRODUK_OPTIONS,
-                                            revision.changes.jenisProduk,
-                                          )}
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    {/* Basic Name */}
-                                    {revision.changes.namaBasic && (
-                                      <div>
-                                        <p className="font-medium text-gray-700 text-xs mb-1">
-                                          Basic Name
-                                        </p>
-                                        <p className="text-gray-900">
-                                          {getLabelFromValue(
-                                            NAMA_BASIC_OPTIONS,
-                                            revision.changes.namaBasic,
-                                          )}
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    {/* Nama Produk */}
-                                    {revision.changes.namaProduk && (
-                                      <div>
-                                        <p className="font-medium text-gray-700 text-xs mb-1">
-                                          Nama Produk
-                                        </p>
-                                        <p className="text-gray-900">
-                                          {getLabelFromValue(
-                                            NAMA_PRODUK_OPTIONS,
-                                            revision.changes.namaProduk,
-                                          )}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Right side: Photo before/after */}
-                                  {(revision.previousValues.photoId ||
-                                    revision.changes.photoId) &&
-                                    (() => {
-                                      const beforeImg = revision.previousValues
-                                        .photoId
-                                        ? getImage(
-                                            revision.previousValues.photoId,
-                                          )
-                                        : null;
-                                      const afterImg = revision.changes.photoId
-                                        ? getImage(revision.changes.photoId)
-                                        : null;
-                                      const photoChanged =
-                                        revision.previousValues.photoId !==
-                                        revision.changes.photoId;
-                                      if (
-                                        photoChanged &&
-                                        beforeImg &&
-                                        afterImg
-                                      ) {
-                                        return (
-                                          <div className="flex gap-3 flex-wrap">
-                                            <div className="w-36">
-                                              <p className="font-medium text-gray-500 text-xs mb-1">
-                                                Photo — Before
-                                              </p>
-                                              <img
-                                                src={beforeImg}
-                                                alt="Before"
-                                                className="w-full h-36 object-cover rounded border border-red-200"
-                                              />
-                                            </div>
-                                            <div className="w-36">
-                                              <p className="font-medium text-green-700 text-xs mb-1">
-                                                Photo — After
-                                              </p>
-                                              <img
-                                                src={afterImg}
-                                                alt="After"
-                                                className="w-full h-36 object-cover rounded border border-green-400"
-                                              />
-                                            </div>
-                                          </div>
-                                        );
-                                      }
-                                      const singleImg = afterImg || beforeImg;
-                                      return singleImg ? (
-                                        <div className="md:w-48">
-                                          <p className="font-medium text-gray-700 text-xs mb-2">
-                                            Product Photo
-                                          </p>
-                                          <img
-                                            src={singleImg}
-                                            alt="Product"
-                                            className="w-full h-48 object-cover rounded border"
-                                          />
-                                        </div>
-                                      ) : null;
-                                    })()}
-                                </div>
-
-                                {/* Detail Items */}
-                                {revision.changes.detailItems &&
-                                  revision.changes.detailItems.length > 0 && (
-                                    <div className="mt-4">
-                                      <p className="font-medium text-gray-700 text-xs mb-2">
-                                        Detail Barang (
-                                        {revision.changes.detailItems.length}{" "}
-                                        items)
-                                      </p>
-                                      <div className="overflow-x-auto">
-                                        <table className="min-w-full text-xs border-collapse border">
-                                          <thead className="bg-gray-100">
-                                            <tr>
-                                              <th className="border px-2 py-1 text-left">
-                                                Kadar
-                                              </th>
-                                              <th className="border px-2 py-1 text-left">
-                                                Warna
-                                              </th>
-                                              <th className="border px-2 py-1 text-left">
-                                                Ukuran
-                                              </th>
-                                              <th className="border px-2 py-1 text-right">
-                                                Berat
-                                              </th>
-                                              <th className="border px-2 py-1 text-right">
-                                                Pcs
-                                              </th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {revision.changes.detailItems.map(
-                                              (item, idx) => {
-                                                // Get corresponding previous item for comparison
-                                                const prevItem =
-                                                  revision.previousValues
-                                                    ?.detailItems?.[idx];
-
-                                                // Check if this is a new item (no previous item at this index or beyond previous length)
-                                                const isNewItem =
-                                                  !revision.previousValues
-                                                    ?.detailItems ||
-                                                  idx >=
-                                                    revision.previousValues
-                                                      .detailItems.length;
-
-                                                // Determine if each field changed
-                                                const kadarChanged =
-                                                  prevItem &&
-                                                  item.kadar !== prevItem.kadar;
-                                                const warnaChanged =
-                                                  prevItem &&
-                                                  item.warna !== prevItem.warna;
-                                                const ukuranChanged =
-                                                  prevItem &&
-                                                  item.ukuran !==
-                                                    prevItem.ukuran;
-                                                const beratChanged =
-                                                  prevItem &&
-                                                  item.berat !== prevItem.berat;
-                                                const pcsChanged =
-                                                  prevItem &&
-                                                  item.pcs !== prevItem.pcs;
-
-                                                return (
-                                                  <tr
-                                                    key={idx}
-                                                    className={
-                                                      isNewItem
-                                                        ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50"
-                                                        : ""
-                                                    }
-                                                  >
-                                                    <td
-                                                      className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                    >
-                                                      {item.kadar}
-                                                    </td>
-                                                    <td
-                                                      className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                    >
-                                                      {getWarnaLabel(
-                                                        item.warna,
-                                                      )}
-                                                    </td>
-                                                    <td
-                                                      className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                    >
-                                                      {(() => {
-                                                        const ukuranDisplay =
-                                                          getUkuranDisplay(
-                                                            item.ukuran,
-                                                          );
-                                                        return ukuranDisplay.showUnit
-                                                          ? `${ukuranDisplay.value} cm`
-                                                          : ukuranDisplay.value;
-                                                      })()}
-                                                    </td>
-                                                    <td
-                                                      className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                    >
-                                                      {item.berat}
-                                                    </td>
-                                                    <td
-                                                      className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                    >
-                                                      {item.pcs}
-                                                    </td>
-                                                  </tr>
-                                                );
-                                              },
-                                            )}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </div>
-                                  )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-          </Card>
+          <RevisionHistoryPanel
+            title="Revision History"
+            createdTimestamp={currentOrder.createdDate}
+            createdBy={currentOrder.createdBy}
+            revisions={currentOrder.revisionHistory}
+            entitySnapshot={{
+              kategoriBarang: currentOrder.kategoriBarang,
+              jenisProduk: currentOrder.jenisProduk,
+              namaProduk: currentOrder.namaProduk,
+              namaBasic: currentOrder.namaBasic,
+              waktuKirim: currentOrder.waktuKirim,
+              photoId: currentOrder.photoId,
+              detailItems: currentOrder.detailItems,
+            }}
+          />
         )}
 
       {/* Request Revision History - visible to non-supplier users when linked request has revisions */}
@@ -1605,502 +1381,24 @@ export function OrderDetails({
         relatedRequest &&
         relatedRequest.revisionHistory &&
         relatedRequest.revisionHistory.length > 0 && (
-          <Card className="p-4 mb-4">
-            <button
-              onClick={() =>
-                setIsRequestRevisionHistoryOpen(!isRequestRevisionHistoryOpen)
-              }
-              className="w-full flex items-center justify-between hover:bg-gray-50 -m-4 p-4 rounded-lg transition-colors"
-            >
-              <h3 className="font-semibold text-gray-900">
-                Request Revision History
-              </h3>
-              {isRequestRevisionHistoryOpen ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </button>
-
-            {isRequestRevisionHistoryOpen && (
-              <div className="mt-6 relative">
-                {/* Vertical timeline line */}
-                <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
-
-                <div className="flex flex-col">
-                  {/* Initial Version */}
-                  {(() => {
-                    const isExpanded = expandedRequestRevisions.has(-1);
-                    const firstRevision = relatedRequest.revisionHistory![0];
-
-                    const initialPabrik =
-                      firstRevision?.previousValues.pabrik ??
-                      relatedRequest.pabrik;
-                    const initialPabrikLabel =
-                      typeof initialPabrik === "string"
-                        ? getLabelFromValue(PABRIK_OPTIONS, initialPabrik)
-                        : initialPabrik?.name || "";
-
-                    const initialPelanggan =
-                      firstRevision?.previousValues.namaPelanggan ??
-                      relatedRequest.namaPelanggan;
-                    const initialPelangganLabel =
-                      typeof initialPelanggan === "string"
-                        ? getLabelFromValue(ATAS_NAMA_OPTIONS, initialPelanggan)
-                        : initialPelanggan?.name || "";
-
-                    const initialDetailItems =
-                      firstRevision?.previousValues.detailItems ??
-                      relatedRequest.detailItems;
-
-                    return (
-                      <div className="flex gap-4 pb-6 order-last">
-                        <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                          <div className="font-medium text-gray-700">
-                            {new Date(
-                              relatedRequest.timestamp,
-                            ).toLocaleDateString("id-ID", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </div>
-                          <div>
-                            {new Date(
-                              relatedRequest.timestamp,
-                            ).toLocaleTimeString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-
-                        <div className="relative flex flex-col items-center">
-                          <div className="w-3 h-3 rounded-full bg-blue-400 border-2 border-white ring-1 ring-blue-400 mt-2 z-10" />
-                        </div>
-
-                        <div className="flex-1 pb-2">
-                          <button
-                            onClick={() => {
-                              const newExpanded = new Set(
-                                expandedRequestRevisions,
-                              );
-                              if (isExpanded) {
-                                newExpanded.delete(-1);
-                              } else {
-                                newExpanded.add(-1);
-                              }
-                              setExpandedRequestRevisions(newExpanded);
-                            }}
-                            className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                          >
-                            <div>
-                              <p className="font-medium text-sm">
-                                Initial version
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Created by{" "}
-                                {getFullNameFromUsername(
-                                  relatedRequest.createdBy || "",
-                                )}
-                              </p>
-                            </div>
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                            )}
-                          </button>
-
-                          {isExpanded && (
-                            <div className="mt-2 border rounded-lg bg-white p-4 text-sm space-y-3">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Supplier
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {initialPabrikLabel}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Customer
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {initialPelangganLabel}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    ETA
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {(firstRevision?.previousValues
-                                      .waktuKirim ?? relatedRequest.waktuKirim)
-                                      ? new Date(
-                                          firstRevision?.previousValues
-                                            .waktuKirim ??
-                                            relatedRequest.waktuKirim,
-                                        ).toLocaleDateString("id-ID")
-                                      : "-"}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="font-medium text-gray-700 text-xs mb-1">
-                                    Customer Expectation
-                                  </p>
-                                  <p className="text-gray-900">
-                                    {getLabelFromValue(
-                                      CUSTOMER_EXPECTATION_OPTIONS,
-                                      firstRevision?.previousValues
-                                        .customerExpectation ??
-                                        relatedRequest.customerExpectation,
-                                    )}
-                                  </p>
-                                </div>
-                              </div>
-                              {initialDetailItems &&
-                                initialDetailItems.length > 0 && (
-                                  <div className="mt-2">
-                                    <p className="font-medium text-gray-700 text-xs mb-2">
-                                      Detail Barang ({initialDetailItems.length}{" "}
-                                      items)
-                                    </p>
-                                    <div className="overflow-x-auto">
-                                      <table className="min-w-full text-xs border-collapse border">
-                                        <thead className="bg-gray-100">
-                                          <tr>
-                                            <th className="border px-2 py-1 text-left">
-                                              Kadar
-                                            </th>
-                                            <th className="border px-2 py-1 text-left">
-                                              Warna
-                                            </th>
-                                            <th className="border px-2 py-1 text-left">
-                                              Ukuran
-                                            </th>
-                                            <th className="border px-2 py-1 text-right">
-                                              Berat
-                                            </th>
-                                            <th className="border px-2 py-1 text-right">
-                                              Pcs
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {initialDetailItems.map(
-                                            (item, idx) => (
-                                              <tr key={idx}>
-                                                <td className="border px-2 py-1 font-medium">
-                                                  {item.kadar}
-                                                </td>
-                                                <td
-                                                  className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                                >
-                                                  {getWarnaLabel(item.warna)}
-                                                </td>
-                                                <td className="border px-2 py-1">
-                                                  {(() => {
-                                                    const ud = getUkuranDisplay(
-                                                      item.ukuran,
-                                                    );
-                                                    return ud.showUnit
-                                                      ? `${ud.value} cm`
-                                                      : ud.value;
-                                                  })()}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right">
-                                                  {item.berat}
-                                                </td>
-                                                <td className="border px-2 py-1 text-right">
-                                                  {item.pcs}
-                                                </td>
-                                              </tr>
-                                            ),
-                                          )}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </div>
-                                )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Revision entries */}
-                  {[...relatedRequest.revisionHistory!]
-                    .slice()
-                    .reverse()
-                    .map((revision, index) => {
-                      const isExpanded = expandedRequestRevisions.has(index);
-
-                      const revPabrikLabel =
-                        typeof revision.changes.pabrik === "string"
-                          ? getLabelFromValue(
-                              PABRIK_OPTIONS,
-                              revision.changes.pabrik,
-                            )
-                          : revision.changes.pabrik?.name || "";
-                      const prevPabrikLabel =
-                        typeof revision.previousValues.pabrik === "string"
-                          ? getLabelFromValue(
-                              PABRIK_OPTIONS,
-                              revision.previousValues.pabrik,
-                            )
-                          : revision.previousValues.pabrik?.name || "";
-                      const pabrikChanged =
-                        JSON.stringify(revision.changes.pabrik) !==
-                        JSON.stringify(revision.previousValues.pabrik);
-
-                      const revPelangganLabel =
-                        typeof revision.changes.namaPelanggan === "string"
-                          ? getLabelFromValue(
-                              ATAS_NAMA_OPTIONS,
-                              revision.changes.namaPelanggan,
-                            )
-                          : revision.changes.namaPelanggan?.name || "";
-                      const prevPelangganLabel =
-                        typeof revision.previousValues.namaPelanggan ===
-                        "string"
-                          ? getLabelFromValue(
-                              ATAS_NAMA_OPTIONS,
-                              revision.previousValues.namaPelanggan,
-                            )
-                          : revision.previousValues.namaPelanggan?.name || "";
-                      const pelangganChanged =
-                        JSON.stringify(revision.changes.namaPelanggan) !==
-                        JSON.stringify(revision.previousValues.namaPelanggan);
-
-                      const etaChanged =
-                        revision.changes.waktuKirim &&
-                        revision.previousValues.waktuKirim !==
-                          revision.changes.waktuKirim;
-
-                      return (
-                        <div key={index} className="flex gap-4 pb-6">
-                          <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                            <div className="font-medium text-gray-700">
-                              {new Date(revision.timestamp).toLocaleDateString(
-                                "id-ID",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                },
-                              )}
-                            </div>
-                            <div>
-                              {new Date(revision.timestamp).toLocaleTimeString(
-                                "id-ID",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="relative flex flex-col items-center">
-                            <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-400 mt-2 z-10" />
-                          </div>
-
-                          <div className="flex-1 pb-2">
-                            <button
-                              onClick={() => {
-                                const newExpanded = new Set(
-                                  expandedRequestRevisions,
-                                );
-                                if (isExpanded) {
-                                  newExpanded.delete(index);
-                                } else {
-                                  newExpanded.add(index);
-                                }
-                                setExpandedRequestRevisions(newExpanded);
-                              }}
-                              className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                            >
-                              <div>
-                                <p className="font-medium text-sm">
-                                  Revision #{revision.revisionNumber}
-                                  {index === 0 && (
-                                    <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
-                                      Latest
-                                    </span>
-                                  )}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Updated by{" "}
-                                  {getFullNameFromUsername(revision.updatedBy)}
-                                </p>
-                              </div>
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                              )}
-                            </button>
-
-                            {isExpanded && (
-                              <div className="mt-2 border rounded-lg bg-gray-50 p-4 text-sm space-y-3">
-                                {etaChanged && (
-                                  <div className="mb-3 bg-yellow-50 border border-yellow-200 rounded p-2">
-                                    <p className="text-xs font-semibold text-gray-700 mb-1">
-                                      ETA Change
-                                    </p>
-                                    <div className="flex items-center gap-2 text-sm">
-                                      <span className="text-red-600 line-through">
-                                        {revision.previousValues.waktuKirim
-                                          ? new Date(
-                                              revision.previousValues
-                                                .waktuKirim,
-                                            ).toLocaleDateString("id-ID")
-                                          : "—"}
-                                      </span>
-                                      <span className="text-gray-500">→</span>
-                                      <span className="text-green-700 font-semibold">
-                                        {new Date(
-                                          revision.changes.waktuKirim!,
-                                        ).toLocaleDateString("id-ID")}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-                                {pabrikChanged && (
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-xs mb-1">
-                                      Supplier
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-red-600 line-through text-xs">
-                                        {prevPabrikLabel}
-                                      </span>
-                                      <span className="text-gray-400">→</span>
-                                      <span className="text-green-700 font-medium text-xs">
-                                        {revPabrikLabel}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-                                {pelangganChanged && (
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-xs mb-1">
-                                      Customer
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-red-600 line-through text-xs">
-                                        {prevPelangganLabel}
-                                      </span>
-                                      <span className="text-gray-400">→</span>
-                                      <span className="text-green-700 font-medium text-xs">
-                                        {revPelangganLabel}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-                                {revision.changes.detailItems &&
-                                  revision.changes.detailItems.length > 0 && (
-                                    <div>
-                                      <p className="font-medium text-gray-700 text-xs mb-2">
-                                        Detail Barang (
-                                        {revision.changes.detailItems.length}{" "}
-                                        items)
-                                      </p>
-                                      <div className="overflow-x-auto">
-                                        <table className="min-w-full text-xs border-collapse border">
-                                          <thead className="bg-gray-100">
-                                            <tr>
-                                              <th className="border px-2 py-1 text-left">
-                                                Kadar
-                                              </th>
-                                              <th className="border px-2 py-1 text-left">
-                                                Warna
-                                              </th>
-                                              <th className="border px-2 py-1 text-left">
-                                                Ukuran
-                                              </th>
-                                              <th className="border px-2 py-1 text-right">
-                                                Berat
-                                              </th>
-                                              <th className="border px-2 py-1 text-right">
-                                                Pcs
-                                              </th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {revision.changes.detailItems.map(
-                                              (item, idx) => {
-                                                const prevItem =
-                                                  revision.previousValues
-                                                    ?.detailItems?.[idx];
-                                                const isNewItem =
-                                                  !revision.previousValues
-                                                    ?.detailItems ||
-                                                  idx >=
-                                                    revision.previousValues
-                                                      .detailItems.length;
-                                                return (
-                                                  <tr
-                                                    key={idx}
-                                                    className={
-                                                      isNewItem
-                                                        ? "bg-green-50"
-                                                        : ""
-                                                    }
-                                                  >
-                                                    <td className="border px-2 py-1 font-medium">
-                                                      {item.kadar}
-                                                    </td>
-                                                    <td
-                                                      className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                                    >
-                                                      {getWarnaLabel(
-                                                        item.warna,
-                                                      )}
-                                                    </td>
-                                                    <td className="border px-2 py-1">
-                                                      {(() => {
-                                                        const ud =
-                                                          getUkuranDisplay(
-                                                            item.ukuran,
-                                                          );
-                                                        return ud.showUnit
-                                                          ? `${ud.value} cm`
-                                                          : ud.value;
-                                                      })()}
-                                                    </td>
-                                                    <td
-                                                      className={`border px-2 py-1 text-right ${prevItem && item.berat !== prevItem.berat ? "font-bold text-orange-600" : ""}`}
-                                                    >
-                                                      {item.berat}
-                                                    </td>
-                                                    <td
-                                                      className={`border px-2 py-1 text-right ${prevItem && item.pcs !== prevItem.pcs ? "font-bold text-orange-600" : ""}`}
-                                                    >
-                                                      {item.pcs}
-                                                    </td>
-                                                  </tr>
-                                                );
-                                              },
-                                            )}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    </div>
-                                  )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-          </Card>
+          <RevisionHistoryPanel
+            title="Request Revision History"
+            createdTimestamp={relatedRequest.timestamp}
+            createdBy={relatedRequest.createdBy || ""}
+            revisions={relatedRequest.revisionHistory}
+            entitySnapshot={{
+              pabrik: relatedRequest.pabrik,
+              namaPelanggan: relatedRequest.namaPelanggan,
+              kategoriBarang: relatedRequest.kategoriBarang,
+              jenisProduk: relatedRequest.jenisProduk,
+              namaProduk: relatedRequest.namaProduk,
+              namaBasic: relatedRequest.namaBasic,
+              waktuKirim: relatedRequest.waktuKirim,
+              customerExpectation: relatedRequest.customerExpectation,
+              detailItems: relatedRequest.detailItems,
+              photoId: relatedRequest.photoId,
+            }}
+          />
         )}
 
       {/* Review Action Buttons - Only shown in review mode */}
@@ -2310,103 +1608,7 @@ export function OrderDetails({
         </Dialog>
       )}
 
-      {/* Shipping Entry Dialog */}
-      <Dialog open={showShippingDialog} onOpenChange={setShowShippingDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Submit Shipping Entry</DialogTitle>
-            <DialogDescription>
-              Enter the number of pieces you are shipping for each item.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Shipping Date</Label>
-              <p className="text-sm font-medium mt-1">
-                {new Date().toLocaleDateString("id-ID", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </p>
-            </div>
-            <div>
-              <Label className="mb-2 block">Items to Ship</Label>
-              <div className="border rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Kadar</th>
-                      <th className="px-3 py-2 text-left">Warna</th>
-                      <th className="px-3 py-2 text-left">Ukuran</th>
-                      <th className="px-3 py-2 text-right">Ordered</th>
-                      <th className="px-3 py-2 text-right">Pcs</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentOrder.detailItems.map((item) => {
-                      const ukuranDisplay = getUkuranDisplay(item.ukuran);
-                      return (
-                        <tr key={item.id} className="border-t">
-                          <td
-                            className={`px-3 py-2 font-medium ${getKadarColor(item.kadar)}`}
-                          >
-                            {item.kadar.toUpperCase()}
-                          </td>
-                          <td
-                            className={`px-3 py-2 ${getWarnaColor(item.warna)}`}
-                          >
-                            {getWarnaLabel(item.warna)}
-                          </td>
-                          <td className="px-3 py-2">
-                            {ukuranDisplay.showUnit
-                              ? `${ukuranDisplay.value} cm`
-                              : ukuranDisplay.value}
-                          </td>
-                          <td className="px-3 py-2 text-right">{item.pcs}</td>
-                          <td className="px-3 py-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max={item.pcs}
-                              value={shippingPcs[item.id] || ""}
-                              onChange={(e) =>
-                                setShippingPcs((prev) => ({
-                                  ...prev,
-                                  [item.id]: e.target.value,
-                                }))
-                              }
-                              className="w-20 text-right"
-                              placeholder="0"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowShippingDialog(false);
-                setShippingPcs({});
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmitShipping}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Submit Shipping
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Cancel Order Dialog */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>

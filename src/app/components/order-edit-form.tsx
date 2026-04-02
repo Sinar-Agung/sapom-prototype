@@ -35,7 +35,7 @@ import {
   getLabelFromValue,
 } from "@/app/data/order-data";
 import { Order, OrderRevision } from "@/app/types/order";
-import { getImage, storeImage } from "@/app/utils/image-storage";
+import { storeImage } from "@/app/utils/image-storage";
 import {
   notifyOrderRevised,
   notifyOrderStatusChanged,
@@ -52,18 +52,9 @@ import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, Camera, ImagePlus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { DetailItemInput } from "./request-form/detail-item-input";
-import {
-  DetailBarangItem,
-  DetailItemsDisplay,
-} from "./request-form/detail-items-display";
-import {
-  getKadarColor,
-  getUkuranDisplay,
-  getWarnaColor,
-  getWarnaLabel,
-  parseBerat,
-} from "./request-form/form-helpers";
+import type { DetailBarangItem } from "./request-form/detail-items-display";
+import { DetailItemsSection } from "./request-form/detail-items-section";
+import { useDetailItems } from "./request-form/use-detail-items";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -109,35 +100,18 @@ export function OrderEditForm({
     namaBasic: order.namaBasic,
     fotoBarang: null as File | null,
     photoId: order.photoId || "",
-    currentImageData: order.photoId ? getImage(order.photoId) : "",
+    currentImageData: order.photoId ? "" : "",
     waktuKirim: order.waktuKirim ? new Date(order.waktuKirim) : undefined,
     revisionNotes: order.revisionNotes || "",
   });
 
-  const [detailInput, setDetailInput] = useState({
-    kadar: "",
-    warna: "",
-    ukuran: "",
-    ukuranCustom: "",
-    berat: "",
-    pcs: "",
-    notes: "",
+  const detailItemsState = useDetailItems({
+    initialItems: order.detailItems || [],
+    kategoriBarang: formData.kategoriBarang,
+    jenisProduk: formData.jenisProduk,
   });
-
-  const [detailItems, setDetailItems] = useState<DetailBarangItem[]>(
-    order.detailItems || [],
-  );
-  const [editingDetailId, setEditingDetailId] = useState<string | null>(null);
-  const [newlyAddedIds, setNewlyAddedIds] = useState<Set<string>>(new Set());
-  const [animatingIds] = useState<Set<string>>(new Set());
-  const [relocatingIds] = useState<Set<string>>(new Set());
-  const [sortedDetailItems, setSortedDetailItems] = useState<
-    DetailBarangItem[]
-  >([]);
-
-  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
-  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  // Convenience alias so the rest of the component can still use detailItems directly
+  const detailItems = detailItemsState.items;
   const fileInputGalleryRef = useRef<HTMLInputElement>(null);
   const fileInputCameraRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -160,8 +134,6 @@ export function OrderEditForm({
       : "";
     if (originalEta !== currentEta) return true;
 
-    if (formData.revisionNotes !== (order.revisionNotes || "")) return true;
-
     if (formData.photoId !== (order.photoId || "")) return true;
 
     const normalizeItems = (items: DetailBarangItem[]) =>
@@ -178,32 +150,31 @@ export function OrderEditForm({
     return false;
   }, [
     formData.waktuKirim,
-    formData.revisionNotes,
     formData.photoId,
     detailItems,
     order,
   ]);
 
-  // Sort detail items whenever they change
+  // Load initial image from IndexedDB
   useEffect(() => {
-    const sorted = [...detailItems].sort((a, b) => {
-      const kadarA = parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
-      const kadarB = parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
-      if (kadarA !== kadarB) return kadarA - kadarB;
-      if (a.warna !== b.warna) return a.warna.localeCompare(b.warna);
-      if (a.ukuran !== b.ukuran) return a.ukuran.localeCompare(b.ukuran);
-      return parseFloat(a.berat || "0") - parseFloat(b.berat || "0");
-    });
-    setSortedDetailItems(sorted);
-  }, [detailItems]);
+    if (order.photoId) {
+      import("@/app/utils/image-storage").then(({ getImage }) => {
+        getImage(order.photoId!).then((data) => {
+          if (data) {
+            setFormData((prev) => ({ ...prev, currentImageData: data }));
+          }
+        });
+      });
+    }
+  }, [order.photoId]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const imageData = reader.result as string;
-        const newPhotoId = storeImage(imageData);
+        const newPhotoId = await storeImage(imageData);
         setFormData((prev) => ({
           ...prev,
           fotoBarang: file,
@@ -279,9 +250,9 @@ export function OrderEditForm({
     }
   };
 
-  const confirmPhoto = () => {
+  const confirmPhoto = async () => {
     if (capturedImage) {
-      const newPhotoId = storeImage(capturedImage);
+      const newPhotoId = await storeImage(capturedImage);
       setFormData((prev) => ({
         ...prev,
         photoId: newPhotoId,
@@ -298,128 +269,6 @@ export function OrderEditForm({
 
   const handleTakePhotoClick = () => {
     startCamera();
-  };
-
-  const handleAddDetail = () => {
-    if (formData.kategoriBarang === "basic" && !detailInput.berat.trim()) {
-      toast.error("Weight is mandatory for Basic Products");
-      return;
-    }
-
-    const beratValues = detailInput.berat
-      ? parseBerat(detailInput.berat)
-      : [""];
-    const finalUkuran =
-      detailInput.ukuran === "other"
-        ? detailInput.ukuranCustom
-        : detailInput.ukuran;
-
-    if (editingDetailId) {
-      const updatedItems = detailItems.map((item) =>
-        item.id === editingDetailId
-          ? {
-              ...item,
-              kadar: detailInput.kadar,
-              warna: detailInput.warna,
-              ukuran: finalUkuran,
-              berat: detailInput.berat,
-              pcs: detailInput.pcs,
-              notes: detailInput.notes,
-            }
-          : item,
-      );
-      setDetailItems(updatedItems);
-      setEditingDetailId(null);
-      setNewlyAddedIds(new Set([editingDetailId]));
-    } else {
-      const updatedItems = [...detailItems];
-      const newIds = new Set<string>();
-
-      beratValues.forEach((berat) => {
-        const existingItemIndex = updatedItems.findIndex(
-          (item) =>
-            item.kadar === detailInput.kadar &&
-            item.warna === detailInput.warna &&
-            item.ukuran === finalUkuran &&
-            item.berat === berat,
-        );
-
-        if (existingItemIndex !== -1) {
-          const existingItem = updatedItems[existingItemIndex];
-          const combinedNotes = [existingItem.notes, detailInput.notes]
-            .filter(Boolean)
-            .join(", ");
-
-          updatedItems[existingItemIndex] = {
-            ...existingItem,
-            pcs: (
-              parseInt(existingItem.pcs) + parseInt(detailInput.pcs)
-            ).toString(),
-            notes: combinedNotes,
-          };
-          newIds.add(existingItem.id);
-        } else {
-          const newId = `${Date.now()}-${Math.random()}`;
-          updatedItems.push({
-            id: newId,
-            kadar: detailInput.kadar,
-            warna: detailInput.warna,
-            ukuran: finalUkuran,
-            berat: berat,
-            pcs: detailInput.pcs,
-            notes: detailInput.notes,
-          });
-          newIds.add(newId);
-        }
-      });
-
-      setDetailItems(updatedItems);
-      setNewlyAddedIds(newIds);
-    }
-
-    // Clear form
-    setDetailInput({
-      kadar: "",
-      warna: "",
-      ukuran: "",
-      ukuranCustom: "",
-      berat: "",
-      pcs: "",
-      notes: "",
-    });
-  };
-
-  const handleEditDetail = (item: DetailBarangItem) => {
-    setDetailInput({
-      kadar: item.kadar,
-      warna: item.warna,
-      ukuran: item.ukuran,
-      ukuranCustom: "",
-      berat: item.berat || "",
-      pcs: item.pcs,
-      notes: item.notes || "",
-    });
-    setEditingDetailId(item.id);
-  };
-
-  const handleDeleteDetail = (id: string) => {
-    setDetailItems(detailItems.filter((item) => item.id !== id));
-    if (editingDetailId === id) {
-      setEditingDetailId(null);
-      setDetailInput({
-        kadar: "",
-        warna: "",
-        ukuran: "",
-        ukuranCustom: "",
-        berat: "",
-        pcs: "",
-        notes: "",
-      });
-    }
-  };
-
-  const handleRowClick = (_id: string) => {
-    // Optional: handle row click if needed
   };
 
   const handleValidateAndConfirm = () => {
@@ -919,52 +768,12 @@ export function OrderEditForm({
         {/* Detail Items */}
         <Card className="p-4">
           <h2 className="font-semibold mb-4">Product Details</h2>
-
-          {userRole !== "sales" && (
-            <DetailItemInput
-              kategoriBarang={formData.kategoriBarang}
-              jenisProduk={formData.jenisProduk}
-              detailInput={detailInput}
-              onDetailInputChange={setDetailInput}
-              onAdd={handleAddDetail}
-              editingDetailId={editingDetailId}
-              isDisabled={false}
-              isAddButtonDisabled={false}
-              onCancel={() => {
-                setEditingDetailId(null);
-                setDetailInput({
-                  kadar: "",
-                  warna: "",
-                  ukuran: "",
-                  ukuranCustom: "",
-                  berat: "",
-                  pcs: "",
-                  notes: "",
-                });
-              }}
-            />
-          )}
-
-          <div className="mt-4">
-            <DetailItemsDisplay
-              items={sortedDetailItems}
-              animatingIds={animatingIds}
-              relocatingIds={relocatingIds}
-              editingDetailId={editingDetailId}
-              onRowClick={handleRowClick}
-              onNotesClick={() => {}}
-              rowRefs={rowRefs}
-              cardRefs={cardRefs}
-              tbodyRef={tbodyRef}
-              getKadarColor={getKadarColor}
-              getWarnaColor={getWarnaColor}
-              getWarnaLabel={getWarnaLabel}
-              getUkuranDisplay={getUkuranDisplay}
-              onEdit={userRole !== "sales" ? handleEditDetail : undefined}
-              onDelete={userRole !== "sales" ? handleDeleteDetail : undefined}
-              newlyAddedIds={newlyAddedIds}
-            />
-          </div>
+          <DetailItemsSection
+            state={detailItemsState}
+            kategoriBarang={formData.kategoriBarang}
+            jenisProduk={formData.jenisProduk}
+            showInput={userRole !== "sales"}
+          />
         </Card>
 
         {/* Revision Summary for Sales */}
