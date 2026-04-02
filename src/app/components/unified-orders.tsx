@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Order } from "../types/order";
-import { Request } from "../types/request";
+import { EntityReference, Request } from "../types/request";
 import {
   notifyOrderStatusChanged,
   notifyRequestCancelled,
@@ -25,6 +25,42 @@ import {
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+
+// Convert a Request to an Order-compatible structure for rendering with OrderCard
+function requestToOrder(request: Request): Order {
+  const pabrik: EntityReference =
+    typeof request.pabrik === "string"
+      ? { id: "", name: request.pabrik }
+      : (request.pabrik as EntityReference) || { id: "", name: "Unknown" };
+
+  return {
+    id: request.id,
+    PONumber: "",
+    requestNo: request.requestNo,
+    requestId: request.id,
+    sales: request.createdBy,
+    atasNama:
+      typeof request.namaPelanggan === "string"
+        ? request.namaPelanggan
+        : (request.namaPelanggan as EntityReference)?.name || "",
+    createdDate: request.timestamp,
+    createdBy: request.createdBy || "",
+    updatedDate: request.updatedDate,
+    jbId: "",
+    branchCode: request.branchCode,
+    pabrik,
+    kategoriBarang: request.kategoriBarang,
+    jenisProduk: request.jenisProduk,
+    namaProduk: request.namaProduk || "",
+    namaBasic: request.namaBasic || "",
+    waktuKirim: request.waktuKirim || "",
+    customerExpectation: request.customerExpectation || "",
+    detailItems: request.detailItems || [],
+    status: request.status as any,
+    photoId: request.photoId,
+    viewedBy: request.viewedBy || [],
+  };
+}
 
 // Role type for the component
 export type UserRole = "sales" | "jb" | "supplier" | "personal";
@@ -909,6 +945,78 @@ export function UnifiedOrders({
                 {displayedItems.map((item) => {
                   if (item.type === "request") {
                     const request = item.data as Request;
+
+                    // Use OrderCard for Open/JB Verifying requests in internal tab
+                    if (
+                      (userRole === "sales" || userRole === "jb") &&
+                      activeTab === "internal" &&
+                      (request.status === "Open" ||
+                        request.status === "JB Verifying")
+                    ) {
+                      const orderData = requestToOrder(request);
+                      return (
+                        <OrderCard
+                          key={request.id}
+                          order={orderData}
+                          userRole={userRole}
+                          activeTab={activeTab}
+                          isExpanded={expandedOrderId === request.id}
+                          onToggleExpand={() => {
+                            toggleExpand(request.id);
+                            markAsViewed(request.id, "request");
+                          }}
+                          onCancelOrder={handleCancelRequest}
+                          onEditOrder={
+                            onEditRequest
+                              ? (_o) => onEditRequest(request)
+                              : undefined
+                          }
+                          onSeeDetail={
+                            onViewRequestDetails
+                              ? (_o) => onViewRequestDetails(request, activeTab)
+                              : userRole === "jb"
+                                ? (_o) =>
+                                    handleVerifyRequest(request, activeTab)
+                                : undefined
+                          }
+                          currentUser={currentUser}
+                        />
+                      );
+                    }
+
+                    // Use OrderCard for Rejected/Cancelled/Request Expired requests in closed tab
+                    if (
+                      (userRole === "sales" || userRole === "jb") &&
+                      activeTab === "closed" &&
+                      (request.status === "Rejected" ||
+                        request.status === "Cancelled" ||
+                        request.status === "Request Expired")
+                    ) {
+                      const orderData = requestToOrder(request);
+                      return (
+                        <OrderCard
+                          key={request.id}
+                          order={orderData}
+                          userRole={userRole}
+                          activeTab={activeTab}
+                          isExpanded={expandedOrderId === request.id}
+                          onToggleExpand={() => {
+                            toggleExpand(request.id);
+                            markAsViewed(request.id, "request");
+                          }}
+                          onSeeDetail={
+                            onViewRequestDetails
+                              ? (_o) => onViewRequestDetails(request, activeTab)
+                              : userRole === "jb"
+                                ? (_o) =>
+                                    handleVerifyRequest(request, activeTab)
+                                : undefined
+                          }
+                          currentUser={currentUser}
+                        />
+                      );
+                    }
+
                     return (
                       <RequestCard
                         key={request.id}

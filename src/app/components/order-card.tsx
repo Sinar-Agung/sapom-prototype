@@ -5,10 +5,9 @@ import {
   NAMA_PRODUK_OPTIONS,
 } from "@/app/data/order-data";
 import { Order } from "@/app/types/order";
-import { useImage } from "@/app/utils/image-storage";
-import { formatRelativeTime } from "@/app/utils/relative-time";
+import { getImage } from "@/app/utils/image-storage";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getBranchName } from "@/app/utils/user-data";
+import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -18,7 +17,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ChevronDown, ChevronRight, ClipboardCheck, Copy } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardCheck, Copy, Edit, Trash2 } from "lucide-react";
 import { DetailItemsTable } from "./detail-items-table";
 import { NewBadge } from "./new-badge";
 import { Badge } from "./ui/badge";
@@ -62,6 +61,9 @@ interface OrderCardProps {
   onSeeDetail?: (order: Order) => void;
   onUpdateOrder?: (order: Order) => void;
   onDuplicateOrder?: (order: Order) => void;
+  onCancelOrder?: (id: string) => void;
+  onEditOrder?: (order: Order) => void;
+  activeTab?: string;
   currentUser?: string;
   userRole?: "sales" | "jb" | "supplier" | "stockist";
 }
@@ -73,6 +75,9 @@ export function OrderCard({
   onSeeDetail,
   onUpdateOrder,
   onDuplicateOrder,
+  onCancelOrder,
+  onEditOrder,
+  activeTab,
   currentUser,
   userRole,
 }: OrderCardProps) {
@@ -111,12 +116,11 @@ export function OrderCard({
     return `${dateStr}, ${timeStr}`;
   };
 
-  const storedImage = useImage(order.photoId);
-
   const getOrderImage = (order: Order) => {
     // Check for latest uploaded photo via photoId
-    if (order.photoId && storedImage) {
-      return storedImage;
+    if (order.photoId) {
+      const storedImage = getImage(order.photoId);
+      if (storedImage) return storedImage;
     }
     // Fallback to predefined Basic images
     if (order.kategoriBarang === "basic" && order.namaBasic) {
@@ -180,19 +184,8 @@ export function OrderCard({
       </div>
 
       <div className="flex gap-2 sm:gap-4">
-        {/* Left Side - Updated Date and Image */}
+        {/* Left Side - Image Only */}
         <div className="flex flex-col w-20 sm:w-36 md:w-44 lg:w-48 shrink-0">
-          {/* Updated Date at top */}
-          <div className="mb-1 sm:mb-2">
-            <div className="text-[9px] sm:text-xs text-gray-500 mb-0.5">
-              Updated
-            </div>
-            <div className="text-[11px] sm:text-sm font-semibold">
-              {formatRelativeTime(order.updatedDate || order.createdDate) ||
-                "-"}
-            </div>
-          </div>
-
           {/* Product Image */}
           <div className="w-16 h-16 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-44 lg:h-44 border rounded-lg overflow-hidden bg-gray-50">
             <img
@@ -240,68 +233,122 @@ export function OrderCard({
           </div>
 
           {/* Order Information Grid - All fields in one consistent grid */}
-          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
-            {/* PO Number */}
-            <span className="text-gray-500">PO Number:</span>
-            <span className="font-mono font-semibold text-blue-700">
-              {order.PONumber}
-            </span>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
+            {/* PO Number - only show when available */}
+            {order.PONumber && (
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">PO Number</span>
+                <span>
+                  <span>:</span>
+                  <span className="font-mono font-semibold text-blue-700">
+                    {order.PONumber}
+                  </span>
+                </span>
+              </div>
+            )}
+
+            {/* Request No - for Sales/JB when status is Open or JB Verifying */}
+            {(userRole === "sales" || userRole === "jb") &&
+              order.requestNo &&
+              ((order.status as string) === "Open" ||
+                (order.status as string) === "JB Verifying") && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-500">Request No</span>
+                  <span>
+                    <span>:</span>
+                    <span className="font-mono text-gray-700">
+                      {order.requestNo}
+                    </span>
+                  </span>
+                </div>
+              )}
+
+            {/* Updated Date */}
+            <div className="grid grid-cols-5 gap-x-3">
+              <span className="text-gray-500">Updated</span>
+              <span>
+                <span>:</span>
+                <span className="font-medium">
+                  {formatTimestampWithTime(
+                    order.updatedDate || order.createdDate,
+                  ) || "-"}
+                </span>
+              </span>
+            </div>
 
             {/* Created Date */}
-            <span className="text-gray-500">Created:</span>
-            <span>{formatTimestampWithTime(order.createdDate) || "-"}</span>
+            <div className="grid grid-cols-5 gap-x-3">
+              <span className="text-gray-500">Created</span>
+              <span>
+                <span>:</span>
+                <span>
+                  {formatTimestamp(order.createdDate) || "-"}
+                </span>
+              </span>
+            </div>
 
-            {/* Last Updated */}
-            {order.updatedDate && order.updatedDate !== order.createdDate && (
-              <>
-                <span className="text-gray-500">Last Updated:</span>
-                <span>{formatTimestampWithTime(order.updatedDate)}</span>
-              </>
-            )}
+            {/* ETA */}
+            <div className="grid grid-cols-5 gap-x-3">
+              <span className="text-gray-500">ETA</span>
+              <span>
+                <span>:</span>
+                <span>
+                  {formatDate(order.waktuKirim) || "-"}
+                </span>
+              </span>
+            </div>
 
             {/* JB Name - Hidden for suppliers */}
             {userRole !== "supplier" && order.jbId && (
-              <>
-                <span className="text-gray-500">JB:</span>
-                <span className="text-gray-700">
-                  {getJBFullName(order.jbId)}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">JB</span>
+                <span>
+                  <span>:</span>
+                  <span className="text-gray-700">
+                    {getJBFullName(order.jbId)}
+                  </span>
                 </span>
-              </>
+              </div>
             )}
+
+            {/* Sales Name - Hidden for suppliers */}
+            {/* {userRole !== "supplier" && order.sales && (
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">Sales</span>
+                <span>
+                  <span>:</span>
+                  <span className="text-gray-700">
+                    {getFullNameFromUsername(order.sales)}
+                  </span>
+                </span>
+              </div>
+            )} */}
 
             {/* Customer Name - Hidden for suppliers */}
             {userRole !== "supplier" && order.atasNama && (
-              <>
-                <span className="text-gray-500">Customer Name:</span>
-                <span className="text-gray-700">{order.atasNama}</span>
-              </>
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-500">Customer Name</span>
+                <span>
+                  <span>:</span>
+                  <span className="text-gray-700">{order.atasNama}</span>
+                </span>
+              </div>
             )}
 
             {/* Supplier - Hidden for suppliers */}
             {userRole !== "supplier" && (
-              <>
-                <span className="text-gray-500">Supplier:</span>
-                <Badge
-                  variant="secondary"
-                  className={`${getPabrikColor(pabrikLabel)}`}
-                >
-                  {pabrikLabel}
-                </Badge>
-              </>
-            )}
-
-            {/* ETA */}
-            <span className="text-gray-500">ETA:</span>
-            <span>{formatDate(order.waktuKirim) || "-"}</span>
-
-            {/* Branch - Visible for supplier */}
-            {userRole === "supplier" && order.branchCode && (
-              <>
-                <span className="text-gray-500">Branch:</span>
-                <span className="font-medium">
-                  {getBranchName(order.branchCode)}
+              <div className="grid grid-cols-5 gap-x-3 items-center">
+                <span className="text-gray-500">Supplier</span>
+                <span>
+                  <span>:</span>
+                  <Badge
+                    variant="secondary"
+                    className={`${getPabrikColor(pabrikLabel)}`}
+                  >
+                    {pabrikLabel}
+                  </Badge>
                 </span>
-              </>
+              </div>
             )}
           </div>
 
@@ -309,27 +356,10 @@ export function OrderCard({
           {(onToggleExpand ||
             onSeeDetail ||
             onUpdateOrder ||
-            onDuplicateOrder) && (
+            onDuplicateOrder ||
+            onCancelOrder ||
+            onEditOrder) && (
             <div className="flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-4">
-              {/* Update Order Button - Only if not JB */}
-              {onUpdateOrder && userRole !== "jb" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      onClick={() => onUpdateOrder(order)}
-                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                    >
-                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Update Order</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Update order details</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
               {/* Show/Hide Items Button */}
               {onToggleExpand && (
                 <Tooltip>
@@ -357,6 +387,74 @@ export function OrderCard({
                     <p>
                       {isExpanded ? "Hide order items" : "Show order items"}
                     </p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Cancel Button - for Sales when Open or JB Verifying */}
+              {onCancelOrder &&
+                userRole === "sales" &&
+                (activeTab === "open" ||
+                  (activeTab === "internal" &&
+                    ((order.status as string) === "Open" ||
+                      (order.status as string) === "JB Verifying"))) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onCancelOrder(order.id)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Cancel</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Cancel this request</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Edit Button - for Sales when Open only */}
+              {onEditOrder &&
+                userRole === "sales" &&
+                (activeTab === "open" ||
+                  (activeTab === "internal" &&
+                    (order.status as string) === "Open")) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEditOrder(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                    >
+                      <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Edit this request</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Update Order Button - Only if not JB */}
+              {onUpdateOrder && userRole !== "jb" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      onClick={() => onUpdateOrder(order)}
+                      className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                    >
+                      <ClipboardCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Update Order</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Update order details</p>
                   </TooltipContent>
                 </Tooltip>
               )}
