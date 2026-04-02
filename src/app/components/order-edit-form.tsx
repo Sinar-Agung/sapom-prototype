@@ -148,12 +148,7 @@ export function OrderEditForm({
       return true;
 
     return false;
-  }, [
-    formData.waktuKirim,
-    formData.photoId,
-    detailItems,
-    order,
-  ]);
+  }, [formData.waktuKirim, formData.photoId, detailItems, order]);
 
   // Load initial image from IndexedDB
   useEffect(() => {

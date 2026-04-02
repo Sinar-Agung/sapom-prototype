@@ -2,6 +2,7 @@ import { cn } from "@/app/components/ui/utils";
 import { getUnreadCountForUser } from "@/app/utils/notification-helper";
 import {
   Bell,
+  CalendarDays,
   CirclePlus,
   Home,
   Inbox,
@@ -70,6 +71,7 @@ export function Navigation({
         { id: "home", label: t("navigation.home"), icon: Home },
         { id: "inbound", label: t("navigation.inbound"), icon: Inbox },
         { id: "jb-orders", label: t("navigation.orders"), icon: Package },
+        { id: "eta-calendar", label: "Calendar", icon: CalendarDays },
         {
           id: "notifications",
           label: t("navigation.notifications"),
@@ -92,11 +94,6 @@ export function Navigation({
       // Sales navigation items
       return [
         { id: "home", label: t("navigation.home"), icon: Home },
-        // {
-        //   id: "pertanyaan",
-        //   label: t("navigation.questions"),
-        //   icon: HelpCircle,
-        // },
         {
           id: "tambah-pesanan",
           label: t("navigation.newRequest"),
@@ -104,6 +101,7 @@ export function Navigation({
         },
 
         { id: "sales-orders", label: t("navigation.orders"), icon: Package },
+        { id: "eta-calendar", label: "Calendar", icon: CalendarDays },
         {
           id: "notifications",
           label: t("navigation.notifications"),

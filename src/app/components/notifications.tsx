@@ -291,8 +291,7 @@ export function Notifications({
   // Archived = manually archived by user OR older than 30 days
   const archivedNotifications = notifications.filter(
     (n) =>
-      n.archivedBy?.includes(currentUser) ||
-      now - n.timestamp > THIRTY_DAYS_MS,
+      n.archivedBy?.includes(currentUser) || now - n.timestamp > THIRTY_DAYS_MS,
   );
   const nonArchivedNotifications = notifications.filter(
     (n) =>
@@ -662,9 +661,7 @@ export function Notifications({
             {/* Entity info */}
             <div className="flex items-center gap-3 text-xs text-gray-500">
               <span className="flex items-center gap-1">
-                <span className="font-medium">
-                  {notification.entityType === "request" ? "Request" : "Order"}:
-                </span>
+                <span className="font-medium">PO Number:</span>
                 <span className="font-mono">{notification.entityNumber}</span>
               </span>
               <span>•</span>
@@ -672,46 +669,6 @@ export function Notifications({
                 by {triggeredByName === "system" ? "System" : triggeredByName}
               </span>
             </div>
-
-            {/* Changes */}
-            {notification.changes && notification.changes.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-gray-200">
-                {isExpiring ? (
-                  <>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                      Days to ETA:
-                    </p>
-                    {notification.changes.map((change, idx) => (
-                      <div
-                        key={idx}
-                        className={`text-xs font-semibold ${opts.isArchived ? "text-gray-600" : "text-orange-700"}`}
-                      >
-                        {change.newValue} day{change.newValue !== 1 ? "s" : ""}{" "}
-                        remaining
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                      Changes:
-                    </p>
-                    {notification.changes.map((change, idx) => (
-                      <div key={idx} className="text-xs text-gray-600">
-                        <span className="font-medium">{change.field}:</span>{" "}
-                        <span className="line-through text-red-600">
-                          {change.oldValue || "N/A"}
-                        </span>{" "}
-                        →{" "}
-                        <span className="text-green-600">
-                          {change.newValue || "N/A"}
-                        </span>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Right column: timestamp + archive/unarchive */}
@@ -724,9 +681,7 @@ export function Notifications({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) =>
-                  handleUnarchiveNotification(e, notification.id)
-                }
+                onClick={(e) => handleUnarchiveNotification(e, notification.id)}
                 className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
               >
                 <UnarchiveBoxIcon className="w-3.5 h-3.5 mr-1" />
@@ -736,9 +691,7 @@ export function Notifications({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) =>
-                  handleArchiveNotification(e, notification.id)
-                }
+                onClick={(e) => handleArchiveNotification(e, notification.id)}
                 className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
               >
                 <ArchiveBoxIcon className="w-3.5 h-3.5 mr-1" />
@@ -965,9 +918,7 @@ export function Notifications({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setShowArchiveDialog(false)}
-            >
+            <AlertDialogCancel onClick={() => setShowArchiveDialog(false)}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction

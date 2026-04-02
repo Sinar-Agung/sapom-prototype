@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AvailablePcsDemo } from "./components/available-pcs-demo";
+import { ETACalendar } from "./components/eta-calendar";
 import { JBHome } from "./components/jb-home";
 import { JBInboundSearch } from "./components/jb-inbound-search";
 
@@ -955,6 +956,8 @@ export default function App() {
           // Demo page for Available Pcs Input
           return <AvailablePcsDemo />;
         }
+      case "eta-calendar":
+        return <ETACalendar userRole={userRole as "sales" | "jb"} />;
       case "activities":
         return (
           <div className="h-full flex items-center justify-center">

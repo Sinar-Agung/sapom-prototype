@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+### Added
+
+**ETA Calendar View for Sales & JB**
+
+- New `eta-calendar.tsx` component showing a monthly calendar with ETA/expiry date indicators
+- Each date cell shows request count (orange badge) and order count (blue badge)
+- Clicking a date reveals a detail panel listing all requests/orders with their product names and status
+- Sales sees own requests/orders; JB sees all
+- Added "Calendar" nav item (CalendarDays icon) to both JB and Sales navigation
+- Wired up `eta-calendar` route in `App.tsx`
+- Updated: `eta-calendar.tsx` (new), `navigation.tsx`, `App.tsx`
+
+### Changed
+
+**Tabs — Folder-Tab Styling**
+
+- Active tab now renders as a folder tab (white background, rounded top corners, bottom border hidden) instead of a simple underline
+- Inactive tabs show subtle hover background
+- Updated: `tabs.tsx`
+
+**Notification Cards — Simplified Layout**
+
+- Removed the entire "Changes" section (field diffs and "Days to ETA" countdown) from all notification cards
+- Renamed entity label from "Request:" / "Order:" to "PO Number:" for all notification types
+- Updated: `notifications.tsx`
+
+**Request Details — Layout Unified with Order Details**
+
+- Switched from 2-column (fields left, image right) to image-left, fields-right layout matching order-details
+- Info fields now use `grid-cols-5` colon-separated layout
+- Updated: `request-details.tsx`
+
+**Card Layouts — Unified Grid System**
+
+- All card and detail views now use `grid-cols-[minmax(160px,auto)_auto_1fr]` with colon in its own column
+- Applied consistently across `order-card.tsx`, `request-card.tsx`, `order-details.tsx`, `request-details.tsx`
+- Order cards now show "Updated" relative time above image
+
+**Request Form — UI Improvements**
+
+- Swapped Save/Cancel button order in save confirmation dialog
+- Detail item input: added Reset button, fixed textarea borders
+- Updated: `request-form.tsx`, `detail-item-input.tsx`, `detail-items-section.tsx`
+
+**Order Edit Form — Button Order Fix**
+
+- Swapped Save/Cancel button order to match other forms
+- Updated: `order-edit-form.tsx`
+
+**Theme — Input Border Fix**
+
+- Changed `--input` CSS variable from `transparent` to `#d1d5db` so form input borders are visible
+- Updated: `theme.css`
+
 ### Fixed
 
 **Notifications — `isRefreshing` ReferenceError**: Declared missing state variable

@@ -246,11 +246,12 @@ export function RequestCard({
           </div>
 
           {/* Request Information Grid - All fields in one consistent grid */}
-          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm mb-2 sm:mb-3">
+          <div className="grid grid-cols-[minmax(160px,auto)_auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm mb-2 sm:mb-3">
             {/* PO Number */}
             {order.requestNo && (
               <>
-                <span className="text-gray-500">PO Number:</span>
+                <span className="text-gray-500">PO Number</span>
+                <span>:</span>
                 <span className="font-mono font-semibold text-blue-700">
                   {order.requestNo}
                 </span>
@@ -258,17 +259,17 @@ export function RequestCard({
             )}
 
             {/* Created Date */}
-            <span className="text-gray-500">Created:</span>
+            <span className="text-gray-500">Created</span>
+            <span>:</span>
             <span className="text-gray-700">
-              {order.timestamp
-                ? formatTimestampWithTime(order.timestamp)
-                : "-"}
+              {order.timestamp ? formatTimestampWithTime(order.timestamp) : "-"}
             </span>
 
             {/* Last Updated Date */}
             {order.updatedDate && (
               <>
-                <span className="text-gray-500">Last Updated:</span>
+                <span className="text-gray-500">Last Updated</span>
+                <span>:</span>
                 <span className="text-gray-700">
                   {formatTimestampWithTime(order.updatedDate)}
                 </span>
@@ -279,7 +280,8 @@ export function RequestCard({
             {(userRole === "stockist" || userRole === "jb") &&
               order.createdBy && (
                 <>
-                  <span className="text-gray-500">Sales:</span>
+                  <span className="text-gray-500">Sales</span>
+                  <span>:</span>
                   <span className="text-gray-700">
                     {getFullNameFromUsername(order.createdBy || "")}
                   </span>
@@ -289,7 +291,8 @@ export function RequestCard({
             {/* Sales Name (only show for sales if flag is set) */}
             {userRole === "sales" && showSalesName && order.createdBy && (
               <>
-                <span className="text-gray-500">Sales:</span>
+                <span className="text-gray-500">Sales</span>
+                <span>:</span>
                 <span className="text-gray-700">
                   {getFullNameFromUsername(order.createdBy || "")}
                 </span>
@@ -300,7 +303,8 @@ export function RequestCard({
             {(userRole === "sales" || userRole === "jb") &&
               order.stockistId && (
                 <>
-                  <span className="text-gray-500">Stockist:</span>
+                  <span className="text-gray-500">Stockist</span>
+                  <span>:</span>
                   <span className="text-gray-700">
                     {getFullNameFromUsername(order.stockistId || "")}
                   </span>
@@ -310,13 +314,15 @@ export function RequestCard({
             {/* Customer Name */}
             {order.namaPelanggan && order.namaPelanggan.name && (
               <>
-                <span className="text-gray-500">Customer Name:</span>
+                <span className="text-gray-500">Customer Name</span>
+                <span>:</span>
                 <span className="text-gray-700">{atasNamaLabel}</span>
               </>
             )}
 
             {/* Supplier with color badge */}
-            <span className="text-gray-500">Supplier:</span>
+            <span className="text-gray-500">Supplier</span>
+            <span>:</span>
             <Badge
               variant="secondary"
               className={`${getPabrikColor(pabrikLabel)}`}
@@ -325,7 +331,8 @@ export function RequestCard({
             </Badge>
 
             {/* ETA */}
-            <span className="text-gray-500">ETA:</span>
+            <span className="text-gray-500">ETA</span>
+            <span>:</span>
             <span className="text-gray-600">
               {formatDate(order.waktuKirim) || "-"}
             </span>
@@ -333,7 +340,8 @@ export function RequestCard({
             {/* Branch - show when available */}
             {order.branchCode && (
               <>
-                <span className="text-gray-500">Branch:</span>
+                <span className="text-gray-500">Branch</span>
+                <span>:</span>
                 <span className="font-medium text-gray-700">
                   {getBranchName(order.branchCode)}
                 </span>
@@ -413,25 +421,24 @@ export function RequestCard({
                       </Tooltip>
                     )}
                   {/* Edit: only for Open status, not JB Verifying */}
-                  {order.status === "Open" &&
-                    onEditOrder && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onEditOrder(order)}
-                            className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                          >
-                            <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
-                            <span className="hidden sm:inline">Edit</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Edit this request</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                  {order.status === "Open" && onEditOrder && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onEditOrder(order)}
+                          className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                        >
+                          <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Edit this request</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                   {/* Placeholder to close old block */}
                   {false && null}
                   {/* Duplicate button visible except for Cancelled requests */}

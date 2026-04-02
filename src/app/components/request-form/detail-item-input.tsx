@@ -378,17 +378,23 @@ export function DetailItemInput({
             >
               {editingDetailId ? "Update" : "Add"}
             </Button>
-            {!editingDetailId && (detailInput.kadar || detailInput.warna || detailInput.ukuran || detailInput.berat || detailInput.pcs || detailInput.notes) && (
-              <Button
-                onClick={onReset}
-                size="sm"
-                variant="outline"
-                className="h-8 flex-1 sm:flex-initial sm:w-auto px-3 sm:px-4 text-xs sm:text-sm text-gray-600"
-                disabled={isDisabled}
-              >
-                Reset
-              </Button>
-            )}
+            {!editingDetailId &&
+              (detailInput.kadar ||
+                detailInput.warna ||
+                detailInput.ukuran ||
+                detailInput.berat ||
+                detailInput.pcs ||
+                detailInput.notes) && (
+                <Button
+                  onClick={onReset}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 flex-1 sm:flex-initial sm:w-auto px-3 sm:px-4 text-xs sm:text-sm text-gray-600"
+                  disabled={isDisabled}
+                >
+                  Reset
+                </Button>
+              )}
           </div>
         </div>
       </div>

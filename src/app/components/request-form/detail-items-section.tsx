@@ -107,7 +107,17 @@ export function DetailItemsSection({
             isDisabled={effectiveDisabled}
             isAddButtonDisabled={isAddButtonDisabled}
             onAdd={handleAdd}
-            onReset={() => setDetailInput({ kadar: "", warna: "", ukuran: "", ukuranCustom: "", berat: "", pcs: "", notes: "" })}
+            onReset={() =>
+              setDetailInput({
+                kadar: "",
+                warna: "",
+                ukuran: "",
+                ukuranCustom: "",
+                berat: "",
+                pcs: "",
+                notes: "",
+              })
+            }
             onCancel={handleCancelEdit}
             isExpanded={isInputFormExpanded}
             onToggleExpanded={() =>

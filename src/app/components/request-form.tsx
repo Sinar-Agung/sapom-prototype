@@ -667,12 +667,6 @@ export function RequestForm(props: RequestFormProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel
-              onClick={() => setShowSaveConfirmDialog(false)}
-              className="text-red-600 bg-white border-red-300 hover:bg-red-50 hover:text-red-700"
-            >
-              Cancel
-            </AlertDialogCancel>
             <Button
               className="bg-green-600 text-white hover:bg-green-700"
               onClick={() => {
@@ -682,6 +676,12 @@ export function RequestForm(props: RequestFormProps) {
             >
               Save
             </Button>
+            <AlertDialogCancel
+              onClick={() => setShowSaveConfirmDialog(false)}
+              className="text-red-600 bg-white border-red-300 hover:bg-red-50 hover:text-red-700"
+            >
+              Cancel
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
