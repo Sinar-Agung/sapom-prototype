@@ -1,16 +1,24 @@
 import { Notification } from "@/app/types/notification";
-import { getImage } from "@/app/utils/image-storage";
 import {
+  archiveNotificationForUser,
   getNotificationsForUser,
   getUnreadCountForUser,
   markAllAsReadForUser,
   markNotificationAsRead,
-  removeNotificationForUser,
+  unarchiveNotificationForUser,
 } from "@/app/utils/notification-helper";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
+import casteli from "@/assets/images/casteli.png";
+import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
+import italyBambu from "@/assets/images/italy-bambu.png";
+import italyKaca from "@/assets/images/italy-kaca.png";
+import italySanta from "@/assets/images/italy-santa.png";
+import kalungFlexi from "@/assets/images/kalung-flexi.png";
+import milano from "@/assets/images/milano.png";
+import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
+import tambang from "@/assets/images/tambang.png";
 import {
   AlertTriangle,
-  Archive,
   Bell,
   CheckCheck,
   Clock,
@@ -43,6 +51,54 @@ interface NotificationsProps {
   onNavigateToUpdateOrder?: (orderId: string) => void;
 }
 
+const NAMA_BASIC_IMAGES: Record<string, string> = {
+  "italy-santa": italySanta,
+  "italy-kaca": italyKaca,
+  "italy-bambu": italyBambu,
+  "kalung-flexi": kalungFlexi,
+  milano: milano,
+  "sunny-vanessa": sunnyVanessa,
+  casteli: casteli,
+  tambang: tambang,
+  "hollow-fancy-nori": hollowFancyNori,
+};
+
+function ArchiveBoxIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      {/* lid */}
+      <rect x="2" y="3" width="20" height="3" rx="1" />
+      {/* box body */}
+      <path d="M4 7h16v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7z" />
+      {/* down arrow */}
+      <path d="M13 10h-2v3H9l3 3.5 3-3.5h-2v-3z" fill="white" />
+    </svg>
+  );
+}
+
+function UnarchiveBoxIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      {/* lid */}
+      <rect x="2" y="3" width="20" height="3" rx="1" />
+      {/* box body */}
+      <path d="M4 7h16v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7z" />
+      {/* up arrow */}
+      <path d="M11 17h2v-3h2l-3-3.5-3 3.5h2v3z" fill="white" />
+    </svg>
+  );
+}
+
 const NOTIFICATION_SORT_OPTIONS: SortOption[] = [
   { value: "timestamp", label: "Date" },
   { value: "eventType", label: "Event Type" },
@@ -62,11 +118,29 @@ export function Notifications({
     const saved = sessionStorage.getItem("notificationsActiveTab");
     return (saved as "all" | "unread" | "expiring") || "all";
   });
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
-  const [notificationToRemove, setNotificationToRemove] = useState<
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [notificationToArchive, setNotificationToArchive] = useState<
     string | null
   >(null);
+
+  const handleArchiveNotification = (
+    e: React.MouseEvent,
+    notificationId: string,
+  ) => {
+    e.stopPropagation();
+    setNotificationToArchive(notificationId);
+    setShowArchiveDialog(true);
+  };
+
+  const confirmArchive = () => {
+    if (notificationToArchive) {
+      archiveNotificationForUser(notificationToArchive, currentUser);
+      loadNotifications();
+    }
+    setShowArchiveDialog(false);
+    setNotificationToArchive(null);
+  };
+
   const [filterText, setFilterText] = useState(() => {
     return sessionStorage.getItem("notificationsFilterText") || "";
   });
@@ -80,6 +154,7 @@ export function Notifications({
         | "desc") || "desc"
     );
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const currentUser =
     localStorage.getItem("username") ||
     sessionStorage.getItem("username") ||
@@ -143,27 +218,13 @@ export function Notifications({
     loadNotifications();
   };
 
-  const handleRemoveNotification = (
+  const handleUnarchiveNotification = (
     e: React.MouseEvent,
     notificationId: string,
   ) => {
-    e.stopPropagation(); // Prevent triggering the notification click
-    setNotificationToRemove(notificationId);
-    setShowRemoveDialog(true);
-  };
-
-  const confirmRemoveNotification = () => {
-    if (notificationToRemove) {
-      removeNotificationForUser(notificationToRemove, currentUser);
-      loadNotifications();
-    }
-    setShowRemoveDialog(false);
-    setNotificationToRemove(null);
-  };
-
-  const cancelRemoveNotification = () => {
-    setShowRemoveDialog(false);
-    setNotificationToRemove(null);
+    e.stopPropagation();
+    unarchiveNotificationForUser(notificationId, currentUser);
+    loadNotifications();
   };
 
   const handleManualRefresh = () => {
@@ -227,12 +288,16 @@ export function Notifications({
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
   const now = Date.now();
 
-  // First, separate archived notifications (older than 30 days)
+  // Archived = manually archived by user OR older than 30 days
   const archivedNotifications = notifications.filter(
-    (n) => now - n.timestamp > THIRTY_DAYS_MS,
+    (n) =>
+      n.archivedBy?.includes(currentUser) ||
+      now - n.timestamp > THIRTY_DAYS_MS,
   );
   const nonArchivedNotifications = notifications.filter(
-    (n) => now - n.timestamp <= THIRTY_DAYS_MS,
+    (n) =>
+      !n.archivedBy?.includes(currentUser) &&
+      now - n.timestamp <= THIRTY_DAYS_MS,
   );
 
   const tabFilteredNotifications =
@@ -402,9 +467,8 @@ export function Notifications({
             (r: any) => r.id === notification.entityId,
           );
           if (request?.fotoBarangBase64) return request.fotoBarangBase64;
-          if (request?.photoId) {
-            const img = getImage(request.photoId);
-            if (img) return img;
+          if (request?.kategoriBarang === "basic" && request?.namaBasic) {
+            return NAMA_BASIC_IMAGES[request.namaBasic] || null;
           }
         }
       } else if (notification.entityType === "order") {
@@ -413,9 +477,8 @@ export function Notifications({
           const orders = JSON.parse(ordersJson);
           const order = orders.find((o: any) => o.id === notification.entityId);
           if (order?.fotoBarangBase64) return order.fotoBarangBase64;
-          if (order?.photoId) {
-            const img = getImage(order.photoId);
-            if (img) return img;
+          if (order?.kategoriBarang === "basic" && order?.namaBasic) {
+            return NAMA_BASIC_IMAGES[order.namaBasic] || null;
           }
         }
       }
@@ -429,6 +492,7 @@ export function Notifications({
     message: string,
     isExpiring: boolean,
     isUnread: boolean,
+    thumbnailImage: string | null,
   ) => {
     const lines = message.split("\n").filter(Boolean);
     const isParseable =
@@ -436,17 +500,26 @@ export function Notifications({
 
     if (!isParseable) {
       return (
-        <p
-          className={`text-sm whitespace-pre-wrap ${
-            isExpiring
-              ? "text-orange-800 font-medium"
-              : isUnread
-                ? "text-gray-700"
-                : "text-gray-600"
-          } mb-2`}
-        >
-          {message}
-        </p>
+        <div className="flex gap-3 items-start mb-2">
+          <p
+            className={`text-sm whitespace-pre-wrap flex-1 ${
+              isExpiring
+                ? "text-orange-800 font-medium"
+                : isUnread
+                  ? "text-gray-700"
+                  : "text-gray-600"
+            }`}
+          >
+            {message}
+          </p>
+          {thumbnailImage && (
+            <img
+              src={thumbnailImage}
+              alt="Product"
+              className="w-14 h-14 object-cover rounded-md border border-gray-200 shrink-0"
+            />
+          )}
+        </div>
       );
     }
 
@@ -455,31 +528,226 @@ export function Notifications({
       return { field: l.slice(0, colonIdx), value: l.slice(colonIdx + 2) };
     });
 
+    const numRows = Math.ceil(pairs.length / 2);
+    const fieldStyle = isExpiring ? "text-orange-700" : "text-gray-500";
+    const valueStyle = isExpiring
+      ? "text-orange-800"
+      : isUnread
+        ? "text-gray-700"
+        : "text-gray-600";
+
+    const gridItems: React.ReactNode[] = pairs
+      .map(({ field, value }, i) => {
+        const row = Math.floor(i / 2) + 1;
+        const isLeft = i % 2 === 0;
+        return [
+          <span
+            key={`f${i}`}
+            style={{ gridRow: row, gridColumn: isLeft ? 1 : 3 }}
+            className={`text-xs font-semibold whitespace-nowrap ${fieldStyle}`}
+          >
+            {field}:
+          </span>,
+          <span
+            key={`v${i}`}
+            style={{ gridRow: row, gridColumn: isLeft ? 2 : 4 }}
+            className={`text-xs truncate ${valueStyle}`}
+          >
+            {value || "—"}
+          </span>,
+        ];
+      })
+      .flat();
+
+    if (thumbnailImage) {
+      gridItems.push(
+        <img
+          key="photo"
+          src={thumbnailImage}
+          alt="Product"
+          style={{ gridColumn: 5, gridRow: `1 / ${numRows + 1}` }}
+          className="w-14 h-14 object-cover rounded-md border border-gray-200 self-start"
+        />,
+      );
+    }
+
     return (
-      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mb-2">
-        {pairs.map(({ field, value }, i) => (
-          <div key={i} className="flex gap-1.5 text-xs min-w-0">
-            <span
-              className={`font-semibold whitespace-nowrap shrink-0 ${
-                isExpiring ? "text-orange-700" : "text-gray-500"
-              }`}
-            >
-              {field}:
-            </span>
-            <span
-              className={`truncate ${
-                isExpiring
-                  ? "text-orange-800"
-                  : isUnread
-                    ? "text-gray-700"
-                    : "text-gray-600"
-              }`}
-            >
-              {value || "—"}
-            </span>
-          </div>
-        ))}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "90px 190px 90px 190px auto",
+          columnGap: "8px",
+          rowGap: "2px",
+          alignItems: "start",
+        }}
+        className="mb-2"
+      >
+        {gridItems}
       </div>
+    );
+  };
+
+  const renderNotificationCard = (
+    notification: Notification,
+    opts: { forceUnread?: boolean; isArchived?: boolean } = {},
+  ) => {
+    const isUnread = opts.isArchived
+      ? false
+      : (opts.forceUnread ?? !notification.readBy.includes(currentUser));
+    const isCurrentUser = notification.triggeredBy === currentUser;
+    const triggeredByName = isCurrentUser
+      ? "You"
+      : getFullNameFromUsername(notification.triggeredBy);
+    const isExpiring = notification.eventType === "request_expiring";
+    const isExpired = notification.eventType === "request_expired";
+    const displayMessage = notification.message;
+    const thumbnailImage = getThumbnailImage(notification);
+
+    const cardClass = opts.isArchived
+      ? "bg-gray-50 border-gray-300 opacity-75"
+      : isExpiring
+        ? "border-2 border-orange-400 bg-orange-50"
+        : isUnread
+          ? `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
+          : `bg-white border-gray-200`;
+
+    const titleClass = isExpiring
+      ? "text-orange-900"
+      : isExpired
+        ? "text-red-900"
+        : isUnread
+          ? "text-gray-900"
+          : opts.isArchived
+            ? "text-gray-600"
+            : "text-gray-700";
+
+    return (
+      <Card
+        key={notification.id}
+        className={`p-3 transition-all cursor-pointer hover:shadow-md ${cardClass}`}
+        onClick={() => handleNotificationClick(notification)}
+      >
+        <div className="flex gap-3">
+          {/* Icon */}
+          <div className="flex-shrink-0 mt-1">
+            {getEventIcon(notification.eventType)}
+          </div>
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            {/* Header: badge + pill + title */}
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              {isUnread && (
+                <NewBadge className="w-8 h-8 flex-shrink-0 animate-pulse-scale" />
+              )}
+              <span
+                className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventTypePillColor(notification.eventType)}`}
+              >
+                {formatEventType(notification.eventType)}
+              </span>
+              <h3
+                className={`font-semibold ${titleClass}`}
+                dangerouslySetInnerHTML={{ __html: notification.title }}
+              />
+            </div>
+
+            {/* 5-column message grid */}
+            {renderMessageFields(
+              displayMessage,
+              isExpiring,
+              isUnread,
+              thumbnailImage,
+            )}
+
+            {/* Entity info */}
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <span className="font-medium">
+                  {notification.entityType === "request" ? "Request" : "Order"}:
+                </span>
+                <span className="font-mono">{notification.entityNumber}</span>
+              </span>
+              <span>•</span>
+              <span>
+                by {triggeredByName === "system" ? "System" : triggeredByName}
+              </span>
+            </div>
+
+            {/* Changes */}
+            {notification.changes && notification.changes.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                {isExpiring ? (
+                  <>
+                    <p className="text-xs font-semibold text-gray-600 mb-1">
+                      Days to ETA:
+                    </p>
+                    {notification.changes.map((change, idx) => (
+                      <div
+                        key={idx}
+                        className={`text-xs font-semibold ${opts.isArchived ? "text-gray-600" : "text-orange-700"}`}
+                      >
+                        {change.newValue} day{change.newValue !== 1 ? "s" : ""}{" "}
+                        remaining
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold text-gray-600 mb-1">
+                      Changes:
+                    </p>
+                    {notification.changes.map((change, idx) => (
+                      <div key={idx} className="text-xs text-gray-600">
+                        <span className="font-medium">{change.field}:</span>{" "}
+                        <span className="line-through text-red-600">
+                          {change.oldValue || "N/A"}
+                        </span>{" "}
+                        →{" "}
+                        <span className="text-green-600">
+                          {change.newValue || "N/A"}
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right column: timestamp + archive/unarchive */}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <span className="text-xs text-gray-500 whitespace-nowrap flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {formatTimestamp(notification.timestamp)}
+            </span>
+            {opts.isArchived ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) =>
+                  handleUnarchiveNotification(e, notification.id)
+                }
+                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
+              >
+                <UnarchiveBoxIcon className="w-3.5 h-3.5 mr-1" />
+                Unarchive
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) =>
+                  handleArchiveNotification(e, notification.id)
+                }
+                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
+              >
+                <ArchiveBoxIcon className="w-3.5 h-3.5 mr-1" />
+                Archive
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
     );
   };
 
@@ -601,173 +869,9 @@ export function Notifications({
               </Card>
             ) : (
               <div className="space-y-2">
-                {sortedNotifications.map((notification) => {
-                  const isUnread = !notification.readBy.includes(currentUser);
-                  const isCurrentUser =
-                    notification.triggeredBy === currentUser;
-                  const triggeredByName = isCurrentUser
-                    ? "You"
-                    : getFullNameFromUsername(notification.triggeredBy);
-                  const isExpiring =
-                    notification.eventType === "request_expiring";
-                  const isExpired =
-                    notification.eventType === "request_expired";
-
-                  // Generalize 'You <action>' for all event types
-                  const displayMessage = notification.message;
-
-                  const thumbnailImage = getThumbnailImage(notification);
-
-                  return (
-                    <Card
-                      key={notification.id}
-                      className={`p-4 transition-all cursor-pointer hover:shadow-md ${
-                        isExpiring
-                          ? "border-2 border-orange-400 bg-orange-50"
-                          : isUnread
-                            ? `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
-                            : "bg-white border-gray-200"
-                      }`}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0 mt-1">
-                          {getEventIcon(notification.eventType)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2">
-                              {isUnread && (
-                                <NewBadge className="w-8 h-8 flex-shrink-0 animate-pulse-scale" />
-                              )}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span
-                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventTypePillColor(notification.eventType)}`}
-                                >
-                                  {formatEventType(notification.eventType)}
-                                </span>
-                                <h3
-                                  className={`font-semibold ${
-                                    isExpiring
-                                      ? "text-orange-900"
-                                      : isExpired
-                                        ? "text-red-900"
-                                        : isUnread
-                                          ? "text-gray-900"
-                                          : "text-gray-700"
-                                  }`}
-                                  dangerouslySetInnerHTML={{
-                                    __html: notification.title,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 whitespace-nowrap flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatTimestamp(notification.timestamp)}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) =>
-                                  handleRemoveNotification(e, notification.id)
-                                }
-                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
-                              >
-                                <Archive className="w-3.5 h-3.5 mr-1" />
-                                Archive
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 min-w-0">
-                              {renderMessageFields(
-                                displayMessage,
-                                isExpiring,
-                                isUnread,
-                              )}
-                            </div>
-                            {thumbnailImage && (
-                              <div className="flex-shrink-0">
-                                <img
-                                  src={thumbnailImage}
-                                  alt="Product"
-                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
-                                />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <span className="font-medium">
-                                {notification.entityType === "request"
-                                  ? "Request"
-                                  : "Order"}
-                                :
-                              </span>
-                              <span className="font-mono">
-                                {notification.entityNumber}
-                              </span>
-                            </span>
-                            <span>•</span>
-                            <span>
-                              by{" "}
-                              {triggeredByName === "system"
-                                ? "System"
-                                : triggeredByName}
-                            </span>
-                          </div>
-                          {notification.changes &&
-                            notification.changes.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-200">
-                                {isExpiring ? (
-                                  <>
-                                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                                      Days to ETA:
-                                    </p>
-                                    {notification.changes.map((change, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="text-xs text-orange-700 font-semibold"
-                                      >
-                                        {change.newValue} day
-                                        {change.newValue !== 1 ? "s" : ""}{" "}
-                                        remaining
-                                      </div>
-                                    ))}
-                                  </>
-                                ) : (
-                                  <>
-                                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                                      Changes:
-                                    </p>
-                                    {notification.changes.map((change, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="text-xs text-gray-600"
-                                      >
-                                        <span className="font-medium">
-                                          {change.field}:
-                                        </span>{" "}
-                                        <span className="line-through text-red-600">
-                                          {change.oldValue || "N/A"}
-                                        </span>{" "}
-                                        →{" "}
-                                        <span className="text-green-600">
-                                          {change.newValue || "N/A"}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+                {sortedNotifications.map((notification) =>
+                  renderNotificationCard(notification),
+                )}
               </div>
             )}
           </div>
@@ -790,168 +894,9 @@ export function Notifications({
               </Card>
             ) : (
               <div className="space-y-2">
-                {sortedNotifications.map((notification) => {
-                  const isCurrentUser =
-                    notification.triggeredBy === currentUser;
-                  const triggeredByName = isCurrentUser
-                    ? "You"
-                    : getFullNameFromUsername(notification.triggeredBy);
-                  const isExpiring =
-                    notification.eventType === "request_expiring";
-                  const isExpired =
-                    notification.eventType === "request_expired";
-
-                  // Customize message for "viewed" notifications when it's the current user
-                  const displayMessage = notification.message;
-
-                  const thumbnailImage = getThumbnailImage(notification);
-
-                  return (
-                    <Card
-                      key={notification.id}
-                      className={`p-4 transition-all cursor-pointer hover:shadow-md ${
-                        isExpiring
-                          ? "border-2 border-orange-400 bg-orange-50"
-                          : isExpired
-                            ? "border-2 border-red-400 bg-red-50"
-                            : `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
-                      }`}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0 mt-1">
-                          {getEventIcon(notification.eventType)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2">
-                              <NewBadge className="w-8 h-8 flex-shrink-0 animate-pulse-scale" />
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span
-                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventTypePillColor(notification.eventType)}`}
-                                >
-                                  {formatEventType(notification.eventType)}
-                                </span>
-                                <h3
-                                  className={`font-semibold ${
-                                    isExpiring
-                                      ? "text-orange-900"
-                                      : isExpired
-                                        ? "text-red-900"
-                                        : "text-gray-900"
-                                  }`}
-                                  dangerouslySetInnerHTML={{
-                                    __html: notification.title,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 whitespace-nowrap flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatTimestamp(notification.timestamp)}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) =>
-                                  handleRemoveNotification(e, notification.id)
-                                }
-                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
-                              >
-                                <Archive className="w-3.5 h-3.5 mr-1" />
-                                Archive
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 min-w-0">
-                              {renderMessageFields(
-                                displayMessage,
-                                isExpiring,
-                                true,
-                              )}
-                            </div>
-                            {thumbnailImage && (
-                              <div className="flex-shrink-0">
-                                <img
-                                  src={thumbnailImage}
-                                  alt="Product"
-                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
-                                />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <span className="font-medium">
-                                {notification.entityType === "request"
-                                  ? "Request"
-                                  : "Order"}
-                                :
-                              </span>
-                              <span className="font-mono">
-                                {notification.entityNumber}
-                              </span>
-                            </span>
-                            <span>•</span>
-                            <span>
-                              by{" "}
-                              {triggeredByName === "system"
-                                ? "System"
-                                : triggeredByName}
-                            </span>
-                          </div>
-                          {notification.changes &&
-                            notification.changes.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-200">
-                                {isExpiring ? (
-                                  <>
-                                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                                      Days to ETA:
-                                    </p>
-                                    {notification.changes.map((change, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="text-xs text-orange-700 font-semibold"
-                                      >
-                                        {change.newValue} day
-                                        {change.newValue !== 1 ? "s" : ""}{" "}
-                                        remaining
-                                      </div>
-                                    ))}
-                                  </>
-                                ) : (
-                                  <>
-                                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                                      Changes:
-                                    </p>
-                                    {notification.changes.map((change, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="text-xs text-gray-600"
-                                      >
-                                        <span className="font-medium">
-                                          {change.field}:
-                                        </span>{" "}
-                                        <span className="line-through text-red-600">
-                                          {change.oldValue || "N/A"}
-                                        </span>{" "}
-                                        →{" "}
-                                        <span className="text-green-600">
-                                          {change.newValue || "N/A"}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+                {sortedNotifications.map((notification) =>
+                  renderNotificationCard(notification, { forceUnread: true }),
+                )}
               </div>
             )}
           </div>
@@ -974,142 +919,9 @@ export function Notifications({
               </Card>
             ) : (
               <div className="space-y-2">
-                {sortedNotifications.map((notification) => {
-                  const isUnread = !notification.readBy.includes(currentUser);
-                  const isCurrentUser =
-                    notification.triggeredBy === currentUser;
-                  const triggeredByName = isCurrentUser
-                    ? "You"
-                    : getFullNameFromUsername(notification.triggeredBy);
-                  const isExpiring =
-                    notification.eventType === "request_expiring";
-                  const isExpired =
-                    notification.eventType === "request_expired";
-
-                  const thumbnailImage = getThumbnailImage(notification);
-
-                  return (
-                    <Card
-                      key={notification.id}
-                      className={`p-4 transition-all cursor-pointer hover:shadow-md ${
-                        isExpiring
-                          ? "border-2 border-orange-400 bg-orange-50"
-                          : isExpired
-                            ? "border-2 border-red-400 bg-red-50"
-                            : isUnread
-                              ? `border-l-4 border-l-blue-500 ${getEventColor(notification.eventType)}`
-                              : "bg-white border-gray-200"
-                      }`}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0 mt-1">
-                          {getEventIcon(notification.eventType)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2">
-                              {isUnread && (
-                                <NewBadge className="w-8 h-8 flex-shrink-0 animate-pulse-scale" />
-                              )}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span
-                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventTypePillColor(notification.eventType)}`}
-                                >
-                                  {formatEventType(notification.eventType)}
-                                </span>
-                                <h3
-                                  className={`font-semibold ${
-                                    isExpiring
-                                      ? "text-orange-900"
-                                      : isExpired
-                                        ? "text-red-900"
-                                        : "text-gray-900"
-                                  }`}
-                                  dangerouslySetInnerHTML={{
-                                    __html: notification.title,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 whitespace-nowrap flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatTimestamp(notification.timestamp)}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) =>
-                                  handleRemoveNotification(e, notification.id)
-                                }
-                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
-                              >
-                                <Archive className="w-3.5 h-3.5 mr-1" />
-                                Archive
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 min-w-0">
-                              {renderMessageFields(
-                                notification.message,
-                                isExpiring,
-                                isUnread,
-                              )}
-                            </div>
-                            {thumbnailImage && (
-                              <div className="flex-shrink-0">
-                                <img
-                                  src={thumbnailImage}
-                                  alt="Product"
-                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
-                                />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <span className="font-medium">
-                                {notification.entityType === "request"
-                                  ? "Request"
-                                  : "Order"}
-                                :
-                              </span>
-                              <span className="font-mono">
-                                {notification.entityNumber}
-                              </span>
-                            </span>
-                            <span>•</span>
-                            <span>
-                              by{" "}
-                              {triggeredByName === "system"
-                                ? "System"
-                                : triggeredByName}
-                            </span>
-                          </div>
-                          {notification.changes &&
-                            notification.changes.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-200">
-                                <p className="text-xs font-semibold text-gray-600 mb-1">
-                                  Days to ETA:
-                                </p>
-                                {notification.changes.map((change, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="text-xs text-orange-700 font-semibold"
-                                  >
-                                    {change.newValue} day
-                                    {change.newValue !== 1 ? "s" : ""} remaining
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+                {sortedNotifications.map((notification) =>
+                  renderNotificationCard(notification),
+                )}
               </div>
             )}
           </div>
@@ -1123,7 +935,7 @@ export function Notifications({
             {filteredNotifications.length === 0 ? (
               <Card className="p-8">
                 <div className="text-center text-gray-500">
-                  <Archive className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                  <ArchiveBoxIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                   <p className="text-lg font-medium">
                     No archived notifications
                   </p>
@@ -1134,176 +946,33 @@ export function Notifications({
               </Card>
             ) : (
               <div className="space-y-2">
-                {sortedNotifications.map((notification) => {
-                  const isCurrentUser =
-                    notification.triggeredBy === currentUser;
-                  const triggeredByName = isCurrentUser
-                    ? "You"
-                    : getFullNameFromUsername(notification.triggeredBy);
-                  const isExpiring =
-                    notification.eventType === "request_expiring";
-
-                  // Generalize 'You <action>' for all event types
-                  const displayMessage = notification.message;
-
-                  const thumbnailImage = getThumbnailImage(notification);
-
-                  return (
-                    <Card
-                      key={notification.id}
-                      className={`p-4 transition-all cursor-pointer hover:shadow-md bg-gray-50 border-gray-300 opacity-75`}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0 mt-1">
-                          {getEventIcon(notification.eventType)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span
-                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventTypePillColor(notification.eventType)}`}
-                                >
-                                  {formatEventType(notification.eventType)}
-                                </span>
-                                <h3
-                                  className="font-semibold text-gray-600"
-                                  dangerouslySetInnerHTML={{
-                                    __html: notification.title,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 whitespace-nowrap flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatTimestamp(notification.timestamp)}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) =>
-                                  handleRemoveNotification(e, notification.id)
-                                }
-                                className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
-                              >
-                                <Archive className="w-3.5 h-3.5 mr-1" />
-                                Archive
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 min-w-0">
-                              {renderMessageFields(
-                                displayMessage,
-                                false,
-                                false,
-                              )}
-                            </div>
-                            {thumbnailImage && (
-                              <div className="flex-shrink-0">
-                                <img
-                                  src={thumbnailImage}
-                                  alt="Product"
-                                  className="w-14 h-14 object-cover rounded-md border border-gray-200"
-                                />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <span className="font-medium">
-                                {notification.entityType === "request"
-                                  ? "Request"
-                                  : "Order"}
-                                :
-                              </span>
-                              <span className="font-mono">
-                                {notification.entityNumber}
-                              </span>
-                            </span>
-                            <span>•</span>
-                            <span>
-                              by{" "}
-                              {triggeredByName === "system"
-                                ? "System"
-                                : triggeredByName}
-                            </span>
-                          </div>
-                          {notification.changes &&
-                            notification.changes.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-200">
-                                {isExpiring ? (
-                                  <>
-                                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                                      Days to ETA:
-                                    </p>
-                                    {notification.changes.map((change, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="text-xs text-gray-600 font-semibold"
-                                      >
-                                        {change.newValue} day
-                                        {change.newValue !== 1 ? "s" : ""}{" "}
-                                        remaining
-                                      </div>
-                                    ))}
-                                  </>
-                                ) : (
-                                  <>
-                                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                                      Changes:
-                                    </p>
-                                    {notification.changes.map((change, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="text-xs text-gray-600"
-                                      >
-                                        <span className="font-medium">
-                                          {change.field}:
-                                        </span>{" "}
-                                        <span className="line-through text-red-600">
-                                          {change.oldValue || "N/A"}
-                                        </span>{" "}
-                                        →{" "}
-                                        <span className="text-green-600">
-                                          {change.newValue || "N/A"}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+                {sortedNotifications.map((notification) =>
+                  renderNotificationCard(notification, { isArchived: true }),
+                )}
               </div>
             )}
           </div>
         </TabsContent>
       </Tabs>
 
-      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Archive Notification</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to archive this notification? This action
-              cannot be undone. The notification will be permanently removed
-              from your view.
+              Archive this notification? You can unarchive it at any time from
+              the Archived tab.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelRemoveNotification}>
+            <AlertDialogCancel
+              onClick={() => setShowArchiveDialog(false)}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmRemoveNotification}
-              className="bg-gray-600 hover:bg-gray-700 focus:ring-gray-600"
+              onClick={confirmArchive}
+              className="bg-gray-600 hover:bg-gray-700"
             >
               Archive
             </AlertDialogAction>

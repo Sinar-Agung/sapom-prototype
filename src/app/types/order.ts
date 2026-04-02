@@ -38,6 +38,16 @@ export interface OrderShippingItem {
 }
 
 /**
+ * A snapshot of a shipment's items at a point in time (for audit trail)
+ */
+export interface OrderShippingEditHistory {
+  editedAt: number;
+  editedBy: string;
+  previousItems: OrderShippingItem[];
+  newItems: OrderShippingItem[];
+}
+
+/**
  * Order Shipping - created by supplier when dispatching goods
  */
 export interface OrderShipping {
@@ -48,6 +58,7 @@ export interface OrderShipping {
   createdDate: number;
   createdBy: string;
   items: OrderShippingItem[];
+  editHistory?: OrderShippingEditHistory[];
 }
 
 /**

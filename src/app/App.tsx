@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AvailablePcsDemo } from "./components/available-pcs-demo";
 import { JBHome } from "./components/jb-home";
-import { JBInbound } from "./components/jb-inbound";
+import { JBInboundSearch } from "./components/jb-inbound-search";
 
 import { JBRequests } from "./components/jb-requests";
 import { Login } from "./components/login";
@@ -43,11 +43,7 @@ import {
 import { Toaster } from "./components/ui/sonner";
 import { UnifiedOrders } from "./components/unified-orders";
 import { WriteOrder } from "./components/write-order";
-import {
-  initializeMockData,
-  initializeMockNotifications,
-  populateMockData,
-} from "./utils/mock-data";
+import { populateMockData } from "./utils/mock-data";
 import {
   checkAndExpireRequests,
   checkAndNotifyExpiringRequests,
@@ -129,11 +125,10 @@ export default function App() {
   const [cameFromNotifications, setCameFromNotifications] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any>(null);
+  const [focusJBOrdersSearch, setFocusJBOrdersSearch] = useState(false);
 
   // Initialize mock data and user data on first load
   useEffect(() => {
-    initializeMockData();
-    initializeMockNotifications();
     initializeUserData();
     sortExistingNotifications(); // Sort existing notifications on app load
   }, []);
@@ -589,6 +584,7 @@ export default function App() {
           ? "sales-orders"
           : "jb-orders";
     setCurrentPage(previousPage || fallback);
+    setPreviousPage("");
   };
 
   const handleUpdateOrder = (order: any, currentTab?: string) => {
@@ -677,7 +673,7 @@ export default function App() {
     // Map old jb-requests tabs to jb-orders tabs
     const tabMap: Record<string, string> = {
       assigned: "internal",
-      done: "finalized",
+      done: "shipping",
     };
     setPreviousOrdersTab(tabMap[tab] || tab);
     setCurrentPage("jb-orders");
@@ -969,7 +965,14 @@ export default function App() {
           </div>
         );
       case "inbound":
-        return <JBInbound />;
+        return (
+          <JBInboundSearch
+            onSeeDetail={(order) => {
+              setPreviousPage("inbound");
+              handleSeeOrderDetail(order);
+            }}
+          />
+        );
       case "supplier-orders": {
         const currentSupplierId = (getCurrentUserDetails() as any)?.supplierId;
         return (
@@ -991,6 +994,8 @@ export default function App() {
             onSeeDetail={handleSeeOrderDetail}
             onUpdateOrder={handleUpdateOrder}
             initialTab={previousOrdersTab}
+            focusSearch={focusJBOrdersSearch}
+            onFocusSearchConsumed={() => setFocusJBOrdersSearch(false)}
           />
         );
       case "order-edit":
@@ -1197,11 +1202,11 @@ export default function App() {
             </div>
             {isProfileExpanded && (
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  const result = populateMockData();
+                  const result = await populateMockData();
                   toast.success(
-                    `Populated ${result.requests} requests & ${result.orders} orders`,
+                    `Populated ${result.requests} requests, ${result.orders} orders, ${result.notifications} notifications`,
                   );
                 }}
                 className="w-full text-xs px-2 py-1 rounded border border-dashed border-current opacity-60 hover:opacity-100 transition-opacity"
@@ -1212,7 +1217,11 @@ export default function App() {
           </div>
         </div>
 
-        <div className={`w-full max-w-7xl mx-auto ${ ["sales-orders", "jb-orders", "order", "supplier-orders"].includes(currentPage) ? "" : "pt-4" }`}>{renderContent()}</div>
+        <div
+          className={`w-full max-w-7xl mx-auto ${["sales-orders", "jb-orders", "order", "supplier-orders"].includes(currentPage) ? "" : "pt-4"}`}
+        >
+          {renderContent()}
+        </div>
       </div>
 
       {/* Navigation Warning Dialog */}
@@ -1240,7 +1249,7 @@ export default function App() {
       </AlertDialog>
 
       {/* Toast Notifications */}
-      <Toaster position="top-center" richColors />
+      <Toaster position="top-center" richColors duration={4800} />
     </div>
   );
 }

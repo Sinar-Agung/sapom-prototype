@@ -1,3355 +1,191 @@
-// Mock data generator for the jewelry ordering system
-// This creates realistic sample data for testing and demonstration
+/**
+ * Lifecycle Simulator – populates localStorage with requests, orders,
+ * and matching notifications that mirror the real creation/editing/approval
+ * flow.  All notifications are generated through the helpers in
+ * notification-helper.ts so they look exactly like production notifications.
+ */
 
-import { Notification } from "../types/notification";
-import { Order } from "../types/order";
-import { Photo } from "../types/request";
+import type { Order, OrderRevision } from "../types/order";
+import type { DetailBarangItem, Request } from "../types/request";
+import { storeImageDeduped } from "./image-storage";
+import {
+  getAllNotifications,
+  notifyOrderCreated,
+  notifyOrderRevised,
+  notifyOrderStatusChanged,
+  notifyRequestCancelled,
+  notifyRequestCreated,
+  notifyRequestReviewed,
+  notifyRequestStatusChanged,
+  notifyRequestViewedByStockist,
+} from "./notification-helper";
+import { generatePONumber } from "./request-number";
+import type { BranchCode } from "./user-data";
 
-// Mock Photo Database
-const mockPhotos: Photo[] = [
+// ── image assets ─────────────────────────────────────────────────────────
+
+/** Eagerly import all PNG URLs from assets/images at build time */
+const imageModules = import.meta.glob<string>("../../assets/images/*.png", {
+  eager: true,
+  import: "default",
+});
+const IMAGE_URLS: string[] = Object.values(imageModules);
+
+/** Fetch an image URL as a base64 data-URL string */
+async function fetchImageAsBase64(url: string): Promise<string> {
+  const resp = await fetch(url);
+  const blob = await resp.blob();
+  return new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Pick a random asset image, store it in IndexedDB, and return its image ID */
+async function storeRandomImage(): Promise<string> {
+  const url = IMAGE_URLS[Math.floor(Math.random() * IMAGE_URLS.length)];
+  const base64 = await fetchImageAsBase64(url);
+  return storeImageDeduped(base64, "image/png");
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────
+
+const DAY = 86_400_000;
+const HR = 3_600_000;
+const MIN = 60_000;
+
+/** Short unique tag for this populate batch */
+const batchTag = () => Date.now().toString(36);
+
+/** Deterministic id builder */
+const uid = (prefix: string, tag: string, i: number) =>
+  `${prefix}-sim-${tag}-${i}`;
+
+// ── static lookup data ───────────────────────────────────────────────────
+
+const SUPPLIERS: { id: string; name: string; username: string }[] = [
+  { id: "king-halim", name: "King Halim", username: "kh" },
+  { id: "ubs-gold", name: "UBS Gold", username: "ub" },
+  { id: "lestari-gold", name: "Lestari Gold", username: "le" },
+  { id: "yt-gold", name: "YT Gold", username: "yt" },
+  { id: "mt-gold", name: "MT Gold", username: "mt" },
+  { id: "hwt", name: "HWT", username: "hw" },
+  { id: "ayu", name: "Ayu", username: "ay" },
+];
+
+const SALES: { username: string; branch: BranchCode }[] = [
+  { username: "sales1", branch: "JKT" },
+  { username: "sales2", branch: "BDG" },
+  { username: "sales3", branch: "SBY" },
+  { username: "sales4", branch: "JKT" },
+  { username: "sales5", branch: "BDG" },
+  { username: "sales6", branch: "SBY" },
+];
+
+const STOCKISTS: { username: string; branch: BranchCode }[] = [
+  { username: "stockist1", branch: "JKT" },
+  { username: "stockist2", branch: "BDG" },
+  { username: "stockist3", branch: "SBY" },
+  { username: "stockist4", branch: "JKT" },
+  { username: "stockist5", branch: "BDG" },
+  { username: "stockist6", branch: "SBY" },
+];
+
+const JBS: { username: string; branch: BranchCode }[] = [
+  { username: "jb1", branch: "JKT" },
+  { username: "jb2", branch: "BDG" },
+  { username: "jb3", branch: "SBY" },
+  { username: "jb4", branch: "JKT" },
+  { username: "jb5", branch: "BDG" },
+  { username: "jb6", branch: "SBY" },
+];
+
+const CUSTOMERS = [
+  { id: "toko-emas-sejahtera", name: "Toko Emas Sejahtera" },
+  { id: "toko-perhiasan-mulia", name: "Toko Perhiasan Mulia" },
+  { id: "perhiasan-permata", name: "Perhiasan Permata" },
+  { id: "toko-mas-indah", name: "Toko Mas Indah" },
+  { id: "toko-emas-berkah", name: "Toko Emas Berkah" },
+  { id: "emas-berlian-jaya", name: "Emas & Berlian Jaya" },
+  { id: "galeri-perhiasan-elegan", name: "Galeri Perhiasan Elegan" },
+  { id: "perhiasan-cantik", name: "Perhiasan Cantik" },
+];
+
+const PRODUCTS = [
   {
-    id: "photo-001",
-    name: "Kalung Emas Putih Premium",
-    description: "Kalung desain Italia dengan batu permata",
-    category: "kalung",
+    kategoriBarang: "basic",
+    jenisProduk: "kalung",
+    namaProduk: "",
+    namaBasic: "italy-santa",
   },
   {
-    id: "photo-002",
-    name: "Kalung Emas Kuning Klasik",
-    description: "Kalung tradisional dengan tali emas",
-    category: "kalung",
+    kategoriBarang: "basic",
+    jenisProduk: "cincin",
+    namaProduk: "",
+    namaBasic: "milano",
   },
   {
-    id: "photo-003",
-    name: "Gelang Rantai Emas Putih",
-    description: "Gelang dengan rantai presisi halus",
-    category: "gelang-rantai",
+    kategoriBarang: "basic",
+    jenisProduk: "anting",
+    namaProduk: "",
+    namaBasic: "sunny-vanessa",
   },
   {
-    id: "photo-004",
-    name: "Gelang Keroncong Modern",
-    description: "Gelang dengan desain keroncong kontemporer",
-    category: "gelang-keroncong",
+    kategoriBarang: "model",
+    jenisProduk: "gelang-rantai",
+    namaProduk: "gelang-keroncong",
+    namaBasic: "",
   },
   {
-    id: "photo-005",
-    name: "Cincin Emas Putih Elegan",
-    description: "Cincin dengan desain minimalis modern",
-    category: "cincin",
+    kategoriBarang: "basic",
+    jenisProduk: "kalung",
+    namaProduk: "",
+    namaBasic: "tambang",
   },
   {
-    id: "photo-006",
-    name: "Cincin Emas Kuning Bertahtakan",
-    description: "Cincin dengan batu mulia pilihan",
-    category: "cincin",
+    kategoriBarang: "model",
+    jenisProduk: "gelang-kaku",
+    namaProduk: "gelang-cuff-tebal",
+    namaBasic: "",
   },
   {
-    id: "photo-007",
-    name: "Anting Emas Putih Berlian",
-    description: "Anting dengan desain geometris modern",
-    category: "anting",
+    kategoriBarang: "basic",
+    jenisProduk: "cincin",
+    namaProduk: "",
+    namaBasic: "italy-kaca",
   },
   {
-    id: "photo-008",
-    name: "Anting Emas Kuning Tradisional",
-    description: "Anting dengan motif batik Indonesia",
-    category: "anting",
+    kategoriBarang: "model",
+    jenisProduk: "anting",
+    namaProduk: "anting-berlian-bulat",
+    namaBasic: "",
   },
   {
-    id: "photo-009",
-    name: "Kalung Panjang Emas Campuran",
-    description: "Kalung dengan kombinasi warna emas",
-    category: "kalung",
+    kategoriBarang: "basic",
+    jenisProduk: "liontin",
+    namaProduk: "",
+    namaBasic: "casteli",
   },
   {
-    id: "photo-010",
-    name: "Set Perhiasan Lengkap",
-    description: "Set kalung, cincin, dan anting koordinasi",
-    category: "set",
+    kategoriBarang: "model",
+    jenisProduk: "kalung",
+    namaProduk: "kalung-rantai-emas",
+    namaBasic: "",
   },
 ];
 
-// Mock data generator
-export const generateMockOrders = (): Order[] => {
-  // Orders array populated from actual local storage data
-  const orders: Order[] = [
-    {
-      id: "order-1770791325077",
-      PONumber: "",
-      requestNo: "RPO-20260117-0021",
-      requestId: "order-1770790095262-21",
-      createdDate: 1770791325077,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "ubs-gold",
-        name: "UBS Gold",
-      },
-      kategoriBarang: "model",
-      jenisProduk: "gelang-kaku",
-      namaProduk: "gelang-cuff-tebal",
-      namaBasic: "",
-      waktuKirim: "2026-02-26T06:08:15.262Z",
-      customerExpectation: "ready-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-2hcykjyyl",
-          kadar: "24k",
-          warna: "ap",
-          ukuran: "18",
-          berat: "12.0",
-          pcs: "10",
-          availablePcs: "0",
-          orderPcs: "10",
-        },
-      ],
-      photoId: "photo-003",
-      status: "New Order",
-      updatedDate: 1770858925077,
-      updatedBy: "sales1",
-      revisionHistory: [
-        {
-          revisionNumber: 1,
-          timestamp: 1770858925077,
-          updatedBy: "sales1",
-          changes: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-kaku",
-            namaProduk: "gelang-cuff-tebal",
-            namaBasic: "",
-            waktuKirim: "2026-02-26T06:08:15.262Z",
-            detailItems: [
-              {
-                id: "item-1770790095262-2hcykjyyl",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "12.0",
-                pcs: "10",
-                availablePcs: "0",
-                orderPcs: "10",
-              },
-            ],
-            photoId: "photo-003",
-          },
-          previousValues: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-kaku",
-            namaProduk: "gelang-cuff-tebal",
-            namaBasic: "",
-            waktuKirim: "2026-02-20T06:08:15.262Z",
-            detailItems: [
-              {
-                id: "item-1770790095262-2hcykjyyl",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "16",
-                berat: "10.0",
-                pcs: "5",
-                availablePcs: "0",
-                orderPcs: "5",
-              },
-            ],
-            photoId: "photo-003",
-          },
-        },
-      ],
-    },
-    {
-      id: "order-1770791472862",
-      PONumber: "",
-      requestNo: "RPO-20260116-0022",
-      requestId: "order-1770790095262-22",
-      createdDate: 1770791472862,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "king-halim",
-        name: "King Halim",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "milano",
-      waktuKirim: "2026-03-01T06:08:15.262Z",
-      customerExpectation: "ready-marketing",
-      detailItems: [
-        {
-          id: "item-1770790095262-z53p5hdqz",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "14",
-          berat: "2.5",
-          pcs: "25",
-          availablePcs: "10",
-          orderPcs: "15",
-        },
-        {
-          id: "item-1770790095262-c0sfi1p8e",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "15",
-          berat: "2.6",
-          pcs: "20",
-          availablePcs: "15",
-          orderPcs: "5",
-        },
-      ],
-      photoId: "photo-004",
-      status: "Unable to Fulfill",
-      updatedDate: 1771343314620,
-      updatedBy: "kh",
-      revisionHistory: [
-        {
-          revisionNumber: 1,
-          timestamp: 1771342934147,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "basic",
-            jenisProduk: "cincin",
-            namaProduk: "",
-            namaBasic: "milano",
-            detailItems: [
-              {
-                id: "item-1770790095262-z53p5hdqz",
-                kadar: "8k",
-                warna: "rg",
-                ukuran: "14",
-                berat: "2.5",
-                pcs: "25",
-                availablePcs: "10",
-                orderPcs: "15",
-              },
-              {
-                id: "item-1770790095262-c0sfi1p8e",
-                kadar: "8k",
-                warna: "rg",
-                ukuran: "15",
-                berat: "2.6",
-                pcs: "20",
-                availablePcs: "15",
-                orderPcs: "5",
-              },
-            ],
-            photoId: "photo-004",
-          },
-          previousValues: {
-            kategoriBarang: "basic",
-            jenisProduk: "cincin",
-            namaProduk: "",
-            namaBasic: "milano",
-            detailItems: [
-              {
-                id: "item-1770790095262-z53p5hdqz",
-                kadar: "8k",
-                warna: "rg",
-                ukuran: "14",
-                berat: "2.5",
-                pcs: "25",
-                availablePcs: "10",
-                orderPcs: "15",
-              },
-              {
-                id: "item-1770790095262-c0sfi1p8e",
-                kadar: "8k",
-                warna: "rg",
-                ukuran: "15",
-                berat: "2.6",
-                pcs: "20",
-                availablePcs: "15",
-                orderPcs: "5",
-              },
-            ],
-            photoId: "photo-004",
-          },
-        },
-      ],
-    },
-    {
-      id: "order-1770792049965",
-      PONumber: "",
-      requestNo: "RPO-20260115-0023",
-      requestId: "order-1770790095262-23",
-      createdDate: 1770792049965,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "ayu",
-        name: "Ayu",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "anting",
-      namaProduk: "",
-      namaBasic: "sunny-vanessa",
-      waktuKirim: "2026-02-25T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-ivzidj7zp",
-          kadar: "9k",
-          warna: "kn",
-          ukuran: "n",
-          berat: "3.0",
-          pcs: "30",
-          availablePcs: "0",
-          orderPcs: "30",
-        },
-      ],
-      photoId: "photo-005",
-      status: "Fully Delivered",
-      updatedDate: 1770970572546,
-      updatedBy: "jbuser1",
-    },
-    {
-      id: "order-1770792067061",
-      PONumber: "",
-      requestNo: "RPO-20260209-0021",
-      requestId: "order-1770790095262-24",
-      createdDate: 1770792067061,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "king-halim",
-        name: "King Halim",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-02-26T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-4loy7l3y6",
-          kadar: "17k",
-          warna: "ap",
-          ukuran: "18",
-          berat: "5.2",
-          pcs: "12",
-          availablePcs: "0",
-          orderPcs: "12",
-        },
-        {
-          id: "item-1770790095262-kamll54ph",
-          kadar: "17k",
-          warna: "rg",
-          ukuran: "16",
-          berat: "4.8",
-          pcs: "13",
-          availablePcs: "0",
-          orderPcs: "13",
-        },
-        {
-          id: "item-1770790095262-iomi04kt7",
-          kadar: "16k",
-          warna: "kn",
-          ukuran: "18",
-          berat: "5.5",
-          pcs: "10",
-          availablePcs: "0",
-          orderPcs: "10",
-        },
-      ],
-      photoId: "photo-001",
-      status: "Stock Ready",
-      updatedDate: 1771341482736,
-      updatedBy: "kh",
-    },
-    {
-      id: "order-1770793938767",
-      PONumber: "SAJKTUG202602110001",
-      requestNo: "RPO-20260208-0022",
-      requestId: "order-1770790095262-25",
-      createdDate: 1770793938767,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "ubs-gold",
-        name: "UBS Gold",
-      },
-      kategoriBarang: "model",
-      jenisProduk: "gelang-keroncong",
-      namaProduk: "gelang-modern",
-      namaBasic: "",
-      waktuKirim: "2026-03-01T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-y7y1khm0e",
-          kadar: "16k",
-          warna: "2w-ap-rg",
-          ukuran: "16",
-          berat: "8.5",
-          pcs: "8",
-          availablePcs: "0",
-          orderPcs: "8",
-        },
-        {
-          id: "item-1770790095262-g7kw8la2r",
-          kadar: "17k",
-          warna: "ap",
-          ukuran: "18",
-          berat: "9.2",
-          pcs: "6",
-          availablePcs: "0",
-          orderPcs: "6",
-        },
-      ],
-      photoId: "photo-004",
-      status: "New Order",
-      updatedDate: 1770870938767,
-      updatedBy: "sales2",
-      revisionHistory: [
-        {
-          revisionNumber: 1,
-          timestamp: 1770835938767,
-          updatedBy: "sales2",
-          changes: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-keroncong",
-            namaProduk: "gelang-modern",
-            namaBasic: "",
-            waktuKirim: "2026-02-28T06:08:15.262Z",
-            detailItems: [
-              {
-                id: "item-1770790095262-y7y1khm0e",
-                kadar: "16k",
-                warna: "2w-ap-rg",
-                ukuran: "16",
-                berat: "8.5",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-g7kw8la2r",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "9.2",
-                pcs: "6",
-                availablePcs: "0",
-                orderPcs: "6",
-              },
-            ],
-            photoId: "photo-004",
-          },
-          previousValues: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-keroncong",
-            namaProduk: "gelang-modern",
-            namaBasic: "",
-            waktuKirim: "2026-03-01T06:08:15.262Z",
-            detailItems: [
-              {
-                id: "item-1770790095262-y7y1khm0e",
-                kadar: "16k",
-                warna: "2w-ap-rg",
-                ukuran: "16",
-                berat: "8.5",
-                pcs: "5",
-                availablePcs: "0",
-                orderPcs: "5",
-              },
-            ],
-            photoId: "photo-004",
-          },
-        },
-        {
-          revisionNumber: 2,
-          timestamp: 1770870938767,
-          updatedBy: "sales2",
-          changes: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-keroncong",
-            namaProduk: "gelang-modern",
-            namaBasic: "",
-            waktuKirim: "2026-03-01T06:08:15.262Z",
-            detailItems: [
-              {
-                id: "item-1770790095262-y7y1khm0e",
-                kadar: "16k",
-                warna: "2w-ap-rg",
-                ukuran: "16",
-                berat: "8.5",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-g7kw8la2r",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "9.2",
-                pcs: "6",
-                availablePcs: "0",
-                orderPcs: "6",
-              },
-            ],
-            photoId: "photo-004",
-          },
-          previousValues: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-keroncong",
-            namaProduk: "gelang-modern",
-            namaBasic: "",
-            waktuKirim: "2026-02-28T06:08:15.262Z",
-            detailItems: [
-              {
-                id: "item-1770790095262-y7y1khm0e",
-                kadar: "16k",
-                warna: "2w-ap-rg",
-                ukuran: "16",
-                berat: "8.5",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-g7kw8la2r",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "9.2",
-                pcs: "6",
-                availablePcs: "0",
-                orderPcs: "6",
-              },
-            ],
-            photoId: "photo-004",
-          },
-        },
-      ],
-    },
-    {
-      id: "order-1770798934255",
-      PONumber: "SAJKTKH202602110002",
-      requestNo: "RPO-20260210-0028",
-      requestId: "order-1770790095262-31",
-      createdDate: 1770798934255,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "king-halim",
-        name: "King Halim",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "casteli",
-      waktuKirim: "2026-03-02T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-dk7fbit28",
-          kadar: "8k",
-          warna: "ap",
-          ukuran: "16",
-          berat: "5.8",
-          pcs: "16",
-          availablePcs: "0",
-          orderPcs: "16",
-        },
-        {
-          id: "item-1770790095262-jx7moc1hb",
-          kadar: "9k",
-          warna: "kn",
-          ukuran: "18",
-          berat: "6.2",
-          pcs: "14",
-          availablePcs: "0",
-          orderPcs: "14",
-        },
-      ],
-      photoId: "photo-002",
-      status: "Stock Ready",
-      updatedDate: 1771342530812,
-      updatedBy: "kh",
-    },
-    {
-      id: "order-1770851392447",
-      PONumber: "SAJKTA202602110003",
-      requestNo: "RPO-20260209-0027",
-      requestId: "order-1770790095262-30",
-      createdDate: 1770851392447,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "ayu",
-        name: "Ayu",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "tambang",
-      waktuKirim: "2026-02-28T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-mrkgvqk8d",
-          kadar: "17k",
-          warna: "ap",
-          ukuran: "18",
-          berat: "8.0",
-          pcs: "8",
-          availablePcs: "0",
-          orderPcs: "8",
-        },
-        {
-          id: "1770887659906-0.7985656125973776",
-          kadar: "24k",
-          warna: "ap",
-          ukuran: "p",
-          berat: "2",
-          pcs: "2",
-        },
-        {
-          id: "1770887659906-0.7608509715698282",
-          kadar: "24k",
-          warna: "ap",
-          ukuran: "p",
-          berat: "3",
-          pcs: "2",
-        },
-        {
-          id: "1770887659906-0.860554355307542",
-          kadar: "24k",
-          warna: "ap",
-          ukuran: "p",
-          berat: "4",
-          pcs: "2",
-        },
-        {
-          id: "1770887659906-0.053979197689772995",
-          kadar: "24k",
-          warna: "ap",
-          ukuran: "p",
-          berat: "5",
-          pcs: "2",
-        },
-      ],
-      photoId: "img-1770910195981-adrawhb",
-      status: "Fully Delivered",
-      updatedDate: 1770975643180,
-      updatedBy: "jb1",
-      revisionHistory: [
-        {
-          revisionNumber: 1,
-          timestamp: 1770880095969,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-44y7hkhi9",
-                kadar: "16k",
-                warna: "2w-ap-rg",
-                ukuran: "16",
-                berat: "7.5",
-                pcs: "10",
-                availablePcs: "0",
-                orderPcs: "10",
-              },
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-jp29un4t5",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "16",
-                berat: "7.2",
-                pcs: "12",
-                availablePcs: "0",
-                orderPcs: "12",
-              },
-            ],
-          },
-          previousValues: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-44y7hkhi9",
-                kadar: "16k",
-                warna: "2w-ap-rg",
-                ukuran: "16",
-                berat: "7.5",
-                pcs: "10",
-                availablePcs: "0",
-                orderPcs: "10",
-              },
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-jp29un4t5",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "16",
-                berat: "7.2",
-                pcs: "12",
-                availablePcs: "0",
-                orderPcs: "12",
-              },
-            ],
-          },
-        },
-        {
-          revisionNumber: 2,
-          timestamp: 1770882375171,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-jp29un4t5",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "16",
-                berat: "7.2",
-                pcs: "12",
-                availablePcs: "0",
-                orderPcs: "12",
-              },
-            ],
-          },
-          previousValues: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-44y7hkhi9",
-                kadar: "16k",
-                warna: "2w-ap-rg",
-                ukuran: "16",
-                berat: "7.5",
-                pcs: "10",
-                availablePcs: "0",
-                orderPcs: "10",
-              },
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-jp29un4t5",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "16",
-                berat: "7.2",
-                pcs: "12",
-                availablePcs: "0",
-                orderPcs: "12",
-              },
-            ],
-          },
-        },
-        {
-          revisionNumber: 3,
-          timestamp: 1770887127123,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-jp29un4t5",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "16",
-                berat: "7.2",
-                pcs: "12",
-                availablePcs: "0",
-                orderPcs: "12",
-              },
-            ],
-            photoId: "img-1770887127122-65fosgy",
-          },
-          previousValues: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-jp29un4t5",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "16",
-                berat: "7.2",
-                pcs: "12",
-                availablePcs: "0",
-                orderPcs: "12",
-              },
-            ],
-            photoId: "photo-001",
-          },
-        },
-        {
-          revisionNumber: 4,
-          timestamp: 1770887662000,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-            ],
-            photoId: "img-1770887661996-rc2kiag",
-          },
-          previousValues: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "item-1770790095262-jp29un4t5",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "16",
-                berat: "7.2",
-                pcs: "12",
-                availablePcs: "0",
-                orderPcs: "12",
-              },
-            ],
-            photoId: "img-1770887127122-65fosgy",
-          },
-        },
-        {
-          revisionNumber: 5,
-          timestamp: 1770888777588,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "1770887659906-0.7985656125973776",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "2",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.7608509715698282",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "3",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.860554355307542",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "4",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.053979197689772995",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "5",
-                pcs: "2",
-              },
-            ],
-            photoId: "img-1770888777579-y9f2dk7",
-          },
-          previousValues: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-            ],
-            photoId: "img-1770887661996-rc2kiag",
-          },
-        },
-        {
-          revisionNumber: 6,
-          timestamp: 1770910197975,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "1770887659906-0.7985656125973776",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "2",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.7608509715698282",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "3",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.860554355307542",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "4",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.053979197689772995",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "5",
-                pcs: "2",
-              },
-            ],
-            photoId: "img-1770910195981-adrawhb",
-          },
-          previousValues: {
-            kategoriBarang: "basic",
-            jenisProduk: "kalung",
-            namaProduk: "",
-            namaBasic: "tambang",
-            detailItems: [
-              {
-                id: "item-1770790095262-mrkgvqk8d",
-                kadar: "17k",
-                warna: "ap",
-                ukuran: "18",
-                berat: "8.0",
-                pcs: "8",
-                availablePcs: "0",
-                orderPcs: "8",
-              },
-              {
-                id: "1770887659906-0.7985656125973776",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "2",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.7608509715698282",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "3",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.860554355307542",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "4",
-                pcs: "2",
-              },
-              {
-                id: "1770887659906-0.053979197689772995",
-                kadar: "24k",
-                warna: "ap",
-                ukuran: "p",
-                berat: "5",
-                pcs: "2",
-              },
-            ],
-            photoId: "img-1770888777579-y9f2dk7",
-          },
-        },
-      ],
-    },
-    {
-      id: "order-1770913683007",
-      PONumber: "SAJKTLG202602120001",
-      requestNo: "RPO-20260210-0023",
-      requestId: "order-1770790095262-26",
-      createdDate: 1770913683007,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "kalung-flexi",
-      waktuKirim: "2026-02-23T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-3kdizhys7",
-          kadar: "16k",
-          warna: "kn",
-          ukuran: "16",
-          berat: "4.5",
-          pcs: "20",
-          availablePcs: "0",
-          orderPcs: "20",
-        },
-        {
-          id: "item-1770790095262-gcooxprsd",
-          kadar: "17k",
-          warna: "kn",
-          ukuran: "18",
-          berat: "5.0",
-          pcs: "18",
-          availablePcs: "0",
-          orderPcs: "18",
-        },
-        {
-          id: "item-1770790095262-qliuyk82v",
-          kadar: "16k",
-          warna: "ap",
-          ukuran: "16",
-          berat: "4.3",
-          pcs: "15",
-          availablePcs: "0",
-          orderPcs: "15",
-        },
-        {
-          id: "item-1770790095262-s6xi9454f",
-          kadar: "17k",
-          warna: "rg",
-          ukuran: "18",
-          berat: "4.8",
-          pcs: "12",
-          availablePcs: "0",
-          orderPcs: "12",
-        },
-      ],
-      photoId: "photo-002",
-      status: "New Order",
-    },
-    {
-      id: "order-1771238680870",
-      PONumber: "SAJKTKH202602160001",
-      requestNo: "RPO-20260202-0002",
-      requestId: "order-1770790095261-2",
-      createdDate: 1771238680870,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "king-halim",
-        name: "King Halim",
-      },
-      kategoriBarang: "model",
-      jenisProduk: "gelang-rantai",
-      namaProduk: "gelang-keroncong",
-      namaBasic: "",
-      waktuKirim: "2026-02-21T06:08:15.261Z",
-      customerExpectation: "ready-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095261-jvhduo8zt",
-          kadar: "16k",
-          warna: "kn",
-          ukuran: "18",
-          berat: "12.0",
-          pcs: "3",
-          availablePcs: "2",
-          orderPcs: "3",
-        },
-      ],
-      photoId: "photo-004",
-      status: "Stock Ready",
-      updatedDate: 1771343300719,
-      updatedBy: "kh",
-      revisionHistory: [
-        {
-          revisionNumber: 1,
-          timestamp: 1771343270807,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-rantai",
-            namaProduk: "gelang-keroncong",
-            namaBasic: "",
-            detailItems: [
-              {
-                id: "item-1770790095261-jvhduo8zt",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "18",
-                berat: "12.0",
-                pcs: "3",
-                availablePcs: "2",
-                orderPcs: "3",
-              },
-            ],
-            photoId: "photo-004",
-          },
-          previousValues: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-rantai",
-            namaProduk: "gelang-keroncong",
-            namaBasic: "",
-            detailItems: [
-              {
-                id: "item-1770790095261-jvhduo8zt",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "18",
-                berat: "12.0",
-                pcs: "3",
-                availablePcs: "2",
-                orderPcs: "3",
-              },
-            ],
-            photoId: "photo-004",
-          },
-        },
-        {
-          revisionNumber: 2,
-          timestamp: 1771343293396,
-          updatedBy: "jb1",
-          changes: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-rantai",
-            namaProduk: "gelang-keroncong",
-            namaBasic: "",
-            detailItems: [
-              {
-                id: "item-1770790095261-jvhduo8zt",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "18",
-                berat: "12.0",
-                pcs: "3",
-                availablePcs: "2",
-                orderPcs: "3",
-              },
-            ],
-            photoId: "photo-004",
-          },
-          previousValues: {
-            kategoriBarang: "model",
-            jenisProduk: "gelang-rantai",
-            namaProduk: "gelang-keroncong",
-            namaBasic: "",
-            detailItems: [
-              {
-                id: "item-1770790095261-jvhduo8zt",
-                kadar: "16k",
-                warna: "kn",
-                ukuran: "18",
-                berat: "12.0",
-                pcs: "3",
-                availablePcs: "2",
-                orderPcs: "3",
-              },
-            ],
-            photoId: "photo-004",
-          },
-        },
-      ],
-    },
-    {
-      id: "order-1771260148833",
-      PONumber: "SAJKTLG202602160002",
-      requestNo: "RPO-20260215-0002",
-      requestId: "order-1771173006142",
-      createdDate: 1771260148833,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-03-14T17:00:00.000Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "1771173004311-0.6756748008263886",
-          kadar: "16k",
-          warna: "rg",
-          ukuran: "3",
-          berat: "1",
-          pcs: "8",
-          orderPcs: "8",
-          availablePcs: "2",
-        },
-        {
-          id: "1771173004311-0.5568165913726633",
-          kadar: "16k",
-          warna: "rg",
-          ukuran: "3",
-          berat: "2",
-          pcs: "8",
-          orderPcs: "8",
-          availablePcs: "2",
-        },
-        {
-          id: "1771173004311-0.9152858966223917",
-          kadar: "16k",
-          warna: "rg",
-          ukuran: "3",
-          berat: "3",
-          pcs: "8",
-          orderPcs: "8",
-          availablePcs: "2",
-        },
-        {
-          id: "1771173004311-0.5341361439929087",
-          kadar: "16k",
-          warna: "rg",
-          ukuran: "3",
-          berat: "4",
-          pcs: "10",
-          orderPcs: "10",
-        },
-      ],
-      status: "New Order",
-    },
-    {
-      id: "order-1771299982747",
-      PONumber: "SAJKTH202602170001",
-      requestNo: "RPO-20260210-0026",
-      requestId: "order-1770790095262-29",
-      createdDate: 1771299982747,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "hwt",
-        name: "HWT",
-      },
-      kategoriBarang: "model",
-      jenisProduk: "anting",
-      namaProduk: "anting-tusuk",
-      namaBasic: "",
-      waktuKirim: "2026-02-25T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-pq7x4bkxs",
-          kadar: "17k",
-          warna: "ap",
-          ukuran: "n",
-          berat: "1.8",
-          pcs: "40",
-          availablePcs: "0",
-          orderPcs: "40",
-        },
-        {
-          id: "item-1770790095262-3h4njclr8",
-          kadar: "16k",
-          warna: "kn",
-          ukuran: "n",
-          berat: "2.0",
-          pcs: "35",
-          availablePcs: "0",
-          orderPcs: "35",
-        },
-        {
-          id: "item-1770790095262-0pu6oxkmf",
-          kadar: "17k",
-          warna: "rg",
-          ukuran: "n",
-          berat: "1.9",
-          pcs: "38",
-          availablePcs: "0",
-          orderPcs: "38",
-        },
-      ],
-      photoId: "photo-007",
-      status: "New Order",
-    },
-    {
-      id: "order-1771302483948",
-      PONumber: "SAJKTYG202602170002",
-      requestNo: "RPO-20260209-0024",
-      requestId: "order-1770790095262-27",
-      createdDate: 1771302483948,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "yt-gold",
-        name: "YT Gold",
-      },
-      kategoriBarang: "model",
-      jenisProduk: "cincin",
-      namaProduk: "cincin-berlian",
-      namaBasic: "",
-      waktuKirim: "2026-03-03T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-27jv9lhd6",
-          kadar: "24k",
-          warna: "kn",
-          ukuran: "n",
-          berat: "2.5",
-          pcs: "25",
-          availablePcs: "0",
-          orderPcs: "25",
-        },
-        {
-          id: "item-1770790095262-gyse56k5a",
-          kadar: "17k",
-          warna: "ap",
-          ukuran: "n",
-          berat: "2.0",
-          pcs: "30",
-          availablePcs: "0",
-          orderPcs: "30",
-        },
-        {
-          id: "item-1770790095262-78pzd2g4f",
-          kadar: "16k",
-          warna: "rg",
-          ukuran: "n",
-          berat: "2.2",
-          pcs: "28",
-          availablePcs: "0",
-          orderPcs: "28",
-        },
-      ],
-      photoId: "photo-005",
-      status: "New Order",
-    },
-    {
-      id: "order-1771302938318",
-      PONumber: "SAJKTMG202602170003",
-      requestNo: "RPO-20260208-0025",
-      requestId: "order-1770790095262-28",
-      createdDate: 1771302938318,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "mt-gold",
-        name: "MT Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "milano",
-      waktuKirim: "2026-02-27T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-b716lwgki",
-          kadar: "9k",
-          warna: "2w-ap-kn",
-          ukuran: "16",
-          berat: "6.0",
-          pcs: "14",
-          availablePcs: "0",
-          orderPcs: "14",
-        },
-        {
-          id: "item-1770790095262-s6hi8skx7",
-          kadar: "8k",
-          warna: "kn",
-          ukuran: "18",
-          berat: "6.5",
-          pcs: "12",
-          availablePcs: "0",
-          orderPcs: "12",
-        },
-      ],
-      photoId: "photo-009",
-      status: "New Order",
-    },
-    {
-      id: "order-1771311179068",
-      PONumber: "SAJKTLG202602170004",
-      requestNo: "RPO-20260217-0005",
-      requestId: "order-1771304357118",
-      createdDate: 1771311179068,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-02-16T17:00:00.000Z",
-      customerExpectation: "ready-marketing",
-      detailItems: [
-        {
-          id: "1771303248124-0.6765902343575653",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "1",
-          pcs: "0",
-          orderPcs: "0",
-          availablePcs: "2",
-        },
-        {
-          id: "1771303248124-0.04797606747174199",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "2",
-          pcs: "2",
-          orderPcs: "2",
-        },
-        {
-          id: "1771303248124-0.4437938991007555",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "3",
-          pcs: "2",
-          orderPcs: "2",
-        },
-      ],
-      status: "New Order",
-    },
-    {
-      id: "order-1771311393562",
-      PONumber: "SAJKTLG202602170005",
-      requestNo: "RPO-20260217-0007",
-      requestId: "order-1771311354055",
-      createdDate: 1771311393562,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-03-16T17:00:00.000Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "1771303248124-0.6765902343575653",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "1",
-          pcs: "0",
-          orderPcs: "0",
-          availablePcs: "2",
-        },
-        {
-          id: "1771303248124-0.04797606747174199",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "2",
-          pcs: "2",
-          orderPcs: "2",
-        },
-        {
-          id: "1771303248124-0.4437938991007555",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "3",
-          pcs: "2",
-          orderPcs: "2",
-        },
-      ],
-      status: "New Order",
-    },
-    {
-      id: "order-1771311782069",
-      PONumber: "SAJKTLG202602170006",
-      requestNo: "RPO-20260217-0008",
-      requestId: "order-1771311760420",
-      createdDate: 1771311782069,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-03-16T17:00:00.000Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "1771303248124-0.6765902343575653",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "1",
-          pcs: "0",
-          orderPcs: "0",
-          availablePcs: "2",
-        },
-        {
-          id: "1771303248124-0.04797606747174199",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "2",
-          pcs: "2",
-          orderPcs: "2",
-        },
-        {
-          id: "1771303248124-0.4437938991007555",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "3",
-          pcs: "2",
-          orderPcs: "2",
-        },
-      ],
-      status: "New Order",
-    },
-    {
-      id: "order-1771311938376",
-      PONumber: "SAJKTLG202602170007",
-      requestNo: "RPO-20260217-0009",
-      requestId: "order-1771311924342",
-      createdDate: 1771311938376,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-03-16T17:00:00.000Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "1771303248124-0.6765902343575653",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "1",
-          pcs: "2",
-          orderPcs: "2",
-        },
-        {
-          id: "1771303248124-0.04797606747174199",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "2",
-          pcs: "0",
-          orderPcs: "0",
-          availablePcs: "2",
-        },
-        {
-          id: "1771303248124-0.4437938991007555",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "3",
-          pcs: "2",
-          orderPcs: "2",
-        },
-      ],
-      status: "New Order",
-    },
-    {
-      id: "order-1771312074354",
-      PONumber: "SAJKTLG202602170008",
-      requestNo: "RPO-20260217-0010",
-      requestId: "order-1771312050229",
-      createdDate: 1771312074354,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-03-16T17:00:00.000Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "1771303248124-0.6765902343575653",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "1",
-          pcs: "1",
-          orderPcs: "1",
-          availablePcs: "1",
-        },
-        {
-          id: "1771303248124-0.04797606747174199",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "2",
-          pcs: "1",
-          orderPcs: "1",
-          availablePcs: "1",
-        },
-        {
-          id: "1771303248124-0.4437938991007555",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "3",
-          pcs: "2",
-          orderPcs: "2",
-        },
-      ],
-      status: "New Order",
-    },
-    {
-      id: "order-1771312575337",
-      PONumber: "SAJKTKH202602170009",
-      requestNo: "RPO-20260217-0011",
-      requestId: "order-1771312563714",
-      createdDate: 1771312575337,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: {
-        id: "king-halim",
-        name: "King Halim",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      waktuKirim: "2026-03-16T17:00:00.000Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "1771303248124-0.6765902343575653",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "1",
-          pcs: "2",
-          orderPcs: "2",
-        },
-        {
-          id: "1771303248124-0.04797606747174199",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "2",
-          pcs: "0",
-          orderPcs: "0",
-          availablePcs: "2",
-        },
-        {
-          id: "1771303248124-0.4437938991007555",
-          kadar: "8k",
-          warna: "rg",
-          ukuran: "2",
-          berat: "3",
-          pcs: "2",
-          orderPcs: "2",
-        },
-      ],
-      status: "Stock Ready",
-      updatedDate: 1771342552586,
-      updatedBy: "kh",
-    },
-    {
-      id: "order-1771346367138",
-      PONumber: "SAJKTLG202602170010",
-      requestNo: "RPO-20260127-0011",
-      requestId: "order-1770790095262-11",
-      createdDate: 1771346367138,
-      createdBy: "jb1",
-      jbId: "jb1",
-      sales: "sales3",
-      atasNama: "Toko Emas Sejahtera",
-      pabrik: {
-        id: "lestari-gold",
-        name: "Lestari Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "hollow-fancy-nori",
-      namaBarang: "Hollow Fancy/Nori",
-      waktuKirim: "2026-02-18T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-un227fuvw",
-          kadar: "17k",
-          warna: "rg",
-          ukuran: "40",
-          berat: "7.5",
-          pcs: "3",
-          availablePcs: "2",
-          orderPcs: "3",
-        },
-      ],
-      photoId: "photo-003",
-      status: "Change Requested",
-      updatedDate: 1771346400025,
-      updatedBy: "le",
-    },
-    {
-      id: "order-1771347681176",
-      PONumber: "SAJKTMG202602170011",
-      requestNo: "RPO-20260123-0015",
-      requestId: "order-1770790095262-15",
-      createdDate: 1771347681176,
-      createdBy: "jb1",
-      jbId: "jb1",
-      sales: "sales3",
-      atasNama: "Perhiasan Permata",
-      pabrik: {
-        id: "mt-gold",
-        name: "MT Gold",
-      },
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "tambang",
-      namaBarang: "Tambang",
-      waktuKirim: "2026-02-17T06:08:15.262Z",
-      customerExpectation: "order-pabrik",
-      detailItems: [
-        {
-          id: "item-1770790095262-q9z9442ua",
-          kadar: "9k",
-          warna: "ap",
-          ukuran: "15",
-          berat: "2.8",
-          pcs: "0",
-          availablePcs: "10",
-          orderPcs: "0",
-        },
-        {
-          id: "item-1770790095262-euy5mljcd",
-          kadar: "9k",
-          warna: "ap",
-          ukuran: "16",
-          berat: "3.0",
-          pcs: "15",
-          availablePcs: "",
-          orderPcs: "15",
-        },
-      ],
-      photoId: "photo-007",
-      status: "New Order",
-    },
-  ];
+const KADAR = ["8k", "9k", "16k", "17k", "24k"];
+const WARNA = ["ap", "rg", "kn", "2w-ap-rg", "ks"];
+const UKURAN = ["14", "15", "16", "17", "18", "p", "n"];
 
-  // Normalize: ensure every order has updatedDate, updatedBy, and timestamp set.
-  // timestamp mirrors createdDate because these objects are stored under "requests"
-  // and consumed as Request (which requires timestamp, not createdDate).
-  return orders.map((order) => ({
-    ...order,
-    timestamp:
-      (order as unknown as { timestamp?: number }).timestamp ??
-      order.createdDate,
-    updatedDate: order.updatedDate ?? order.createdDate,
-    updatedBy: order.updatedBy ?? order.createdBy,
-  })) as unknown as Order[];
-};
-
-// Mock notification data generator
-export const generateMockNotifications = (): Notification[] => {
-  const notifications: Notification[] = [
-    // Notification for order-1770791325077 (UBS Gold - New)
-    {
-      id: "NOTIF-1770791325100",
-      eventType: "order_created",
-      timestamp: 1770791325100,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770791325077",
-      entityNumber: "RPO-20260117-0021",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["ub"],
-      addressedTo: "UBS Gold",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order RPO-20260117-0021 for UBS Gold",
-      metadata: {
-        supplierId: "ubs-gold",
-        supplierName: "UBS Gold",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // Notification for order-1770791472862 (King Halim - Unable to Fulfill)
-    {
-      id: "NOTIF-1770791472900",
-      eventType: "order_created",
-      timestamp: 1770791472900,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770791472862",
-      entityNumber: "RPO-20260116-0022",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["kh"],
-      addressedTo: "King Halim",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order RPO-20260116-0022 for King Halim",
-      metadata: {
-        supplierId: "king-halim",
-        supplierName: "King Halim",
-      },
-      readBy: ["jb1", "kh"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1771342934200",
-      eventType: "order_updated",
-      timestamp: 1771342934200,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770791472862",
-      entityNumber: "RPO-20260116-0022",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["kh"],
-      addressedTo: "King Halim",
-      title: "Order Updated",
-      message: "Hendra Gunawan updated order RPO-20260116-0022",
-      changes: [
-        {
-          field: "detailItems",
-          oldValue: "2 items",
-          newValue: "2 items modified",
-        },
-      ],
-      metadata: {
-        supplierId: "king-halim",
-        supplierName: "King Halim",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1771343314650",
-      eventType: "order_status_changed",
-      timestamp: 1771343314650,
-      triggeredBy: "kh",
-      triggeredByRole: "supplier",
-      entityType: "order",
-      entityId: "order-1770791472862",
-      entityNumber: "RPO-20260116-0022",
-      targetAudience: ["jb", "supplier"],
-      specificTargets: ["jb1", "kh"],
-      addressedTo: "King Halim",
-      title: "Order Status Changed",
-      message:
-        "King Halim Workshop changed order RPO-20260116-0022 status to Unable to Fulfill",
-      changes: [
-        {
-          field: "status",
-          oldValue: "New Order",
-          newValue: "Unable to Fulfill",
-        },
-      ],
-      metadata: {
-        supplierId: "king-halim",
-        supplierName: "King Halim",
-      },
-      readBy: [],
-      removedBy: [],
-    },
-    // Notification for order-1770792049965 (Ayu - Fully Delivered)
-    {
-      id: "NOTIF-1770792049990",
-      eventType: "order_created",
-      timestamp: 1770792049990,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770792049965",
-      entityNumber: "RPO-20260115-0023",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["ay"],
-      addressedTo: "Ayu",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order RPO-20260115-0023 for Ayu",
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: ["jb1", "ay"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1770792150000",
-      eventType: "order_viewed_by_supplier",
-      timestamp: 1770792150000,
-      triggeredBy: "ay",
-      triggeredByRole: "supplier",
-      entityType: "order",
-      entityId: "order-1770792049965",
-      entityNumber: "RPO-20260115-0023",
-      targetAudience: ["jb", "supplier"],
-      specificTargets: ["jb1", "ay"],
-      addressedTo: "Ayu",
-      title: "Order Viewed",
-      message: "Ayu Gold Crafters viewed order RPO-20260115-0023",
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: ["ay"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1770970572570",
-      eventType: "order_status_changed",
-      timestamp: 1770970572570,
-      triggeredBy: "jbuser1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770792049965",
-      entityNumber: "RPO-20260115-0023",
-      targetAudience: ["jb", "supplier"],
-      specificTargets: ["jb1", "ay"],
-      addressedTo: "Ayu",
-      title: "Order Status Changed",
-      message:
-        "jbuser1 changed order RPO-20260115-0023 status to Fully Delivered",
-      changes: [
-        {
-          field: "status",
-          oldValue: "Stock Ready",
-          newValue: "Fully Delivered",
-        },
-      ],
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: ["jbuser1"],
-      removedBy: [],
-    },
-    // Notification for order-1770792067061 (King Halim - Stock Ready)
-    {
-      id: "NOTIF-1770792067090",
-      eventType: "order_created",
-      timestamp: 1770792067090,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770792067061",
-      entityNumber: "RPO-20260209-0021",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["kh"],
-      addressedTo: "King Halim",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order RPO-20260209-0021 for King Halim",
-      metadata: {
-        supplierId: "king-halim",
-        supplierName: "King Halim",
-      },
-      readBy: ["jb1", "kh"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1771341482760",
-      eventType: "order_status_changed",
-      timestamp: 1771341482760,
-      triggeredBy: "kh",
-      triggeredByRole: "supplier",
-      entityType: "order",
-      entityId: "order-1770792067061",
-      entityNumber: "RPO-20260209-0021",
-      targetAudience: ["jb", "supplier"],
-      specificTargets: ["jb1", "kh"],
-      addressedTo: "King Halim",
-      title: "Order Status Changed",
-      message:
-        "King Halim Workshop changed order RPO-20260209-0021 status to Stock Ready",
-      changes: [
-        { field: "status", oldValue: "New Order", newValue: "Stock Ready" },
-      ],
-      metadata: {
-        supplierId: "king-halim",
-        supplierName: "King Halim",
-      },
-      readBy: [],
-      removedBy: [],
-    },
-    // Notification for order-1770793938767 (UBS Gold - New with PO)
-    {
-      id: "NOTIF-1770793938800",
-      eventType: "order_created",
-      timestamp: 1770793938800,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770793938767",
-      entityNumber: "SAJKTUG202602110001",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["ub"],
-      addressedTo: "UBS Gold",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order SAJKTUG202602110001 for UBS Gold",
-      metadata: {
-        supplierId: "ubs-gold",
-        supplierName: "UBS Gold",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // Notification for order-1770798934255 (King Halim - Stock Ready with PO)
-    {
-      id: "NOTIF-1770798934280",
-      eventType: "order_created",
-      timestamp: 1770798934280,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770798934255",
-      entityNumber: "SAJKTKH202602110002",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["kh"],
-      addressedTo: "King Halim",
-      title: "New Order Created",
-      message:
-        "Hendra Gunawan created order SAJKTKH202602110002 for King Halim",
-      metadata: {
-        supplierId: "king-halim",
-        supplierName: "King Halim",
-      },
-      readBy: ["jb1", "kh"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1771342530840",
-      eventType: "order_status_changed",
-      timestamp: 1771342530840,
-      triggeredBy: "kh",
-      triggeredByRole: "supplier",
-      entityType: "order",
-      entityId: "order-1770798934255",
-      entityNumber: "SAJKTKH202602110002",
-      targetAudience: ["jb", "supplier"],
-      specificTargets: ["jb1", "kh"],
-      addressedTo: "King Halim",
-      title: "Order Status Changed",
-      message:
-        "King Halim Workshop changed order SAJKTKH202602110002 status to Stock Ready",
-      changes: [
-        { field: "status", oldValue: "New Order", newValue: "Stock Ready" },
-      ],
-      metadata: {
-        supplierId: "king-halim",
-        supplierName: "King Halim",
-      },
-      readBy: [],
-      removedBy: [],
-    },
-    // Notification for order-1770851392447 (Ayu - Fully Delivered with multiple revisions)
-    {
-      id: "NOTIF-1770851392470",
-      eventType: "order_created",
-      timestamp: 1770851392470,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770851392447",
-      entityNumber: "SAJKTA202602110003",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["ay"],
-      addressedTo: "Ayu",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order SAJKTA202602110003 for Ayu",
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: ["jb1", "ay"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1770880095990",
-      eventType: "order_updated",
-      timestamp: 1770880095990,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770851392447",
-      entityNumber: "SAJKTA202602110003",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["ay"],
-      addressedTo: "Ayu",
-      title: "Order Updated",
-      message: "Hendra Gunawan updated order SAJKTA202602110003 (Revision 1)",
-      changes: [
-        { field: "detailItems", oldValue: "2 items", newValue: "3 items" },
-      ],
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1770888777610",
-      eventType: "order_updated",
-      timestamp: 1770888777610,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770851392447",
-      entityNumber: "SAJKTA202602110003",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["ay"],
-      addressedTo: "Ayu",
-      title: "Order Updated",
-      message: "Hendra Gunawan updated order SAJKTA202602110003 (Revision 5)",
-      changes: [
-        { field: "detailItems", oldValue: "1 item", newValue: "5 items" },
-        {
-          field: "photoId",
-          oldValue: "img-1770887661996-rc2kiag",
-          newValue: "img-1770888777579-y9f2dk7",
-        },
-      ],
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: [],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1770910197995",
-      eventType: "order_updated",
-      timestamp: 1770910197995,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770851392447",
-      entityNumber: "SAJKTA202602110003",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["ay"],
-      addressedTo: "Ayu",
-      title: "Order Updated",
-      message: "Hendra Gunawan updated order SAJKTA202602110003 (Revision 6)",
-      changes: [
-        {
-          field: "photoId",
-          oldValue: "img-1770888777579-y9f2dk7",
-          newValue: "img-1770910195981-adrawhb",
-        },
-      ],
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: [],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-1770975643200",
-      eventType: "order_status_changed",
-      timestamp: 1770975643200,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770851392447",
-      entityNumber: "SAJKTA202602110003",
-      targetAudience: ["jb", "supplier"],
-      specificTargets: ["jb1", "ay"],
-      addressedTo: "Ayu",
-      title: "Order Status Changed",
-      message:
-        "Hendra Gunawan changed order SAJKTA202602110003 status to Fully Delivered",
-      changes: [
-        {
-          field: "status",
-          oldValue: "Stock Ready",
-          newValue: "Fully Delivered",
-        },
-      ],
-      metadata: {
-        supplierId: "ayu",
-        supplierName: "Ayu",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // Notification for order-1770875074959 (Lestari Gold - New)
-    {
-      id: "NOTIF-1770875074980",
-      eventType: "order_created",
-      timestamp: 1770875074980,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1770875074959",
-      entityNumber: "RPO-20260209-0029",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["le"],
-      addressedTo: "Lestari Gold",
-      title: "New Order Created",
-      message:
-        "Hendra Gunawan created order RPO-20260209-0029 for Lestari Gold",
-      metadata: {
-        supplierId: "lestari-gold",
-        supplierName: "Lestari Gold",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // Notification for order-1771260148833 (Lestari Gold - New)
-    {
-      id: "NOTIF-1771260148860",
-      eventType: "order_created",
-      timestamp: 1771260148860,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1771260148833",
-      entityNumber: "SAJKTLG202602160002",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["le"],
-      addressedTo: "Lestari Gold",
-      title: "New Order Created",
-      message:
-        "Hendra Gunawan created order SAJKTLG202602160002 for Lestari Gold",
-      metadata: {
-        supplierId: "lestari-gold",
-        supplierName: "Lestari Gold",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // Notification for order-1771299982747 (HWT - New)
-    {
-      id: "NOTIF-1771299982770",
-      eventType: "order_created",
-      timestamp: 1771299982770,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1771299982747",
-      entityNumber: "SAJKTH202602170001",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["hw"],
-      addressedTo: "HWT",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order SAJKTH202602170001 for HWT",
-      metadata: {
-        supplierId: "hwt",
-        supplierName: "HWT",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // Notification for order-1771302483948 (YT Gold - New)
-    {
-      id: "NOTIF-1771302483970",
-      eventType: "order_created",
-      timestamp: 1771302483970,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1771302483948",
-      entityNumber: "SAJKTYG202602170002",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["yt"],
-      addressedTo: "YT Gold",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order SAJKTYG202602170002 for YT Gold",
-      metadata: {
-        supplierId: "yt-gold",
-        supplierName: "YT Gold",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // Notification for order-1771302938318 (MT Gold - New)
-    {
-      id: "NOTIF-1771302938340",
-      eventType: "order_created",
-      timestamp: 1771302938340,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "order",
-      entityId: "order-1771302938318",
-      entityNumber: "SAJKTMG202602170003",
-      targetAudience: ["supplier", "jb"],
-      specificTargets: ["mt"],
-      addressedTo: "MT Gold",
-      title: "New Order Created",
-      message: "Hendra Gunawan created order SAJKTMG202602170003 for MT Gold",
-      metadata: {
-        supplierId: "mt-gold",
-        supplierName: "MT Gold",
-      },
-      readBy: ["jb1"],
-      removedBy: [],
-    },
-    // ============================================
-    // REQUEST-TYPE NOTIFICATIONS
-    // ============================================
-
-    // Notifications for Request RPO-20260117-0021 (became order-1770791325077)
-    {
-      id: "NOTIF-REQ-1770700000000",
-      eventType: "request_created",
-      timestamp: 1770700000000,
-      triggeredBy: "sales1",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-21",
-      entityNumber: "RPO-20260117-0021",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales1",
-      title: "New Request Created",
-      message: "Budi Santoso created request RPO-20260117-0021",
-      metadata: {},
-      readBy: ["sales1"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770720000000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770720000000,
-      triggeredBy: "stockist2",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-21",
-      entityNumber: "RPO-20260117-0021",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales1"],
-      originator: "sales1",
-      title: "Request Viewed",
-      message: "Fitri Rahmawati viewed request RPO-20260117-0021",
-      metadata: {},
-      readBy: ["stockist2"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770750000000",
-      eventType: "request_status_changed",
-      timestamp: 1770750000000,
-      triggeredBy: "stockist2",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-21",
-      entityNumber: "RPO-20260117-0021",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales1"],
-      originator: "sales1",
-      title: "Request Approved",
-      message: "Fitri Rahmawati approved request RPO-20260117-0021",
-      changes: [{ field: "status", oldValue: "Pending", newValue: "Approved" }],
-      metadata: {},
-      readBy: [],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770791325050",
-      eventType: "request_converted_to_order",
-      timestamp: 1770791325050,
-      triggeredBy: "jb1",
-      triggeredByRole: "jb",
-      entityType: "request",
-      entityId: "order-1770790095262-21",
-      entityNumber: "RPO-20260117-0021",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales1"],
-      originator: "sales1",
-      title: "Request Converted to Order",
-      message: "Hendra Gunawan converted request RPO-20260117-0021 to order",
-      metadata: {},
-      readBy: [],
-      removedBy: [],
-    },
-
-    // Notifications for Request RPO-20260116-0022 (became order-1770791472862)
-    {
-      id: "NOTIF-REQ-1770680000000",
-      eventType: "request_created",
-      timestamp: 1770680000000,
-      triggeredBy: "sales2",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-22",
-      entityNumber: "RPO-20260116-0022",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales2",
-      title: "New Request Created",
-      message: "Ani Wijaya created request RPO-20260116-0022",
-      metadata: {},
-      readBy: ["sales2"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770700500000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770700500000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-22",
-      entityNumber: "RPO-20260116-0022",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales2"],
-      originator: "sales2",
-      title: "Request Viewed",
-      message: "Eko Widodo viewed request RPO-20260116-0022",
-      metadata: {},
-      readBy: ["stockist1"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770735000000",
-      eventType: "request_approved_by_stockist",
-      timestamp: 1770735000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-22",
-      entityNumber: "RPO-20260116-0022",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales2"],
-      originator: "sales2",
-      title: "Request Approved",
-      message: "Eko Widodo approved request RPO-20260116-0022",
-      metadata: {},
-      readBy: [],
-      removedBy: [],
-    },
-
-    // Notifications for Request RPO-20260115-0023 (became order-1770792049965)
-    {
-      id: "NOTIF-REQ-1770650000000",
-      eventType: "request_created",
-      timestamp: 1770650000000,
-      triggeredBy: "sales4",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-23",
-      entityNumber: "RPO-20260115-0023",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales4",
-      title: "New Request Created",
-      message: "Dewi Sari created request RPO-20260115-0023",
-      metadata: {},
-      readBy: ["sales4"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770670000000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770670000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-23",
-      entityNumber: "RPO-20260115-0023",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales4"],
-      originator: "sales4",
-      title: "Request Viewed",
-      message: "Eko Widodo viewed request RPO-20260115-0023",
-      metadata: {},
-      readBy: ["stockist1", "sales4"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770705000000",
-      eventType: "request_approved_by_stockist",
-      timestamp: 1770705000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-23",
-      entityNumber: "RPO-20260115-0023",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales4"],
-      originator: "sales4",
-      title: "Request Approved",
-      message: "Eko Widodo approved request RPO-20260115-0023",
-      metadata: {},
-      readBy: ["sales4"],
-      removedBy: [],
-    },
-
-    // Notifications for Request RPO-20260209-0021 (became order-1770792067061)
-    {
-      id: "NOTIF-REQ-1770710000000",
-      eventType: "request_created",
-      timestamp: 1770710000000,
-      triggeredBy: "sales1",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-24",
-      entityNumber: "RPO-20260209-0021",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales1",
-      title: "New Request Created",
-      message: "Budi Santoso created request RPO-20260209-0021",
-      metadata: {},
-      readBy: ["sales1"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770730000000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770730000000,
-      triggeredBy: "stockist2",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-24",
-      entityNumber: "RPO-20260209-0021",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales1"],
-      originator: "sales1",
-      title: "Request Viewed",
-      message: "Fitri Rahmawati viewed request RPO-20260209-0021",
-      metadata: {},
-      readBy: ["stockist2"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770765000000",
-      eventType: "request_status_changed",
-      timestamp: 1770765000000,
-      triggeredBy: "stockist2",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-24",
-      entityNumber: "RPO-20260209-0021",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales1"],
-      originator: "sales1",
-      title: "Request Approved",
-      message: "Fitri Rahmawati approved request RPO-20260209-0021",
-      changes: [{ field: "status", oldValue: "Viewed", newValue: "Approved" }],
-      metadata: {},
-      readBy: [],
-      removedBy: [],
-    },
-
-    // Notifications for Request RPO-20260127-0011 with sales3 (became order-1771346367138)
-    {
-      id: "NOTIF-REQ-1770540000000",
-      eventType: "request_created",
-      timestamp: 1770540000000,
-      triggeredBy: "sales3",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-11",
-      entityNumber: "RPO-20260127-0011",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales3",
-      title: "New Request Created",
-      message:
-        "Cahya Pratama created request RPO-20260127-0011 for Toko Emas Sejahtera",
-      metadata: {
-        customerName: "Toko Emas Sejahtera",
-      },
-      readBy: ["sales3"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770560000000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770560000000,
-      triggeredBy: "stockist2",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-11",
-      entityNumber: "RPO-20260127-0011",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales3"],
-      originator: "sales3",
-      title: "Request Viewed",
-      message: "Fitri Rahmawati viewed request RPO-20260127-0011",
-      metadata: {
-        customerName: "Toko Emas Sejahtera",
-      },
-      readBy: ["stockist2", "sales3"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770590000000",
-      eventType: "request_updated",
-      timestamp: 1770590000000,
-      triggeredBy: "sales3",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-11",
-      entityNumber: "RPO-20260127-0011",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["stockist2"],
-      originator: "sales3",
-      title: "Request Updated",
-      message: "Cahya Pratama updated request RPO-20260127-0011",
-      changes: [
-        { field: "detailItems", oldValue: "2 items", newValue: "1 item" },
-      ],
-      metadata: {
-        customerName: "Toko Emas Sejahtera",
-      },
-      readBy: [],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770615000000",
-      eventType: "request_approved_by_stockist",
-      timestamp: 1770615000000,
-      triggeredBy: "stockist2",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-11",
-      entityNumber: "RPO-20260127-0011",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales3"],
-      originator: "sales3",
-      title: "Request Approved",
-      message: "Fitri Rahmawati approved request RPO-20260127-0011",
-      metadata: {
-        customerName: "Toko Emas Sejahtera",
-      },
-      readBy: ["sales3"],
-      removedBy: [],
-    },
-
-    // Notifications for Request RPO-20260123-0015 with sales3 (became order-1771347681176)
-    {
-      id: "NOTIF-REQ-1770480000000",
-      eventType: "request_created",
-      timestamp: 1770480000000,
-      triggeredBy: "sales3",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-15",
-      entityNumber: "RPO-20260123-0015",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales3",
-      title: "New Request Created",
-      message:
-        "Cahya Pratama created request RPO-20260123-0015 for Perhiasan Permata",
-      metadata: {
-        customerName: "Perhiasan Permata",
-      },
-      readBy: ["sales3"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770500000000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770500000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-15",
-      entityNumber: "RPO-20260123-0015",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales3"],
-      originator: "sales3",
-      title: "Request Viewed",
-      message: "Eko Widodo viewed request RPO-20260123-0015",
-      metadata: {
-        customerName: "Perhiasan Permata",
-      },
-      readBy: ["stockist1"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770525000000",
-      eventType: "request_approved_by_stockist",
-      timestamp: 1770525000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-15",
-      entityNumber: "RPO-20260123-0015",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales3"],
-      originator: "sales3",
-      title: "Request Approved",
-      message: "Eko Widodo approved request RPO-20260123-0015",
-      metadata: {
-        customerName: "Perhiasan Permata",
-      },
-      readBy: ["sales3"],
-      removedBy: [],
-    },
-
-    // Additional Request notifications
-    {
-      id: "NOTIF-REQ-1770620000000",
-      eventType: "request_created",
-      timestamp: 1770620000000,
-      triggeredBy: "sales2",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-25",
-      entityNumber: "RPO-20260208-0022",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales2",
-      title: "New Request Created",
-      message: "Ani Wijaya created request RPO-20260208-0022",
-      metadata: {},
-      readBy: ["sales2"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770642000000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770642000000,
-      triggeredBy: "stockist2",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-25",
-      entityNumber: "RPO-20260208-0022",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales2"],
-      originator: "sales2",
-      title: "Request Viewed",
-      message: "Fitri Rahmawati viewed request RPO-20260208-0022",
-      metadata: {},
-      readBy: [],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770775000000",
-      eventType: "request_created",
-      timestamp: 1770775000000,
-      triggeredBy: "sales4",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-28",
-      entityNumber: "RPO-20260208-0025",
-      targetAudience: ["stockist", "sales"],
-      originator: "sales4",
-      title: "New Request Created",
-      message: "Dewi Sari created request RPO-20260208-0025",
-      metadata: {},
-      readBy: ["sales4"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770795000000",
-      eventType: "request_viewed_by_stockist",
-      timestamp: 1770795000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-28",
-      entityNumber: "RPO-20260208-0025",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["sales4"],
-      originator: "sales4",
-      title: "Request Viewed",
-      message: "Eko Widodo viewed request RPO-20260208-0025",
-      metadata: {},
-      readBy: ["stockist1"],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770820000000",
-      eventType: "request_rejected_by_stockist",
-      timestamp: 1770820000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-28",
-      entityNumber: "RPO-20260208-0025",
-      targetAudience: ["sales"],
-      specificTargets: ["sales4"],
-      originator: "sales4",
-      title: "Request Needs Changes",
-      message: "Eko Widodo requested changes to request RPO-20260208-0025",
-      changes: [
-        { field: "status", oldValue: "Viewed", newValue: "Changes Requested" },
-      ],
-      metadata: {},
-      readBy: [],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770845000000",
-      eventType: "request_updated",
-      timestamp: 1770845000000,
-      triggeredBy: "sales4",
-      triggeredByRole: "sales",
-      entityType: "request",
-      entityId: "order-1770790095262-28",
-      entityNumber: "RPO-20260208-0025",
-      targetAudience: ["sales", "stockist"],
-      specificTargets: ["stockist1"],
-      originator: "sales4",
-      title: "Request Updated",
-      message: "Dewi Sari updated request RPO-20260208-0025 based on feedback",
-      changes: [
-        { field: "detailItems", oldValue: "3 items", newValue: "2 items" },
-      ],
-      metadata: {},
-      readBy: [],
-      removedBy: [],
-    },
-    {
-      id: "NOTIF-REQ-1770870000000",
-      eventType: "request_approved_by_stockist",
-      timestamp: 1770870000000,
-      triggeredBy: "stockist1",
-      triggeredByRole: "stockist",
-      entityType: "request",
-      entityId: "order-1770790095262-28",
-      entityNumber: "RPO-20260208-0025",
-      targetAudience: ["sales", "jb"],
-      specificTargets: ["sales4"],
-      originator: "sales4",
-      title: "Request Approved",
-      message: "Eko Widodo approved request RPO-20260208-0025",
-      metadata: {},
-      readBy: ["sales4"],
-      removedBy: [],
-    },
-
-    // ETA Reminder notifications for requests
-    {
-      id: "NOTIF-REQ-ETA-1771300000000",
-      eventType: "request_expiring",
-      timestamp: 1771300000000,
-      triggeredBy: "system",
-      triggeredByRole: "jb",
-      entityType: "request",
-      entityId: "order-1770790095262-11",
-      entityNumber: "RPO-20260127-0011",
-      targetAudience: ["stockist", "sales"],
-      specificTargets: ["sales3", "stockist2"],
-      originator: "sales3",
-      title: "Request ETA Reminder",
-      message:
-        "Request RPO-20260127-0011 is approaching its delivery date (Feb 18, 2026)",
-      changes: [{ field: "daysToETA", oldValue: null, newValue: 2 }],
-      metadata: {
-        customerName: "Toko Emas Sejahtera",
-      },
-      readBy: [],
-      removedBy: [],
-    },
-  ];
-
-  return notifications;
-};
-
-export const initializeMockData = () => {
-  const existingOrders = localStorage.getItem("requests");
-
-  if (!existingOrders) {
-    const mockOrders = generateMockOrders();
-    localStorage.setItem("requests", JSON.stringify(mockOrders));
-    console.log(
-      `✅ Initialized ${mockOrders.length} mock orders in session storage`,
-    );
-    return mockOrders;
-  } else {
-    // Migrate existing data: fill in missing updatedDate/updatedBy and timestamp
-    let parsed = JSON.parse(existingOrders);
-    let patched = false;
-    parsed = parsed.map((r: Record<string, unknown>) => {
-      const updates: Record<string, unknown> = {};
-      if (!r.updatedDate && r.createdDate) {
-        updates.updatedDate = r.createdDate;
-        updates.updatedBy = r.updatedBy ?? r.createdBy;
-        patched = true;
-      }
-      if (!r.timestamp && r.createdDate) {
-        updates.timestamp = r.createdDate;
-        patched = true;
-      }
-      // Backfill revisionHistory for two demo requests that now have it in mock data
-      if (r.id === "order-1770791325077" && !r.revisionHistory) {
-        updates.revisionHistory = [
-          {
-            revisionNumber: 1,
-            timestamp: 1770858925077,
-            updatedBy: "sales1",
-            changes: {
-              kategoriBarang: "model",
-              jenisProduk: "gelang-kaku",
-              namaProduk: "gelang-cuff-tebal",
-              namaBasic: "",
-              waktuKirim: "2026-02-26T06:08:15.262Z",
-              detailItems: [
-                {
-                  id: "item-1770790095262-2hcykjyyl",
-                  kadar: "24k",
-                  warna: "ap",
-                  ukuran: "18",
-                  berat: "12.0",
-                  pcs: "10",
-                  availablePcs: "0",
-                  orderPcs: "10",
-                },
-              ],
-              photoId: "photo-003",
-            },
-            previousValues: {
-              kategoriBarang: "model",
-              jenisProduk: "gelang-kaku",
-              namaProduk: "gelang-cuff-tebal",
-              namaBasic: "",
-              waktuKirim: "2026-02-20T06:08:15.262Z",
-              detailItems: [
-                {
-                  id: "item-1770790095262-2hcykjyyl",
-                  kadar: "24k",
-                  warna: "ap",
-                  ukuran: "16",
-                  berat: "10.0",
-                  pcs: "5",
-                  availablePcs: "0",
-                  orderPcs: "5",
-                },
-              ],
-              photoId: "photo-003",
-            },
-          },
-        ];
-        patched = true;
-      }
-      if (r.id === "order-1770793938767" && !r.revisionHistory) {
-        updates.revisionHistory = [
-          {
-            revisionNumber: 1,
-            timestamp: 1770835938767,
-            updatedBy: "sales2",
-            changes: {
-              kategoriBarang: "model",
-              jenisProduk: "gelang-keroncong",
-              namaProduk: "gelang-modern",
-              namaBasic: "",
-              waktuKirim: "2026-02-28T06:08:15.262Z",
-              detailItems: [
-                {
-                  id: "item-1770790095262-y7y1khm0e",
-                  kadar: "16k",
-                  warna: "2w-ap-rg",
-                  ukuran: "16",
-                  berat: "8.5",
-                  pcs: "8",
-                  availablePcs: "0",
-                  orderPcs: "8",
-                },
-                {
-                  id: "item-1770790095262-g7kw8la2r",
-                  kadar: "17k",
-                  warna: "ap",
-                  ukuran: "18",
-                  berat: "9.2",
-                  pcs: "6",
-                  availablePcs: "0",
-                  orderPcs: "6",
-                },
-              ],
-              photoId: "photo-004",
-            },
-            previousValues: {
-              kategoriBarang: "model",
-              jenisProduk: "gelang-keroncong",
-              namaProduk: "gelang-modern",
-              namaBasic: "",
-              waktuKirim: "2026-03-01T06:08:15.262Z",
-              detailItems: [
-                {
-                  id: "item-1770790095262-y7y1khm0e",
-                  kadar: "16k",
-                  warna: "2w-ap-rg",
-                  ukuran: "16",
-                  berat: "8.5",
-                  pcs: "5",
-                  availablePcs: "0",
-                  orderPcs: "5",
-                },
-              ],
-              photoId: "photo-004",
-            },
-          },
-          {
-            revisionNumber: 2,
-            timestamp: 1770870938767,
-            updatedBy: "sales2",
-            changes: {
-              kategoriBarang: "model",
-              jenisProduk: "gelang-keroncong",
-              namaProduk: "gelang-modern",
-              namaBasic: "",
-              waktuKirim: "2026-03-01T06:08:15.262Z",
-              detailItems: [
-                {
-                  id: "item-1770790095262-y7y1khm0e",
-                  kadar: "16k",
-                  warna: "2w-ap-rg",
-                  ukuran: "16",
-                  berat: "8.5",
-                  pcs: "8",
-                  availablePcs: "0",
-                  orderPcs: "8",
-                },
-                {
-                  id: "item-1770790095262-g7kw8la2r",
-                  kadar: "17k",
-                  warna: "ap",
-                  ukuran: "18",
-                  berat: "9.2",
-                  pcs: "6",
-                  availablePcs: "0",
-                  orderPcs: "6",
-                },
-              ],
-              photoId: "photo-004",
-            },
-            previousValues: {
-              kategoriBarang: "model",
-              jenisProduk: "gelang-keroncong",
-              namaProduk: "gelang-modern",
-              namaBasic: "",
-              waktuKirim: "2026-02-28T06:08:15.262Z",
-              detailItems: [
-                {
-                  id: "item-1770790095262-y7y1khm0e",
-                  kadar: "16k",
-                  warna: "2w-ap-rg",
-                  ukuran: "16",
-                  berat: "8.5",
-                  pcs: "8",
-                  availablePcs: "0",
-                  orderPcs: "8",
-                },
-                {
-                  id: "item-1770790095262-g7kw8la2r",
-                  kadar: "17k",
-                  warna: "ap",
-                  ukuran: "18",
-                  berat: "9.2",
-                  pcs: "6",
-                  availablePcs: "0",
-                  orderPcs: "6",
-                },
-              ],
-              photoId: "photo-004",
-            },
-          },
-        ];
-        patched = true;
-      }
-      return Object.keys(updates).length ? { ...r, ...updates } : r;
-    });
-    if (patched) {
-      localStorage.setItem("requests", JSON.stringify(parsed));
-      console.log(
-        "🔧 Patched missing updatedDate/timestamp in existing mock data",
-      );
-    } else {
-      console.log(
-        "📦 Existing orders found, skipping mock data initialization",
-      );
-    }
-
-    // Migrate "New" → "New Order" in "orders" localStorage key
-    const existingOrdersRaw = localStorage.getItem("orders");
-    if (existingOrdersRaw) {
-      const existingOrdersParsed: Record<string, unknown>[] =
-        JSON.parse(existingOrdersRaw);
-      let orderPatched = false;
-      const migratedOrders = existingOrdersParsed.map((o) => {
-        if (o.status === "New") {
-          orderPatched = true;
-          return { ...o, status: "New Order" };
-        }
-        return o;
-      });
-      if (orderPatched) {
-        localStorage.setItem("orders", JSON.stringify(migratedOrders));
-        console.log("🔧 Migrated order status 'New' → 'New Order' in 'orders'");
-      }
-    }
-
-    // Migrate "New" → "New Order" in "requests" localStorage key (Order objects stored there)
-    const reMigratedRequests = parsed.map((r: Record<string, unknown>) => {
-      if (r.status === "New") return { ...r, status: "New Order" };
-      return r;
-    });
-    const hasStatusMigration = reMigratedRequests.some(
-      (r: Record<string, unknown>, i: number) => r.status !== parsed[i]?.status,
-    );
-    if (hasStatusMigration) {
-      localStorage.setItem("requests", JSON.stringify(reMigratedRequests));
-      console.log("🔧 Migrated order status 'New' → 'New Order' in 'requests'");
-    }
-
-    return parsed;
-  }
-};
-
-export const resetMockData = () => {
-  const mockOrders = generateMockOrders();
-  localStorage.setItem("requests", JSON.stringify(mockOrders));
-  console.log(`🔄 Reset and initialized ${mockOrders.length} mock orders`);
-  return mockOrders;
-};
-
-// Initialize mock notifications
-export const initializeMockNotifications = () => {
-  const existingNotifications = localStorage.getItem("notifications");
-
-  if (!existingNotifications) {
-    const mockNotifications = generateMockNotifications();
-    localStorage.setItem("notifications", JSON.stringify(mockNotifications));
-    console.log(
-      `✅ Initialized ${mockNotifications.length} mock notifications in localStorage`,
-    );
-    return mockNotifications;
-  } else {
-    console.log(
-      "📦 Existing notifications found, skipping mock notification initialization",
-    );
-    return JSON.parse(existingNotifications);
-  }
-};
-
-// Reset mock notifications
-export const resetMockNotifications = () => {
-  const mockNotifications = generateMockNotifications();
-  localStorage.setItem("notifications", JSON.stringify(mockNotifications));
-  console.log(
-    `🔄 Reset and initialized ${mockNotifications.length} mock notifications`,
-  );
-  return mockNotifications;
-};
-
-// Export photo database
-export const getPhotoDatabase = (): Photo[] => mockPhotos;
-
-export const getPhotoById = (photoId: string): Photo | undefined => {
-  return mockPhotos.find((photo) => photo.id === photoId);
-};
-
-/**
- * Populate mock data – adds exactly 15 requests and 15 orders (with revisions)
- * into localStorage, merged with whatever data already exists.
- * Intended for testing only.
- */
-export const populateMockData = (): { requests: number; orders: number } => {
-  const now = Date.now();
-  const DAY = 86_400_000;
-  const HR = 3_600_000;
-  const tag = now.toString(36); // short unique tag
-  const uid = (prefix: string, i: number) => `${prefix}-pop-${tag}-${i}`;
-
-  // ── Shared lookup tables ────────────────────────────────────────────────
-  const SUPPLIERS = [
-    { id: "ubs-gold", name: "UBS Gold" },
-    { id: "king-halim", name: "King Halim" },
-    { id: "ayu", name: "Ayu" },
-    { id: "lestari-gold", name: "Lestari Gold" },
-    { id: "hwt", name: "HWT" },
-  ];
-  const SALES = ["sales1", "sales2", "sales3", "sales4"];
-  const CUSTOMERS = [
-    { id: "c1", name: "Toko Emas Sejahtera" },
-    { id: "c2", name: "Toko Perhiasan Mulia" },
-    { id: "c3", name: "Perhiasan Permata" },
-    { id: "c4", name: "Butik Emas Indah" },
-    { id: "c5", name: "Toko Mas Berkah" },
-  ];
-  const PRODUCTS = [
-    {
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "italy-santa",
-      photoId: "photo-001",
-    },
-    {
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "milano",
-      photoId: "photo-005",
-    },
-    {
-      kategoriBarang: "basic",
-      jenisProduk: "anting",
-      namaProduk: "",
-      namaBasic: "sunny-vanessa",
-      photoId: "photo-007",
-    },
-    {
-      kategoriBarang: "model",
-      jenisProduk: "gelang-rantai",
-      namaProduk: "gelang-keroncong",
-      namaBasic: "",
-      photoId: "photo-003",
-    },
-    {
-      kategoriBarang: "basic",
-      jenisProduk: "kalung",
-      namaProduk: "",
-      namaBasic: "tambang",
-      photoId: "photo-009",
-    },
-    {
-      kategoriBarang: "model",
-      jenisProduk: "gelang-kaku",
-      namaProduk: "gelang-cuff-tebal",
-      namaBasic: "",
-      photoId: "photo-003",
-    },
-    {
-      kategoriBarang: "basic",
-      jenisProduk: "cincin",
-      namaProduk: "",
-      namaBasic: "italy-kaca",
-      photoId: "photo-006",
-    },
-  ];
-  const KADAR = ["8k", "9k", "16k", "17k", "24k"];
-  const WARNA = ["ap", "rg", "kn", "2w-ap-rg"];
-  const UKURAN = ["14", "15", "16", "17", "18", "p"];
-
-  const makeItem = (seed: number, overridePcs?: string) => ({
-    id: uid("item", seed),
+function makeItem(
+  tag: string,
+  seed: number,
+  overridePcs?: string,
+): DetailBarangItem {
+  return {
+    id: uid("item", tag, seed),
     kadar: KADAR[seed % KADAR.length],
     warna: WARNA[seed % WARNA.length],
     ukuran: UKURAN[seed % UKURAN.length],
@@ -3357,151 +193,390 @@ export const populateMockData = (): { requests: number; orders: number } => {
     pcs: overridePcs ?? String(5 + (seed % 16)),
     availablePcs: "0",
     orderPcs: overridePcs ?? String(5 + (seed % 16)),
-  });
+  };
+}
 
-  const dateStr = new Date(now).toISOString().slice(0, 10).replace(/-/g, "");
+function pickStockist(branch: BranchCode): string {
+  const match = STOCKISTS.find((s) => s.branch === branch);
+  return match?.username ?? "stockist1";
+}
 
-  // ── 1. Requests (15) ────────────────────────────────────────────────────
-  const REQ_STATUSES = [
-    "Open",
-    "Open",
-    "Open",
-    "Open",
-    "Open", // 5
-    "JB Verifying",
-    "JB Verifying",
-    "JB Verifying", // 3
-    "Rejected",
-    "Rejected", // 2
-    "Cancelled",
-    "Cancelled", // 2
-    "Done",
-    "Done", // 2
-    "Open", // 1 extra
-  ];
+function pickJB(branch: BranchCode): string {
+  const match = JBS.find((j) => j.branch === branch);
+  return match?.username ?? "jb1";
+}
 
-  const newRequests = REQ_STATUSES.map((status, i) => {
+// ── Scenario definitions ─────────────────────────────────────────────────
+// Each scenario describes how far a request (and possibly its order) should
+// progress through the lifecycle.
+
+type RequestEnd =
+  | "open" // just created, nothing else
+  | "jb-verifying" // stockist viewed → approved → forwarded to JB
+  | "requested-to-jb" // same as jb-verifying but status set
+  | "rejected" // stockist rejected
+  | "cancelled" // sales cancelled
+  | "ordered"; // JB wrote an order
+
+type OrderEnd =
+  | "new-order"
+  | "viewed"
+  | "change-pending"
+  | "order-revised"
+  | "in-production"
+  | "stock-ready";
+
+interface Scenario {
+  requestEnd: RequestEnd;
+  orderEnd?: OrderEnd;
+  /** How many days ago the request was created */
+  daysAgo: number;
+}
+
+const SCENARIOS: Scenario[] = [
+  // ── Fresh requests (various stages) ──
+  { requestEnd: "open", daysAgo: 1 },
+  { requestEnd: "open", daysAgo: 2 },
+  { requestEnd: "open", daysAgo: 3 },
+  { requestEnd: "jb-verifying", daysAgo: 4 },
+  { requestEnd: "jb-verifying", daysAgo: 5 },
+  { requestEnd: "requested-to-jb", daysAgo: 6 },
+  { requestEnd: "requested-to-jb", daysAgo: 7 },
+  // ── Rejected / cancelled ──
+  { requestEnd: "rejected", daysAgo: 5 },
+  { requestEnd: "cancelled", daysAgo: 3 },
+  // ── Ordered → various order stages ──
+  { requestEnd: "ordered", orderEnd: "new-order", daysAgo: 8 },
+  { requestEnd: "ordered", orderEnd: "viewed", daysAgo: 10 },
+  { requestEnd: "ordered", orderEnd: "change-pending", daysAgo: 12 },
+  { requestEnd: "ordered", orderEnd: "order-revised", daysAgo: 14 },
+  { requestEnd: "ordered", orderEnd: "in-production", daysAgo: 16 },
+  { requestEnd: "ordered", orderEnd: "stock-ready", daysAgo: 20 },
+];
+
+// ── Main populate function ───────────────────────────────────────────────
+
+export const populateMockData = async (): Promise<{
+  requests: number;
+  orders: number;
+  notifications: number;
+}> => {
+  const now = Date.now();
+  const tag = batchTag();
+
+  // Snapshot notification count before we start
+  const notifsBefore = getAllNotifications().length;
+
+  const newRequests: Request[] = [];
+  const newOrders: Order[] = [];
+
+  // Pre-generate an image ID for each scenario (all async, run in parallel)
+  const photoIds = await Promise.all(SCENARIOS.map(() => storeRandomImage()));
+
+  SCENARIOS.forEach((scenario, i) => {
+    const sales = SALES[i % SALES.length];
+    const branch = sales.branch;
     const prod = PRODUCTS[i % PRODUCTS.length];
     const sup = SUPPLIERS[i % SUPPLIERS.length];
     const cust = CUSTOMERS[i % CUSTOMERS.length];
-    const sales = SALES[i % SALES.length];
-    return {
-      id: uid("req", i),
-      timestamp: now - DAY * (i + 1),
-      requestNo: `RPO-${dateStr}-P${String(i + 1).padStart(2, "0")}`,
-      createdBy: sales,
-      updatedDate: now - DAY * i,
-      updatedBy: sales,
+    const stockist = pickStockist(branch);
+    const jb = pickJB(branch);
+    const photoId = photoIds[i];
+
+    // Stagger timestamps so they look realistic
+    const createdAt = now - scenario.daysAgo * DAY - i * 37 * MIN; // slight jitter
+
+    // ── Build request ──
+    const reqId = uid("req", tag, i);
+    const requestNo = generatePONumber(branch, new Date(createdAt), []);
+
+    const request: Request = {
+      id: reqId,
+      timestamp: createdAt,
+      requestNo,
+      createdBy: sales.username,
+      updatedDate: createdAt,
+      updatedBy: sales.username,
+      branchCode: branch,
       pabrik: { id: sup.id, name: sup.name },
       namaPelanggan: { id: cust.id, name: cust.name },
       kategoriBarang: prod.kategoriBarang,
       jenisProduk: prod.jenisProduk,
       namaProduk: prod.namaProduk,
       namaBasic: prod.namaBasic,
-      photoId: prod.photoId,
-      waktuKirim: new Date(now + DAY * (20 + i * 4)).toISOString(),
-      customerExpectation: i % 2 === 0 ? "ready-marketing" : "ready-pabrik",
-      detailItems: [makeItem(i * 3), makeItem(i * 3 + 1, String(8 + (i % 10)))],
-      status,
+      photoId,
+      waktuKirim: new Date(now + DAY * (20 + i * 3)).toISOString(),
+      customerExpectation:
+        i % 3 === 0
+          ? "ready-marketing"
+          : i % 3 === 1
+            ? "ready-pabrik"
+            : "order-pabrik",
+      detailItems: [
+        makeItem(tag, i * 3),
+        makeItem(tag, i * 3 + 1, String(8 + (i % 10))),
+      ],
+      status: "Open",
     };
-  });
 
-  // ── 2. Orders (15) with revisions ───────────────────────────────────────
-  //   [status, revisionCount, daysAgo]
-  const ORDER_SPECS: [string, number, number][] = [
-    ["New Order", 0, 1],
-    ["New Order", 0, 2],
-    ["New Order", 0, 3],
-    ["Negotiating", 1, 4],
-    ["Negotiating", 1, 5],
-    ["Change Pending Approval", 2, 6],
-    ["Order Revised", 2, 7],
-    ["In Production", 2, 10],
-    ["In Production", 1, 12],
-    ["Stock Ready", 1, 15],
-    ["Stock Ready", 2, 18],
-    ["Cannot Fulfill", 1, 8],
-    ["Rejected", 1, 9],
-    ["Fully Delivered", 3, 20],
-    ["Fully Delivered", 2, 25],
-  ];
+    // Step 1: Request created notification
+    notifyRequestCreated(request, sales.username);
 
-  const newOrders = ORDER_SPECS.map(([status, revCount, daysAgo], i) => {
-    const prod = PRODUCTS[i % PRODUCTS.length];
-    const sup = SUPPLIERS[i % SUPPLIERS.length];
-    const reqId = uid("req", i % 15);
+    // ── Progress the request through its lifecycle ──
 
-    // Build final detail items (the current state of the order)
-    const finalItems = [
-      makeItem(i * 5),
-      makeItem(i * 5 + 1),
-      ...(i % 3 === 0 ? [makeItem(i * 5 + 2)] : []),
-    ];
+    if (scenario.requestEnd === "cancelled") {
+      request.status = "Cancelled";
+      request.updatedDate = createdAt + 2 * HR;
+      request.updatedBy = sales.username;
+      notifyRequestCancelled(request, sales.username);
+      newRequests.push(request);
+      return; // done with this scenario
+    }
 
-    // Build revision history – each revision shows a previous smaller item set
-    const revisionHistory = Array.from({ length: revCount }, (_, r) => {
-      const revNum = r + 1;
-      const revTime = now - DAY * daysAgo + revNum * 4 * HR;
-      const prevItems = [
-        makeItem(i * 5 + r),
-        ...(r === 0 ? [] : [makeItem(i * 5 + r + 1)]),
-      ];
-      return {
-        revisionNumber: revNum,
-        timestamp: revTime,
-        updatedBy: "jb1",
-        revisionNotes: `Revision ${revNum}: adjusted specifications`,
-        changes: {
-          kategoriBarang: prod.kategoriBarang,
-          jenisProduk: prod.jenisProduk,
-          namaProduk: prod.namaProduk,
-          namaBasic: prod.namaBasic,
-          detailItems:
-            revNum === revCount
-              ? finalItems
-              : [makeItem(i * 5 + r), makeItem(i * 5 + r + 1)],
-          photoId: prod.photoId,
-        },
-        previousValues: {
-          kategoriBarang: prod.kategoriBarang,
-          jenisProduk: prod.jenisProduk,
-          namaProduk: prod.namaProduk,
-          namaBasic: prod.namaBasic,
-          detailItems: prevItems,
-          photoId: prod.photoId,
-        },
+    if (scenario.requestEnd === "rejected") {
+      // Stockist views it first
+      request.status = "JB Verifying";
+      request.viewedBy = [stockist];
+      request.updatedDate = createdAt + 4 * HR;
+      request.updatedBy = stockist;
+      notifyRequestViewedByStockist(request, stockist, "Open", "JB Verifying");
+
+      // Stockist rejects
+      request.status = "Rejected";
+      request.rejectionReason =
+        "Stock not available in requested specifications";
+      request.updatedDate = createdAt + 6 * HR;
+      request.updatedBy = stockist;
+      notifyRequestReviewed(request, false, stockist);
+      newRequests.push(request);
+      return;
+    }
+
+    if (scenario.requestEnd === "open") {
+      // Just stays Open
+      newRequests.push(request);
+      return;
+    }
+
+    // From here, at least stockist has viewed & approved → JB Verifying
+    request.status = "JB Verifying";
+    request.viewedBy = [stockist];
+    request.updatedDate = createdAt + 3 * HR;
+    request.updatedBy = stockist;
+    notifyRequestViewedByStockist(request, stockist, "Open", "JB Verifying");
+
+    // Stockist approves
+    notifyRequestReviewed(request, true, stockist);
+
+    if (scenario.requestEnd === "jb-verifying") {
+      newRequests.push(request);
+      return;
+    }
+
+    // Forward to JB → "Requested to JB"
+    request.status = "Requested to JB";
+    request.updatedDate = createdAt + 5 * HR;
+    request.updatedBy = stockist;
+    notifyRequestStatusChanged(
+      request,
+      "JB Verifying",
+      "Requested to JB",
+      stockist,
+      "stockist",
+    );
+
+    if (scenario.requestEnd === "requested-to-jb") {
+      newRequests.push(request);
+      return;
+    }
+
+    // ── JB writes an order ──
+    if (scenario.requestEnd === "ordered" && scenario.orderEnd) {
+      const orderCreatedAt = createdAt + 8 * HR;
+      const orderId = uid("order", tag, i);
+      const PONumber = request.requestNo ?? generatePONumber(branch, new Date(orderCreatedAt), []);
+
+      const order: Order = {
+        id: orderId,
+        PONumber,
+        requestNo: request.requestNo,
+        requestId: request.id,
+        sales: sales.username,
+        atasNama: cust.name,
+        createdDate: orderCreatedAt,
+        createdBy: jb,
+        updatedDate: orderCreatedAt,
+        updatedBy: jb,
+        jbId: jb,
+        branchCode: branch,
+        pabrik: { id: sup.id, name: sup.name },
+        kategoriBarang: prod.kategoriBarang,
+        jenisProduk: prod.jenisProduk,
+        namaProduk: prod.namaProduk,
+        namaBasic: prod.namaBasic,
+        waktuKirim: request.waktuKirim,
+        customerExpectation: request.customerExpectation,
+        detailItems: [...request.detailItems],
+        photoId,
+        status: "New Order",
       };
-    });
 
-    const poSuffix = String(i + 1).padStart(4, "0");
-    return {
-      id: uid("order", i),
-      PONumber:
-        i >= 3
-          ? `SAJKT${sup.id.slice(0, 2).toUpperCase()}${dateStr}${poSuffix}`
-          : "",
-      requestNo: `RPO-${dateStr}-P${String((i % 15) + 1).padStart(2, "0")}`,
-      requestId: reqId,
-      createdDate: now - DAY * daysAgo,
-      createdBy: "jb1",
-      jbId: "jb1",
-      pabrik: { id: sup.id, name: sup.name },
-      kategoriBarang: prod.kategoriBarang,
-      jenisProduk: prod.jenisProduk,
-      namaProduk: prod.namaProduk,
-      namaBasic: prod.namaBasic,
-      waktuKirim: new Date(now + DAY * (25 + i * 3)).toISOString(),
-      customerExpectation: i % 2 === 0 ? "ready-marketing" : "order-pabrik",
-      detailItems: finalItems,
-      photoId: prod.photoId,
-      status,
-      updatedDate: now - DAY * (daysAgo - 1),
-      updatedBy: "jb1",
-      ...(revisionHistory.length > 0 ? { revisionHistory } : {}),
-    };
+      // Mark request as Ordered
+      request.status = "Ordered";
+      request.updatedDate = orderCreatedAt;
+      request.updatedBy = jb;
+      notifyRequestStatusChanged(
+        request,
+        "Requested to JB",
+        "Ordered",
+        jb,
+        "jb",
+        order,
+      );
+
+      // Order created notification
+      notifyOrderCreated(order, jb);
+
+      // ── Progress order through its lifecycle ──
+      const supplierUser = sup.username;
+
+      if (scenario.orderEnd === "new-order") {
+        // stays as New Order
+      }
+
+      if (
+        scenario.orderEnd === "viewed" ||
+        scenario.orderEnd === "change-pending" ||
+        scenario.orderEnd === "order-revised" ||
+        scenario.orderEnd === "in-production" ||
+        scenario.orderEnd === "stock-ready"
+      ) {
+        // Supplier views the order
+        order.status = "Viewed";
+        order.viewedBy = [supplierUser];
+        order.updatedDate = orderCreatedAt + 4 * HR;
+        order.updatedBy = supplierUser;
+        notifyOrderStatusChanged(
+          order,
+          "New Order",
+          "Viewed",
+          supplierUser,
+          "supplier",
+        );
+      }
+
+      if (
+        scenario.orderEnd === "change-pending" ||
+        scenario.orderEnd === "order-revised" ||
+        scenario.orderEnd === "in-production" ||
+        scenario.orderEnd === "stock-ready"
+      ) {
+        // Supplier proposes changes → Change Pending Approval
+        const revisedItems = [
+          ...order.detailItems,
+          makeItem(tag, i * 3 + 10, String(3 + (i % 5))),
+        ];
+
+        const revision: OrderRevision = {
+          revisionNumber: 1,
+          timestamp: orderCreatedAt + 8 * HR,
+          updatedBy: supplierUser,
+          revisionNotes:
+            "Adjusted weight and added extra item per supplier capacity",
+          changes: {
+            kategoriBarang: order.kategoriBarang,
+            jenisProduk: order.jenisProduk,
+            namaProduk: order.namaProduk,
+            namaBasic: order.namaBasic,
+            detailItems: revisedItems,
+            photoId: order.photoId,
+          },
+          previousValues: {
+            kategoriBarang: order.kategoriBarang,
+            jenisProduk: order.jenisProduk,
+            namaProduk: order.namaProduk,
+            namaBasic: order.namaBasic,
+            detailItems: [...order.detailItems],
+            photoId: order.photoId,
+          },
+        };
+
+        order.status = "Change Pending Approval";
+        order.revisionHistory = [revision];
+        order.revisionNotes = revision.revisionNotes;
+        order.detailItems = revisedItems;
+        order.updatedDate = orderCreatedAt + 8 * HR;
+        order.updatedBy = supplierUser;
+        notifyOrderStatusChanged(
+          order,
+          "Viewed",
+          "Change Pending Approval",
+          supplierUser,
+          "supplier",
+        );
+      }
+
+      if (
+        scenario.orderEnd === "order-revised" ||
+        scenario.orderEnd === "in-production" ||
+        scenario.orderEnd === "stock-ready"
+      ) {
+        // JB approves the revision → Order Revised
+        order.status = "Order Revised";
+        order.jbApproved = true;
+        order.salesApproved = true;
+        order.updatedDate = orderCreatedAt + 12 * HR;
+        order.updatedBy = jb;
+        notifyOrderRevised(order, jb);
+        notifyOrderStatusChanged(
+          order,
+          "Change Pending Approval",
+          "Order Revised",
+          jb,
+          "jb",
+        );
+      }
+
+      if (
+        scenario.orderEnd === "in-production" ||
+        scenario.orderEnd === "stock-ready"
+      ) {
+        // Supplier starts production
+        order.status = "In Production";
+        order.updatedDate = orderCreatedAt + DAY;
+        order.updatedBy = supplierUser;
+        notifyOrderStatusChanged(
+          order,
+          "Order Revised",
+          "In Production",
+          supplierUser,
+          "supplier",
+        );
+      }
+
+      if (scenario.orderEnd === "stock-ready") {
+        // Supplier marks stock ready
+        order.status = "Stock Ready";
+        order.updatedDate = orderCreatedAt + 3 * DAY;
+        order.updatedBy = supplierUser;
+        notifyOrderStatusChanged(
+          order,
+          "In Production",
+          "Stock Ready",
+          supplierUser,
+          "supplier",
+        );
+      }
+
+      newOrders.push(order);
+      newRequests.push(request);
+      return;
+    }
+
+    newRequests.push(request);
   });
 
-  // ── 3. Merge into localStorage ───────────────────────────────────────────
+  // ── Merge into localStorage ─────────────────────────────────────────────
   const existingRequests: unknown[] = JSON.parse(
     localStorage.getItem("requests") || "[]",
   );
@@ -3518,8 +593,16 @@ export const populateMockData = (): { requests: number; orders: number } => {
     JSON.stringify([...existingOrders, ...newOrders]),
   );
 
+  const notifsAfter = getAllNotifications().length;
+  const notifsCreated = notifsAfter - notifsBefore;
+
   console.log(
-    `🧪 Populated: ${newRequests.length} requests, ${newOrders.length} orders`,
+    `🧪 Populated: ${newRequests.length} requests, ${newOrders.length} orders, ${notifsCreated} notifications`,
   );
-  return { requests: newRequests.length, orders: newOrders.length };
+
+  return {
+    requests: newRequests.length,
+    orders: newOrders.length,
+    notifications: notifsCreated,
+  };
 };

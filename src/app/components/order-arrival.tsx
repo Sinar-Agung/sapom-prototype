@@ -6,7 +6,7 @@ import {
   getLabelFromValue,
 } from "@/app/data/order-data";
 import { Order, OrderArrival } from "@/app/types/order";
-import { getImage } from "@/app/utils/image-storage";
+import { useImage } from "@/app/utils/image-storage";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
@@ -167,9 +167,11 @@ export function OrderArrivalComponent({
 
   const hasNewArrivals = Object.values(newArrivals).some((val) => val > 0);
 
+  const storedProductImage = useImage(order.photoId);
+
   // Get product image
   const productImage = order.photoId
-    ? getImage(order.photoId)
+    ? storedProductImage
     : NAMA_BASIC_IMAGES[order.namaBasic] || null;
 
   // Helper functions for styling (same as order-details.tsx)

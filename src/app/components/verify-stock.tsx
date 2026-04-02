@@ -9,7 +9,7 @@ import {
   getLabelFromValue,
 } from "@/app/data/order-data";
 import { DetailBarangItem, Request } from "@/app/types/request";
-import { getImage } from "@/app/utils/image-storage";
+import { useImage } from "@/app/utils/image-storage";
 import {
   notifyRequestStatusChanged,
   removeETAReminderForStockist,
@@ -296,10 +296,11 @@ export function VerifyStock({
     return `${dateStr} ${timeStr}`;
   };
 
+  const storedImage = useImage(request.photoId);
+
   const getOrderImage = () => {
-    if (request.photoId) {
-      const storedImage = getImage(request.photoId);
-      if (storedImage) return storedImage;
+    if (request.photoId && storedImage) {
+      return storedImage;
     }
     if (request.kategoriBarang === "basic" && request.namaBasic) {
       return NAMA_BASIC_IMAGES[request.namaBasic] || italySanta;

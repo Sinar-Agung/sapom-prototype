@@ -5,9 +5,10 @@ import {
   NAMA_PRODUK_OPTIONS,
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
-import { getImage } from "@/app/utils/image-storage";
+import { useImage } from "@/app/utils/image-storage";
+import { formatRelativeTime } from "@/app/utils/relative-time";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -77,6 +78,7 @@ export function RequestCard({
 }: RequestCardProps) {
   // Check if current user has viewed this request
   const isUnviewed = currentUser && !order.viewedBy?.includes(currentUser);
+  const revisionCount = order.revisionHistory?.length || 0;
 
   const formatDate = (isoString: string) => {
     if (!isoString) return "";
@@ -111,10 +113,11 @@ export function RequestCard({
     return `${dateStr}, ${timeStr}`;
   };
 
+  const storedImage = useImage(order.photoId);
+
   const getOrderImage = (order: Request) => {
-    if (order.photoId) {
-      const storedImage = getImage(order.photoId);
-      if (storedImage) return storedImage;
+    if (order.photoId && storedImage) {
+      return storedImage;
     }
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
@@ -168,6 +171,11 @@ export function RequestCard({
     <Card className="p-3 sm:p-4 relative">
       {/* Top Right -Status and New Badge (Desktop only) */}
       <div className="hidden sm:flex absolute top-4 right-4 gap-2">
+        {revisionCount > 0 && (
+          <span className="text-xs px-3 py-1 rounded-full font-medium bg-indigo-100 text-indigo-700 border border-indigo-300">
+            {revisionCount} {revisionCount === 1 ? "Revision" : "Revisions"}
+          </span>
+        )}
         <span
           className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
         >
@@ -187,8 +195,7 @@ export function RequestCard({
               Updated
             </div>
             <div className="text-[11px] sm:text-sm font-semibold">
-              {formatTimestampWithTime(order.updatedDate || order.timestamp) ||
-                "-"}
+              {formatRelativeTime(order.updatedDate || order.timestamp) || "-"}
             </div>
           </div>
 
@@ -219,6 +226,12 @@ export function RequestCard({
               >
                 {order.kategoriBarang === "basic" ? "Basic" : "Model"}
               </span>
+              {/* Revision count badge - Mobile only */}
+              {revisionCount > 0 && (
+                <span className="sm:hidden text-[9px] px-1.5 py-0.5 rounded font-medium bg-indigo-100 text-indigo-700 border border-indigo-300">
+                  {revisionCount} Rev
+                </span>
+              )}
               {/* Status pill - Mobile only */}
               <span
                 className={`sm:hidden text-[9px] px-1.5 py-0.5 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
@@ -234,11 +247,11 @@ export function RequestCard({
 
           {/* Request Information Grid - All fields in one consistent grid */}
           <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm mb-2 sm:mb-3">
-            {/* Request No */}
+            {/* PO Number */}
             {order.requestNo && (
               <>
-                <span className="text-gray-500">Request No:</span>
-                <span className="font-mono text-gray-700">
+                <span className="text-gray-500">PO Number:</span>
+                <span className="font-mono font-semibold text-blue-700">
                   {order.requestNo}
                 </span>
               </>
@@ -247,8 +260,20 @@ export function RequestCard({
             {/* Created Date */}
             <span className="text-gray-500">Created:</span>
             <span className="text-gray-700">
-              {formatTimestamp(order.timestamp) || "-"}
+              {order.timestamp
+                ? formatTimestampWithTime(order.timestamp)
+                : "-"}
             </span>
+
+            {/* Last Updated Date */}
+            {order.updatedDate && (
+              <>
+                <span className="text-gray-500">Last Updated:</span>
+                <span className="text-gray-700">
+                  {formatTimestampWithTime(order.updatedDate)}
+                </span>
+              </>
+            )}
 
             {/* Sales Name (show for stockist and jb roles) */}
             {(userRole === "stockist" || userRole === "jb") &&
@@ -304,13 +329,17 @@ export function RequestCard({
             <span className="text-gray-600">
               {formatDate(order.waktuKirim) || "-"}
             </span>
-          </div>
 
-          {/* ETA beneath Pabrik - smaller text */}
-          <p className="text-[10px] sm:text-xs text-gray-600 mb-2 sm:mb-3">
-            <span className="text-gray-500 hidden sm:inline">ETA: </span>
-            {formatDate(order.waktuKirim) || "-"}
-          </p>
+            {/* Branch - show when available */}
+            {order.branchCode && (
+              <>
+                <span className="text-gray-500">Branch:</span>
+                <span className="font-medium text-gray-700">
+                  {getBranchName(order.branchCode)}
+                </span>
+              </>
+            )}
+          </div>
 
           {/* Reason of Rejection - only for Rejected requests */}
           {order.status === "Rejected" && order.rejectionReason && (
@@ -363,10 +392,8 @@ export function RequestCard({
               {userRole === "sales" && (
                 <>
                   {/* Cancel: visible for Open and JB Verifying */}
-                  {(activeTab === "open" ||
-                    (activeTab === "internal" &&
-                      (order.status === "Open" ||
-                        order.status === "JB Verifying"))) &&
+                  {(order.status === "Open" ||
+                    order.status === "JB Verifying") &&
                     onCancelOrder && (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -386,8 +413,7 @@ export function RequestCard({
                       </Tooltip>
                     )}
                   {/* Edit: only for Open status, not JB Verifying */}
-                  {(activeTab === "open" ||
-                    (activeTab === "internal" && order.status === "Open")) &&
+                  {order.status === "Open" &&
                     onEditOrder && (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -408,8 +434,8 @@ export function RequestCard({
                     )}
                   {/* Placeholder to close old block */}
                   {false && null}
-                  {/* Duplicate button visible except in Cancelled tab */}
-                  {activeTab !== "cancelled" && onDuplicateOrder && (
+                  {/* Duplicate button visible except for Cancelled requests */}
+                  {order.status !== "Cancelled" && onDuplicateOrder && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -427,8 +453,8 @@ export function RequestCard({
                       </TooltipContent>
                     </Tooltip>
                   )}
-                  {/* View Detail button in Cancelled tab */}
-                  {activeTab === "cancelled" && onSeeDetail && (
+                  {/* View Detail button for Cancelled requests */}
+                  {order.status === "Cancelled" && onSeeDetail && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -471,13 +497,9 @@ export function RequestCard({
                   </Tooltip>
                 )}
 
-              {/* See Detail button - always show for JB; also for done, cancelled, assigned, waiting, in-progress (sales) tabs */}
+              {/* See Detail button - always for JB; for sales when order is not in Open status */}
               {(userRole === "jb" ||
-                activeTab === "done" ||
-                activeTab === "cancelled" ||
-                activeTab === "assigned" ||
-                (activeTab === "in-progress" && userRole === "sales") ||
-                activeTab === "waiting") &&
+                (userRole === "sales" && order.status !== "Open")) &&
                 onSeeDetail && (
                   <Tooltip>
                     <TooltipTrigger asChild>

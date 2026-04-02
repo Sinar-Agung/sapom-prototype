@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Request } from "../types/request";
-import { getImage } from "../utils/image-storage";
+import { useImageMap } from "../utils/image-storage";
 import { notifyRequestCancelled } from "../utils/notification-helper";
 import { getCurrentUserDetails } from "../utils/user-data";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
@@ -570,12 +570,14 @@ export function MyOrders({
     return `${dateStr} ${timeStr}`;
   };
 
+  const imageMap = useImageMap(orders.map((o) => o.photoId));
+
   const getOrderImage = (order: Request) => {
     if (order.kategoriBarang === "basic" && order.namaBasic) {
       return NAMA_BASIC_IMAGES[order.namaBasic] || italySanta;
     } else if (order.kategoriBarang === "model") {
       if (order.photoId) {
-        const stored = getImage(order.photoId);
+        const stored = imageMap.get(order.photoId);
         if (stored) return stored;
       }
       if (order.fotoBarangBase64) return order.fotoBarangBase64;

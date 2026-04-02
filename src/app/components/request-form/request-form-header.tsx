@@ -12,7 +12,7 @@ import {
   NAMA_PRODUK_OPTIONS,
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
-import { getImage } from "@/app/utils/image-storage";
+import { useImage } from "@/app/utils/image-storage";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -46,6 +46,7 @@ export interface FormData {
   namaPelanggan: { id: string; name: string };
   waktuKirim: Date | undefined;
   customerExpectation: string;
+  notes?: string;
 }
 
 interface RequestFormHeaderProps {
@@ -71,6 +72,7 @@ export function RequestFormHeader({
   existingPhotoId,
   onExistingPhotoClear,
 }: RequestFormHeaderProps) {
+  const existingPhotoData = useImage(existingPhotoId);
   // Helper function to calculate ETA based on Customer Expectation
   const calculateETA = (action: string): Date | undefined => {
     if (!action) return undefined;
@@ -85,9 +87,9 @@ export function RequestFormHeader({
       weekFromNow.setDate(weekFromNow.getDate() + 7);
       return weekFromNow;
     } else if (action === "order-pabrik") {
-      const nextMonth = new Date(today);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      return nextMonth;
+      const fourWeeks = new Date(today);
+      fourWeeks.setDate(fourWeeks.getDate() + 28);
+      return fourWeeks;
     }
     return undefined;
   };
@@ -241,6 +243,21 @@ export function RequestFormHeader({
           allowCustomValue={false}
         />
 
+        {/* Notes */}
+        <Label htmlFor="requestNotes" className="text-xs md:pt-2">
+          Notes
+        </Label>
+        <textarea
+          id="requestNotes"
+          value={formData.notes || ""}
+          onChange={(e) =>
+            onFormDataChange({ ...formData, notes: e.target.value })
+          }
+          placeholder="Optional notes about this request..."
+          rows={2}
+          className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+        />
+
         {/* Conditional: Nama Basic (only for Barang Basic) OR Nama Model (for Barang Model) */}
         {formData.kategoriBarang === "basic" ? (
           <>
@@ -317,35 +334,36 @@ export function RequestFormHeader({
                 ref={fileInputRef}
                 key={fileInputKey}
               />
-              {(formData.fotoBarang || existingPhotoId) && (() => {
-                const imgSrc = formData.fotoBarang
-                  ? URL.createObjectURL(formData.fotoBarang)
-                  : getImage(existingPhotoId!);
-                return imgSrc ? (
-                  <div className="border rounded-md p-2 bg-gray-50 relative">
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-1 right-1 h-7 px-2 rounded z-10 text-xs"
-                      onClick={() => {
-                        onFormDataChange({ ...formData, fotoBarang: null });
-                        onFileInputKeyChange(fileInputKey + 1);
-                        if (!formData.fotoBarang && onExistingPhotoClear) {
-                          onExistingPhotoClear();
-                        }
-                      }}
-                    >
-                      Remove
-                    </Button>
-                    <img
-                      src={imgSrc}
-                      alt="Preview"
-                      className="w-full sm:w-48 h-48 object-cover rounded"
-                    />
-                  </div>
-                ) : null;
-              })()}
+              {(formData.fotoBarang || existingPhotoId) &&
+                (() => {
+                  const imgSrc = formData.fotoBarang
+                    ? URL.createObjectURL(formData.fotoBarang)
+                    : existingPhotoData;
+                  return imgSrc ? (
+                    <div className="border rounded-md p-2 bg-gray-50 relative">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-1 right-1 h-7 px-2 rounded z-10 text-xs"
+                        onClick={() => {
+                          onFormDataChange({ ...formData, fotoBarang: null });
+                          onFileInputKeyChange(fileInputKey + 1);
+                          if (!formData.fotoBarang && onExistingPhotoClear) {
+                            onExistingPhotoClear();
+                          }
+                        }}
+                      >
+                        Remove
+                      </Button>
+                      <img
+                        src={imgSrc}
+                        alt="Preview"
+                        className="w-full sm:w-48 h-48 object-cover rounded"
+                      />
+                    </div>
+                  ) : null;
+                })()}
             </div>
           </>
         ) : null}

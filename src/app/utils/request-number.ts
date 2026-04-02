@@ -1,15 +1,15 @@
 /**
- * Request Number Generator
- * Generates unique request numbers in the format: RSABYYMDDXX
- * Where:
- * - RSA: Fixed prefix
- * - B: Branch code (A=Jakarta, B=Bandung, C=Surabaya)
- * - YY: Two-digit year (e.g., 26 for 2026)
- * - M: Month in hexadecimal (1-C, where C=12)
- * - DD: Two-digit zero-padded day
- * - XX: Two-character hexatrigesimal counter (base 36: 0-9, A-Z)
+ * Request / PO Number Generator
+ * Both request numbers and PO numbers share the same format and number space.
+ * Format: SA<B><YY><M><D><N>
+ *   SA  – constant prefix
+ *   B   – branch letter (A=Jakarta, B=Bandung, C=Surabaya)
+ *   YY  – 2-digit year (e.g. 26 for 2026)
+ *   M   – 1-char month (1–9, A=10, B=11, C=12)
+ *   D   – 1-char day   (1–9, A=10…S=28, T=29, U=30, V=31)
+ *   N   – 2-char base-36 sequence (00–ZZ)
  *
- * Example: RSAA2613205 = Jakarta, 2026, January, 31st, 5th request
+ * Example: SAA261T00 = Jakarta, 2026, January, 29th, 1st number
  */
 
 import { Request } from "../types/request";
@@ -33,50 +33,76 @@ function getBranchLetter(branchCode?: BranchCode): string {
 }
 
 /**
- * Generate a unique request number
- * Format: RSABYYMDDXX
- * Example: RSAA26131A5
+ * Generate a unique request number (same format and number space as PO numbers).
+ * Looks at both existing requests and existing orders to find the next sequence.
  */
 export function generateRequestNo(branchCode?: BranchCode): string {
-  // Get current date components
-  const now = new Date();
-  const year = String(now.getFullYear()).slice(-2); // Last 2 digits (e.g., "26")
-  const month = now.getMonth() + 1; // 1-12
-  const monthHex = month.toString(16).toUpperCase(); // Convert to hex (1-C)
-  const day = String(now.getDate()).padStart(2, "0"); // Zero-padded day (01-31)
+  const requests: Request[] = JSON.parse(
+    localStorage.getItem("requests") ?? "[]",
+  );
+  const orders: { PONumber: string }[] = JSON.parse(
+    localStorage.getItem("orders") ?? "[]",
+  );
 
-  // Get branch letter
+  const existingNumbers = [
+    ...requests.map((r) => r.requestNo ?? ""),
+    ...orders.map((o) => o.PONumber ?? ""),
+  ].filter(Boolean);
+
+  return generatePONumber(branchCode, new Date(), existingNumbers);
+}
+
+/**
+ * Encode a day of month (1–31) as a single character:
+ * 1–9  → '1'–'9'
+ * 10–28 → 'A'–'S'
+ * 29   → 'T', 30 → 'U', 31 → 'V'
+ */
+function encodeDayChar(day: number): string {
+  if (day >= 1 && day <= 9) return String(day);
+  // day 10 → char code of 'A' (65), day 28 → 'S' (83)
+  return String.fromCharCode(55 + day); // 55 + 10 = 65 = 'A'
+}
+
+/**
+ * Generate a PO Number.
+ * Format: SA<B><YY><M><D><N>
+ *   SA  – constant prefix
+ *   B   – branch letter (A=Jakarta, B=Bandung, C=Surabaya)
+ *   YY  – 2-digit year (e.g. 26 for 2026)
+ *   M   – 1-char month (1–9, A=10, B=11, C=12)
+ *   D   – 1-char day   (1–9, A=10…S=28, T=29, U=30, V=31)
+ *   N   – 2-char base-36 sequence (00–ZZ, incrementing per branch+date)
+ *
+ * @param branchCode branch code of the ordering JB
+ * @param atDate optional Date to use instead of now (useful for mock data generation)
+ * @param existingPONumbers list of already-used PO numbers to determine sequence
+ */
+export function generatePONumber(
+  branchCode?: BranchCode,
+  atDate?: Date,
+  existingPONumbers: string[] = [],
+): string {
+  const now = atDate ?? new Date();
   const branchLetter = getBranchLetter(branchCode);
+  const year = String(now.getFullYear()).slice(-2);
+  const month = now.getMonth() + 1;
+  const monthChar = month <= 9 ? String(month) : String.fromCharCode(55 + month); // A=10,B=11,C=12
+  const dayChar = encodeDayChar(now.getDate());
 
-  // Create date key for counter
-  const dateKey = `${year}${monthHex}${day}`;
+  const prefix = `SA${branchLetter}${year}${monthChar}${dayChar}`;
 
-  // Get existing requests from localStorage
-  const existingRequests = localStorage.getItem("requests");
-  const requests: Request[] = existingRequests
-    ? JSON.parse(existingRequests)
-    : [];
-
-  // Find all request numbers for today with this branch
-  const todayPrefix = `RSA${branchLetter}${dateKey}`;
-  const todayRequests = requests
-    .filter((r) => r.requestNo?.startsWith(todayPrefix))
-    .map((r) => {
-      // Extract the last 2 characters (hexatrigesimal counter)
-      const requestNo = r.requestNo || "";
-      const counterStr = requestNo.slice(-2);
-      return parseInt(counterStr, 36); // Parse as base 36
+  // Find highest existing sequence for this prefix
+  const usedSequences = existingPONumbers
+    .filter((po) => po.startsWith(prefix))
+    .map((po) => {
+      const seq = po.slice(prefix.length);
+      return parseInt(seq, 36);
     })
-    .filter((num) => !isNaN(num));
+    .filter((n) => !isNaN(n));
 
-  // Find the highest number for today
-  const maxNumber = todayRequests.length > 0 ? Math.max(...todayRequests) : -1;
+  const maxSeq = usedSequences.length > 0 ? Math.max(...usedSequences) : 0;
+  const nextSeq = (maxSeq + 1).toString(36).toUpperCase().padStart(2, "0");
 
-  // Generate next sequential number in base 36 (2 characters)
-  const nextNumber = (maxNumber + 1)
-    .toString(36)
-    .toUpperCase()
-    .padStart(2, "0");
-
-  return `RSA${branchLetter}${dateKey}${nextNumber}`;
+  return `${prefix}${nextSeq}`;
 }

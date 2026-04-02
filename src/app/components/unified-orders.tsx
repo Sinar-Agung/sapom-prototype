@@ -8,7 +8,7 @@ import {
   notifyOrderStatusChanged,
   notifyRequestCancelled,
 } from "../utils/notification-helper";
-import { getFullNameFromUsername } from "../utils/user-data";
+import { getBranchName, getFullNameFromUsername } from "../utils/user-data";
 import { FilterSortControls } from "./filter-sort-controls";
 import { OrderCard } from "./order-card";
 import { RequestCard } from "./request-card";
@@ -91,6 +91,8 @@ interface UnifiedOrdersProps {
   justCreatedRequest?: boolean;
   onClearJustCreated?: () => void;
   supplierId?: string; // For supplier role
+  focusSearch?: boolean;
+  onFocusSearchConsumed?: () => void;
 }
 
 // Role-specific tab configurations
@@ -144,14 +146,9 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       ],
     },
     {
-      value: "finalized",
-      label: "Finalized",
-      orderStatuses: ["In Production", "Stock Ready"],
-    },
-    {
       value: "shipping",
       label: "Shipping",
-      orderStatuses: ["Shipping", "Partially Delivered", "Fully Delivered"],
+      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
     },
     {
       value: "closed",
@@ -184,14 +181,9 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       ],
     },
     {
-      value: "finalized",
-      label: "Finalized",
-      orderStatuses: ["In Production", "Stock Ready"],
-    },
-    {
       value: "shipping",
       label: "Shipping",
-      orderStatuses: ["Shipping", "Partially Delivered", "Fully Delivered"],
+      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
     },
     {
       value: "closed",
@@ -213,14 +205,9 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       ],
     },
     {
-      value: "finalized",
-      label: "Finalized",
-      orderStatuses: ["In Production", "Stock Ready"],
-    },
-    {
       value: "shipping",
       label: "Shipping",
-      orderStatuses: ["Shipping", "Partially Delivered", "Fully Delivered"],
+      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
     },
     {
       value: "rejected",
@@ -232,17 +219,12 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       label: "Closed",
       orderStatuses: ["Unable to Fulfill"],
     },
-    {
-      value: "delivered",
-      label: "Delivered",
-      orderStatuses: ["Completed", "Confirmed by JB"],
-    },
   ],
 };
 
-function useRequestSortOptions() {
+function useRequestSortOptions(role: UserRole) {
   const { t } = useTranslation();
-  return [
+  const options = [
     { value: "updatedDate", label: t("sortOptions.updatedDate") },
     { value: "created", label: t("sortOptions.created") },
     { value: "eta", label: t("sortOptions.eta") },
@@ -252,6 +234,10 @@ function useRequestSortOptions() {
     { value: "pabrik", label: t("sortOptions.pabrik") },
     { value: "requestNo", label: t("sortOptions.requestNo") },
   ];
+  if (role === "supplier") {
+    options.push({ value: "branch", label: "Branch" });
+  }
+  return options;
 }
 
 export function UnifiedOrders({
@@ -267,9 +253,11 @@ export function UnifiedOrders({
   justCreatedRequest,
   onClearJustCreated,
   supplierId,
+  focusSearch,
+  onFocusSearchConsumed,
 }: UnifiedOrdersProps) {
   const { t } = useTranslation();
-  const sortOptions = useRequestSortOptions();
+  const sortOptions = useRequestSortOptions(userRole);
 
   // State
   const [requests, setRequests] = useState<Request[]>([]);
@@ -303,6 +291,16 @@ export function UnifiedOrders({
   const [searchFilter, setSearchFilter] = useState<string>(() => {
     return sessionStorage.getItem(`${storagePrefix}Filter`) || "";
   });
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus search box when requested (e.g. JB clicks Inbound)
+  useEffect(() => {
+    if (focusSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+      onFocusSearchConsumed?.();
+    }
+  }, [focusSearch]);
 
   const [displayedCount, setDisplayedCount] = useState(20);
 
@@ -576,6 +574,9 @@ export function UnifiedOrders({
         const jenisProduk = order.jenisProduk?.toLowerCase() || "";
         const namaBasic = order.namaBasic?.toLowerCase() || "";
         const namaBarang = order.namaBarang?.toLowerCase() || "";
+        const branchName = order.branchCode
+          ? getBranchName(order.branchCode).toLowerCase()
+          : "";
         return (
           poNumber.includes(searchTerm) ||
           sales.includes(searchTerm) ||
@@ -587,7 +588,8 @@ export function UnifiedOrders({
           namaProduk.includes(searchTerm) ||
           jenisProduk.includes(searchTerm) ||
           namaBasic.includes(searchTerm) ||
-          namaBarang.includes(searchTerm)
+          namaBarang.includes(searchTerm) ||
+          branchName.includes(searchTerm)
         );
       }
       return true;
@@ -749,6 +751,11 @@ export function UnifiedOrders({
       case "requestNo":
         comparison = (a.requestNo || "").localeCompare(b.requestNo || "");
         break;
+      case "branch":
+        const aBranch = a.branchCode ? getBranchName(a.branchCode) : "";
+        const bBranch = b.branchCode ? getBranchName(b.branchCode) : "";
+        comparison = aBranch.localeCompare(bBranch);
+        break;
       default:
         comparison = 0;
     }
@@ -882,6 +889,7 @@ export function UnifiedOrders({
             sortOptions={sortOptions}
             filterValue={searchFilter}
             onFilterChange={setSearchFilter}
+            searchInputRef={searchInputRef}
           />
 
           <TabsList className="flex w-full overflow-x-auto scrollbar-hide mt-4 mb-2 cursor-grab active:cursor-grabbing">
@@ -1078,7 +1086,7 @@ export function UnifiedOrders({
                           onUpdateOrder &&
                           userRole !== "sales" &&
                           userRole !== "supplier" &&
-                          activeTab !== "finalized" &&
+                          activeTab !== "shipping" &&
                           !(userRole === "jb" && order.status === "New Order")
                             ? (o) => onUpdateOrder(o, activeTab)
                             : undefined

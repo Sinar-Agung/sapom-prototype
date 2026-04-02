@@ -75,7 +75,8 @@ export function DetailItemsDisplay({
     ? "max-h-[300px] sm:max-h-[250px]" // Shorter when form is expanded
     : "max-h-[600px] sm:max-h-[250px]"; // Taller when form is collapsed
 
-  const hasActions = onEdit !== undefined || onCopy !== undefined || onDelete !== undefined;
+  const hasActions =
+    onEdit !== undefined || onCopy !== undefined || onDelete !== undefined;
 
   return (
     <div
@@ -137,7 +138,7 @@ export function DetailItemsDisplay({
                   {/* Left column: Kadar (top) and Warna (bottom) */}
                   <div className="flex flex-col w-16">
                     <div
-                      className={`flex-1 ${getKadarColor(item.kadar)} flex items-center justify-center px-1`}
+                      className={`flex-1 ${isNewlyAdded || isAnimating ? "" : getKadarColor(item.kadar)} flex items-center justify-center px-1`}
                     >
                       <span className="font-bold text-xs text-center">
                         {item.kadar.toUpperCase()}
@@ -312,7 +313,9 @@ export function DetailItemsDisplay({
                       )}
                       {index + 1}
                     </td>
-                    <td className={`border p-2 ${getKadarColor(item.kadar)}`}>
+                    <td
+                      className={`border p-2 ${isNewlyAdded || isAnimating ? "" : getKadarColor(item.kadar)}`}
+                    >
                       {item.kadar.toUpperCase()}
                     </td>
                     <td className={`border p-2 ${getWarnaColor(item.warna)}`}>
