@@ -238,7 +238,7 @@ export function OrderCard({
             {order.PONumber && (
               <div className="grid grid-cols-5 gap-x-3">
                 <span className="text-gray-500">PO Number</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span className="font-mono font-semibold text-blue-700">
                     {order.PONumber}
@@ -254,7 +254,7 @@ export function OrderCard({
                 (order.status as string) === "JB Verifying") && (
                 <div className="grid grid-cols-5 gap-x-3">
                   <span className="text-gray-500">Request No</span>
-                  <span>
+                  <span className="col-span-3">
                     <span>:</span>
                     <span className="font-mono text-gray-700">
                       {order.requestNo}
@@ -266,7 +266,7 @@ export function OrderCard({
             {/* Updated Date */}
             <div className="grid grid-cols-5 gap-x-3">
               <span className="text-gray-500">Updated</span>
-              <span>
+              <span className="col-span-3">
                 <span>:</span>
                 <span className="font-medium">
                   {formatTimestampWithTime(
@@ -279,7 +279,7 @@ export function OrderCard({
             {/* Created Date */}
             <div className="grid grid-cols-5 gap-x-3">
               <span className="text-gray-500">Created</span>
-              <span>
+              <span className="col-span-3">
                 <span>:</span>
                 <span>
                   {formatTimestamp(order.createdDate) || "-"}
@@ -290,7 +290,7 @@ export function OrderCard({
             {/* ETA */}
             <div className="grid grid-cols-5 gap-x-3">
               <span className="text-gray-500">ETA</span>
-              <span>
+              <span className="col-span-3">
                 <span>:</span>
                 <span>
                   {formatDate(order.waktuKirim) || "-"}
@@ -302,7 +302,7 @@ export function OrderCard({
             {userRole !== "supplier" && order.jbId && (
               <div className="grid grid-cols-5 gap-x-3">
                 <span className="text-gray-500">JB</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span className="text-gray-700">
                     {getJBFullName(order.jbId)}
@@ -328,7 +328,7 @@ export function OrderCard({
             {userRole !== "supplier" && order.atasNama && (
               <div className="grid grid-cols-5 gap-x-3">
                 <span className="text-gray-500">Customer Name</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span className="text-gray-700">{order.atasNama}</span>
                 </span>
@@ -339,7 +339,7 @@ export function OrderCard({
             {userRole !== "supplier" && (
               <div className="grid grid-cols-5 gap-x-3 items-center">
                 <span className="text-gray-500">Supplier</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <Badge
                     variant="secondary"

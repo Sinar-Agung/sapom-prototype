@@ -17,6 +17,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+**Request Details — Header Layout Matches Order Details**: Unified header style across detail pages
+
+- Replaced 2-column grid (info left, image right) with the same layout as `order-details`: image `w-32 h-32` on the left, info grid on the right
+- Info fields now use `grid grid-cols-5 gap-x-3` rows with `Label : Value` format, consistent with order-details
+- Fields shown: Request No (blue mono), Created, Sales, Branch, Stockist, Customer, Supplier, Expectation, ETA, Status (badge), Updated, Updated By
+- Updated: `request-details.tsx`
+
+**unified-orders — "All" Tab Uses OrderCard for Requests**: Consistent card style in all tabs
+
+- For `sales`, `jb`, and `personal` roles in the "All" tab, requests now render as `<OrderCard>` via `requestToOrder()` adapter (matching internal and closed tab behaviour)
+- Cancel, Edit, and See Detail callbacks wired per existing role/status rules
+- Updated: `unified-orders.tsx`
+
+**unified-orders — "Closed" Tab Uses OrderCard for Rejected/Cancelled/Expired Requests**
+
+- Requests with status `"Rejected"`, `"Cancelled"`, or `"Request Expired"` in the Closed tab render as `<OrderCard>` for `sales` and `jb` roles
+- No Cancel or Edit buttons (terminal statuses); only `onSeeDetail` is wired
+- Updated: `unified-orders.tsx`
+
+### Changed
+
 **Order Details Page — Fully Merged into Single Card**: Header, Order Items, and Revision History combined
 
 - Header info, Order Items (`DetailItemsTable`), Revision History, and Request Revision History all inside one `<Card className="p-4 mb-4">`

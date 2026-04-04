@@ -491,119 +491,141 @@ export function RequestDetails({
 
       {/* Request Header */}
       <Card className="p-4">
-        {/* Product Title and Badge - Full Width */}
-        <div className="mb-4">
-          <h3 className="font-bold text-lg mb-2">
-            {jenisProdukLabel} {productNameLabel}
-          </h3>
-          <span className="inline-block text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-            {request.kategoriBarang === "basic" ? "Basic" : "Model"}
-          </span>
-        </div>
-
-        {/* Two Columns Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left Column - Details */}
-          <div className="space-y-2 text-sm">
-            {currentRequest.requestNo && (
-              <div>
-                <span className="text-gray-500">Request No: </span>
-                <span className="font-medium font-mono">
-                  {currentRequest.requestNo}
-                </span>
-              </div>
-            )}
-            <div>
-              <span className="text-gray-500">Created: </span>
-              <span className="font-medium">
-                {formatTimestamp(currentRequest.timestamp)}
-              </span>
-            </div>
-            {currentRequest.createdBy && (
-              <div>
-                <span className="text-gray-500">Sales: </span>
-                <span className="font-medium">
-                  {getFullNameFromUsername(currentRequest.createdBy)}
-                </span>
-              </div>
-            )}
-            {currentRequest.branchCode && (
-              <div>
-                <span className="text-gray-500">Branch: </span>
-                <span className="font-medium">
-                  {getBranchName(currentRequest.branchCode)}
-                </span>
-              </div>
-            )}
-            {currentRequest.stockistId && (
-              <div>
-                <span className="text-gray-500">Stockist: </span>
-                <span className="font-medium">
-                  {getFullNameFromUsername(currentRequest.stockistId)}
-                </span>
-              </div>
-            )}
-            {request.namaPelanggan && (
-              <div>
-                <span className="text-gray-500">Customer Name: </span>
-                <span className="font-medium">{atasNamaLabel}</span>
-              </div>
-            )}
-            <div>
-              <span className="text-gray-500">Supplier: </span>
-              <span className="font-medium">{pabrikLabel}</span>
-            </div>
-            {request.customerExpectation && (
-              <div>
-                <span className="text-gray-500">Customer Expectation: </span>
-                <span className="font-medium">
-                  {getLabelFromValue(
-                    CUSTOMER_EXPECTATION_OPTIONS,
-                    request.customerExpectation,
-                  )}
-                </span>
-              </div>
-            )}
-            <div>
-              <span className="text-gray-500">ETA: </span>
-              <span className="font-medium">
-                {formatDate(request.waktuKirim) || "-"}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">Status: </span>
-              <span
-                className={`inline-block text-xs ${getStatusBadgeClasses(currentRequest.status)} px-2 py-1 rounded-full font-medium`}
-              >
-                {currentRequest.status}
-              </span>
-            </div>
-            {currentRequest.updatedDate && (
-              <div>
-                <span className="text-gray-500">Updated: </span>
-                <span className="font-medium">
-                  {formatTimestampWithTime(currentRequest.updatedDate)}
-                </span>
-              </div>
-            )}
-            {currentRequest.updatedBy && (
-              <div>
-                <span className="text-gray-500">Updated By: </span>
-                <span className="font-medium">
-                  {getFullNameFromUsername(currentRequest.updatedBy)}
-                </span>
-              </div>
-            )}
+        <div className="flex gap-4">
+          {/* Product Image */}
+          <div className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
+            <img
+              src={getOrderImage()}
+              alt={productNameLabel}
+              className="w-full h-full object-cover"
+            />
           </div>
 
-          {/* Right Column - Product Image */}
-          <div className="flex justify-center md:justify-end">
-            <div className="w-48 h-48 md:w-56 md:h-56 border rounded-lg overflow-hidden bg-gray-50">
-              <img
-                src={getOrderImage()}
-                alt={productNameLabel}
-                className="w-full h-full object-cover"
-              />
+          {/* Request Info */}
+          <div className="flex-1">
+            <h2 className="text-lg font-bold mb-2">
+              {jenisProdukLabel} {productNameLabel}
+            </h2>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700">
+              {currentRequest.requestNo && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Request No</span>
+                  <span className="col-span-3">
+                    <span>:</span>
+                    <span className="font-mono font-semibold text-blue-700">
+                      {currentRequest.requestNo}
+                    </span>
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">Created</span>
+                <span className="col-span-3">
+                  <span>:</span>
+                  <span>{formatTimestamp(currentRequest.timestamp)}</span>
+                </span>
+              </div>
+              {currentRequest.createdBy && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Sales</span>
+                  <span>
+                    <span>:</span>
+                    <span className="font-medium">
+                      {getFullNameFromUsername(currentRequest.createdBy)}
+                    </span>
+                  </span>
+                </div>
+              )}
+              {currentRequest.branchCode && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Branch</span>
+                  <span className="col-span-3">
+                    <span>:</span>
+                    <span className="font-medium">
+                      {getBranchName(currentRequest.branchCode)}
+                    </span>
+                  </span>
+                </div>
+              )}
+              {currentRequest.stockistId && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Stockist</span>
+                  <span className="col-span-3">
+                    <span>:</span>
+                    <span className="font-medium">
+                      {getFullNameFromUsername(currentRequest.stockistId)}
+                    </span>
+                  </span>
+                </div>
+              )}
+              {request.namaPelanggan && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Customer</span>
+                  <span className="col-span-3">
+                    <span>:</span>
+                    <span className="font-medium">{atasNamaLabel}</span>
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">Supplier</span>
+                <span className="col-span-3">
+                  <span>:</span>
+                  <span className="font-medium">{pabrikLabel}</span>
+                </span>
+              </div>
+              {request.customerExpectation && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Expectation</span>
+                  <span className="col-span-3">
+                    <span>:</span>
+                    <span className="font-medium">
+                      {getLabelFromValue(
+                        CUSTOMER_EXPECTATION_OPTIONS,
+                        request.customerExpectation,
+                      )}
+                    </span>
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-5 gap-x-3">
+                <span className="text-gray-600 pr-1">ETA</span>
+                <span className="col-span-3">
+                  <span>:</span>
+                  <span>{formatDate(request.waktuKirim) || "-"}</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-x-3 items-center">
+                <span className="text-gray-600 pr-1">Status</span>
+                <span className="col-span-3">
+                  <span>:</span>
+                  <span
+                    className={`inline-block text-xs ${getStatusBadgeClasses(currentRequest.status)} px-2 py-1 rounded-full font-medium w-fit`}
+                  >
+                    {currentRequest.status}
+                  </span>
+                </span>
+              </div>
+              {currentRequest.updatedDate && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Updated</span>
+                  <span className="col-span-3">
+                    <span>:</span>
+                    <span>{formatTimestampWithTime(currentRequest.updatedDate)}</span>
+                  </span>
+                </div>
+              )}
+              {currentRequest.updatedBy && (
+                <div className="grid grid-cols-5 gap-x-3">
+                  <span className="text-gray-600 pr-1">Updated By</span>
+                  <span className="col-span-3">
+                    <span>:</span>
+                    <span className="font-medium">
+                      {getFullNameFromUsername(currentRequest.updatedBy)}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -946,6 +946,39 @@ export function UnifiedOrders({
                   if (item.type === "request") {
                     const request = item.data as Request;
 
+                    // Use OrderCard for all requests in the "all" tab
+                    if (activeTab === "all" && userRole !== "supplier") {
+                      const orderData = requestToOrder(request);
+                      return (
+                        <OrderCard
+                          key={request.id}
+                          order={orderData}
+                          userRole={userRole === "personal" ? "sales" : userRole}
+                          activeTab={activeTab}
+                          isExpanded={expandedOrderId === request.id}
+                          onToggleExpand={() => {
+                            toggleExpand(request.id);
+                            markAsViewed(request.id, "request");
+                          }}
+                          onCancelOrder={handleCancelRequest}
+                          onEditOrder={
+                            onEditRequest
+                              ? (_o) => onEditRequest(request)
+                              : undefined
+                          }
+                          onSeeDetail={
+                            onViewRequestDetails
+                              ? (_o) => onViewRequestDetails(request, activeTab)
+                              : userRole === "jb"
+                                ? (_o) =>
+                                    handleVerifyRequest(request, activeTab)
+                                : undefined
+                          }
+                          currentUser={currentUser}
+                        />
+                      );
+                    }
+
                     // Use OrderCard for Open/JB Verifying requests in internal tab
                     if (
                       (userRole === "sales" || userRole === "jb") &&

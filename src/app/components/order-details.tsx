@@ -443,7 +443,7 @@ export function OrderDetails({
                   <span className="text-gray-600 justify-self-start pr-1">
                     Created By
                   </span>
-                  <span>
+                  <span className="col-span-3">
                     <span>:</span>
                     <span className="font-bold">
                       {getFullNameFromUsername(order.jbId)}
@@ -453,7 +453,7 @@ export function OrderDetails({
               )}
               <div className="grid grid-cols-5 gap-x-3">
                 <span className="text-gray-600 pr-1">PO Number</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span className="font-mono font-semibold text-blue-700">
                     {order.PONumber}
@@ -463,7 +463,7 @@ export function OrderDetails({
               {userRole !== "supplier" && (
                 <div className="grid grid-cols-5 gap-x-3">
                   <span className="text-gray-600">Request No</span>
-                  <span>
+                  <span className="col-span-3">
                     <span>:</span>
                     {order.requestNo ? (
                       <a
@@ -481,7 +481,7 @@ export function OrderDetails({
 
               <div className="grid grid-cols-5 gap-x-3">
                 <span className="text-gray-600 pr-1">Created</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span>{formatTimestamp(order.createdDate)}</span>
                 </span>
@@ -489,7 +489,7 @@ export function OrderDetails({
               {order.branchCode && (
                 <div className="grid grid-cols-5 gap-x-3">
                   <span className="text-gray-600 pr-1">Branch</span>
-                  <span>
+                  <span className="col-span-3">
                     <span>:</span>
                     <span className="font-medium">
                       {getBranchName(order.branchCode)}
@@ -499,21 +499,21 @@ export function OrderDetails({
               )}
               <div className="grid grid-cols-5 gap-x-3">
                 <span className="text-gray-600 pr-1">Supplier</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span className="font-medium">{pabrikLabel}</span>
                 </span>
               </div>
               <div className="grid grid-cols-5 gap-x-3">
                 <span className="text-gray-600 pr-1">ETA</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span>{formatDate(order.waktuKirim)}</span>
                 </span>
               </div>
               <div className="grid grid-cols-5 gap-x-3 items-center">
                 <span className="text-gray-600 pr-1">Status</span>
-                <span>
+                <span className="col-span-3">
                   <span>:</span>
                   <span
                     className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium w-fit`}
@@ -2176,9 +2176,12 @@ export function OrderDetails({
                     </div>
                   )}
                   <div>
-                    <span className="text-gray-500">Created: </span>
-                    <span className="font-medium">
-                      {formatTimestamp(relatedRequest.timestamp)}
+                    <span className="text-gray-500">Created</span>
+                    <span className="col-span-3">
+                      <span>:</span>
+                      <span className="font-medium">
+                        {formatTimestamp(relatedRequest.timestamp)}
+                      </span>
                     </span>
                   </div>
                   {relatedRequest.createdBy && (
