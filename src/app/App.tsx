@@ -297,14 +297,19 @@ export default function App() {
       return;
     }
 
-    // Return to the page the user came from
+    // Return to the page the user came from — never go back to request-details
+    // with a null verifyingOrder (can happen when duplicate form goes back here first)
     const fallback =
       userRole === "jb"
         ? "jb-orders"
         : userRole === "sales"
           ? "sales-orders"
           : "my-orders";
-    setCurrentPage(previousPage || fallback);
+    const target =
+      previousPage && previousPage !== "request-details"
+        ? previousPage
+        : fallback;
+    setCurrentPage(target);
   };
 
   const handleBackFromWriteOrder = () => {
@@ -430,6 +435,25 @@ export default function App() {
   };
 
   const handleSeeOrderDetail = (order: any, currentTab?: string) => {
+    // If status is Open or JB Verifying, show the original request detail page
+    if (order.status === "Open" || order.status === "JB Verifying") {
+      const requestId = order.requestId || order.id;
+      const savedRequests = localStorage.getItem("requests");
+      if (savedRequests) {
+        const allRequests = JSON.parse(savedRequests);
+        const request = allRequests.find((r: any) => r.id === requestId);
+        if (request) {
+          setMyOrdersTab(currentTab || "open");
+          setPreviousOrdersTab(currentTab || "open");
+          setPreviousPage(currentPage);
+          setVerifyingOrder(request);
+          setVerifyMode("detail");
+          setCurrentPage("request-details");
+          return;
+        }
+      }
+    }
+
     // Mark order as viewed by current user
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders && currentUser) {
@@ -957,7 +981,24 @@ export default function App() {
           return <AvailablePcsDemo />;
         }
       case "eta-calendar":
-        return <ETACalendar userRole={userRole as "sales" | "jb"} />;
+        return (
+          <ETACalendar
+            userRole={userRole as "sales" | "jb"}
+            currentUser={currentUser}
+            onSeeDetail={(order) => handleSeeOrderDetail(order)}
+            onUpdateOrder={(order) => {
+              setPreviousPage("eta-calendar");
+              handleSeeOrderDetail(order);
+            }}
+            onEditOrder={handleEditOrder}
+            onCancelOrder={(id) => {
+              const orders = JSON.parse(localStorage.getItem("orders") ?? "[]");
+              const order = orders.find((o: any) => o.id === id);
+              if (order) handleSeeOrderDetail(order);
+            }}
+            onDuplicateOrder={(order) => handleDuplicateOrder(order)}
+          />
+        );
       case "activities":
         return (
           <div className="h-full flex items-center justify-center">
@@ -1221,7 +1262,7 @@ export default function App() {
         </div>
 
         <div
-          className={`w-full max-w-7xl mx-auto ${["sales-orders", "jb-orders", "order", "supplier-orders"].includes(currentPage) ? "" : "pt-4"}`}
+          className={`w-full max-w-7xl mx-auto ${["sales-orders", "jb-orders", "order", "supplier-orders", "request-details", "order-details", "order-edit"].includes(currentPage) ? "" : "pt-4"}`}
         >
           {renderContent()}
         </div>

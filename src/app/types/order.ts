@@ -12,10 +12,12 @@ import { DetailBarangItem, EntityReference } from "./request";
  */
 export type OrderStatus =
   | "New Order" // Order created by JB, not yet viewed by supplier
-  | "Viewed" // Supplier has viewed the order details
+  | "Supplier Viewed" // Supplier has viewed the order details
   | "Order Revised" // Supplier proposed changes have been approved by Sales and JB
   | "Rejected" // Sales rejected the revision
-  | "Change Pending Approval" // Supplier has submitted proposed changes awaiting Sales/JB review
+  | "Pending Sales Review" // Supplier changes submitted, awaiting Sales review
+  | "Pending JB Review" // Sales reviewed, awaiting JB review
+  | "Change Pending Approval" // Legacy alias for Pending Sales Review
   | "In Production" // Supplier has started production
   | "Stock Ready" // Order is ready for pickup/delivery
   | "Partially Delivered" // Order has partial deliveries
@@ -92,6 +94,7 @@ export interface OrderRevision {
   timestamp: number;
   updatedBy: string;
   revisionNotes?: string; // Notes from supplier/JB explaining the changes
+  salesRowDecisions?: Record<string, "accept" | "reject">; // Row-level decisions made by Sales
   changes: {
     kategoriBarang?: string;
     jenisProduk?: string;

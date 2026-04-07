@@ -17,6 +17,7 @@ export interface SortOption {
 interface FilterSortControlsProps {
   type: "request" | "order" | "notification";
   totalCount: number;
+  displayedCount?: number;
   filterValue: string;
   onFilterChange: (value: string) => void;
   sortBy: string;
@@ -30,6 +31,7 @@ interface FilterSortControlsProps {
 export function FilterSortControls({
   type,
   totalCount,
+  displayedCount,
   filterValue,
   onFilterChange,
   sortBy,
@@ -50,7 +52,9 @@ export function FilterSortControls({
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       {/* Total - left aligned, grows to push filter and sort to the right on desktop */}
       <p className="text-gray-600 text-xs sm:text-sm whitespace-nowrap sm:flex-grow">
-        Total: {totalCount} {itemName}
+        {displayedCount !== undefined
+          ? `Displaying: ${displayedCount} of total ${totalCount} ${itemName}`
+          : `Total: ${totalCount} ${itemName}`}
       </p>
 
       {/* Filter box - takes remaining space on mobile, fixed width on desktop */}

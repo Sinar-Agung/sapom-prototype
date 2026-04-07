@@ -129,15 +129,25 @@ export const STATUS_COLORS: Record<string, StatusConfig> = {
     text: "text-blue-800",
     label: "New Order",
   },
-  Viewed: {
+  "Supplier Viewed": {
     bg: "bg-purple-100",
     text: "text-purple-800",
-    label: "Viewed",
+    label: "Supplier Viewed",
   },
   "Change Pending Approval": {
     bg: "bg-amber-100",
     text: "text-amber-800",
-    label: "Change Pending Approval",
+    label: "Pending Sales Review",
+  },
+  "Pending Sales Review": {
+    bg: "bg-amber-100",
+    text: "text-amber-800",
+    label: "Pending Sales Review",
+  },
+  "Pending JB Review": {
+    bg: "bg-blue-100",
+    text: "text-blue-800",
+    label: "Pending JB Review",
   },
   "Order Revised": {
     bg: "bg-green-100",

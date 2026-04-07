@@ -15,7 +15,6 @@ import {
   removeETAReminderForStockist,
 } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -28,6 +27,7 @@ import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, CheckCircle, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ProductHeader } from "./ui/product-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,6 +97,9 @@ export function RequestDetails({
   onWriteOrder,
   onReject,
 }: RequestDetailsProps) {
+  const userRole = (sessionStorage.getItem("userRole") ||
+    localStorage.getItem("userRole") ||
+    "sales") as "sales" | "stockist" | "jb" | "supplier";
   const [detailItems, setDetailItems] = useState<DetailBarangItem[]>([]);
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
   const [showSendToJBDialog, setShowSendToJBDialog] = useState(false);
@@ -244,39 +247,6 @@ export function RequestDetails({
 
     setDetailItems(sortedItems);
   }, [request.id, request.detailItems]);
-
-  const formatDate = (isoString: string) => {
-    if (!isoString) return "";
-    return new Date(isoString).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatTimestamp = (timestamp: number) => {
-    if (!timestamp) return "";
-    return new Date(timestamp).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatTimestampWithTime = (timestamp: number) => {
-    if (!timestamp) return "";
-    const date = new Date(timestamp);
-    const dateStr = date.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    const seconds = date.getSeconds().toString().padStart(2, "0");
-    const timeStr = `${hours}:${minutes}:${seconds}`;
-    return `${dateStr} ${timeStr}`;
-  };
 
   const allRevisionPhotoIds = (currentRequest.revisionHistory || []).flatMap(
     (r: any) => [r.previousValues?.photoId, r.changes?.photoId],
@@ -459,180 +429,87 @@ export function RequestDetails({
         getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            // Clear any pending save animations
-            if (savingAnimationTimeoutRef.current) {
-              clearTimeout(savingAnimationTimeoutRef.current);
-              setIsSaving(false);
-            }
-            if (wasUpdated) {
-              toast.success("Request updated");
-            }
-            onBack();
-          }}
-          className="h-9 px-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-xl font-semibold">
-          {mode === "detail"
-            ? isJBWaiting
-              ? "Order Detail"
-              : "Request Detail"
-            : "Verify Stock"}
-        </h1>
+    <div className="min-h-screen pb-20 md:pb-4">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-white -mx-4 px-4 pt-4 pb-3 border-b border-gray-100 shadow-sm mb-4">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              // Clear any pending save animations
+              if (savingAnimationTimeoutRef.current) {
+                clearTimeout(savingAnimationTimeoutRef.current);
+                setIsSaving(false);
+              }
+              if (wasUpdated) {
+                toast.success("Request updated");
+              }
+              onBack();
+            }}
+            className="h-9 px-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-semibold">
+              {mode === "detail"
+                ? isJBWaiting
+                  ? "Order Detail"
+                  : "Request Detail"
+                : "Verify Stock"}
+            </h1>
+            {currentRequest.requestNo && (
+              <p className="text-sm text-gray-600 font-mono font-semibold truncate">
+                {currentRequest.requestNo}
+              </p>
+            )}
+          </div>
+          <span
+            className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 ${getStatusBadgeClasses(currentRequest.status)}`}
+          >
+            {currentRequest.status}
+          </span>
+        </div>
       </div>
 
       {/* Request Header */}
       <Card className="p-4 mb-4">
-        <div className="flex gap-4">
-          {/* Product Image */}
-          <div className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
-            <img
-              src={getOrderImage()}
-              alt={productNameLabel}
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          {/* Request Info */}
-          <div className="flex-1">
-            <h2 className="text-lg font-bold mb-2">
-              {jenisProdukLabel} {productNameLabel}
-            </h2>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
-              {currentRequest.requestNo && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Request No</span>
-                  <span>
-                    <span>:</span>
-                    <span className="font-medium font-mono">
-                      {currentRequest.requestNo}
-                    </span>
-                  </span>
-                </div>
-              )}
-              <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-600 pr-1">Created</span>
-                <span>
-                  <span>:</span>
-                  <span>{formatTimestamp(currentRequest.timestamp)}</span>
-                </span>
-              </div>
-              {currentRequest.createdBy && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Sales</span>
-                  <span>
-                    <span>:</span>
-                    <span className="font-medium">
-                      {getFullNameFromUsername(currentRequest.createdBy)}
-                    </span>
-                  </span>
-                </div>
-              )}
-              {currentRequest.branchCode && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Branch</span>
-                  <span>
-                    <span>:</span>
-                    <span className="font-medium">
-                      {getBranchName(currentRequest.branchCode)}
-                    </span>
-                  </span>
-                </div>
-              )}
-              {currentRequest.stockistId && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Stockist</span>
-                  <span>
-                    <span>:</span>
-                    <span className="font-medium">
-                      {getFullNameFromUsername(currentRequest.stockistId)}
-                    </span>
-                  </span>
-                </div>
-              )}
-              {request.namaPelanggan && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Customer Name</span>
-                  <span>
-                    <span>:</span>
-                    <span className="font-medium">{atasNamaLabel}</span>
-                  </span>
-                </div>
-              )}
-              <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-600 pr-1">Supplier</span>
-                <span>
-                  <span>:</span>
-                  <span className="font-medium">{pabrikLabel}</span>
-                </span>
-              </div>
-              {request.customerExpectation && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">
-                    Customer Expectation
-                  </span>
-                  <span>
-                    <span>:</span>
-                    <span className="font-medium">
-                      {getLabelFromValue(
-                        CUSTOMER_EXPECTATION_OPTIONS,
-                        request.customerExpectation,
-                      )}
-                    </span>
-                  </span>
-                </div>
-              )}
-              <div className="grid grid-cols-5 gap-x-3">
-                <span className="text-gray-600 pr-1">ETA</span>
-                <span>
-                  <span>:</span>
-                  <span>{formatDate(request.waktuKirim) || "-"}</span>
-                </span>
-              </div>
-              <div className="grid grid-cols-5 gap-x-3 items-center">
-                <span className="text-gray-600 pr-1">Status</span>
-                <span>
-                  <span>:</span>
-                  <span
-                    className={`inline-block text-xs ${getStatusBadgeClasses(currentRequest.status)} px-2 py-1 rounded-full font-medium w-fit`}
-                  >
-                    {currentRequest.status}
-                  </span>
-                </span>
-              </div>
-              {currentRequest.updatedDate && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Updated</span>
-                  <span>
-                    <span>:</span>
-                    <span>
-                      {formatTimestampWithTime(currentRequest.updatedDate)}
-                    </span>
-                  </span>
-                </div>
-              )}
-              {currentRequest.updatedBy && (
-                <div className="grid grid-cols-5 gap-x-3">
-                  <span className="text-gray-600 pr-1">Updated By</span>
-                  <span>
-                    <span>:</span>
-                    <span className="font-medium">
-                      {getFullNameFromUsername(currentRequest.updatedBy)}
-                    </span>
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <ProductHeader
+          imageSrc={getOrderImage()}
+          imageAlt={productNameLabel}
+          title={`${jenisProdukLabel} ${productNameLabel}`}
+          visibleAttributes={[
+            "poNumber",
+            "branch",
+            "stockist",
+            "customerName",
+            "supplier",
+            "customerExpectation",
+            "eta",
+            "status",
+            "created",
+            "sales",
+            "updated",
+            "updatedBy",
+          ]}
+          status={currentRequest.status}
+          poNumber={currentRequest.requestNo}
+          salesUsername={currentRequest.createdBy}
+          branchCode={currentRequest.branchCode}
+          stockistUsername={currentRequest.stockistId}
+          customerName={request.namaPelanggan ? atasNamaLabel : undefined}
+          supplier={pabrikLabel}
+          customerExpectation={
+            request.customerExpectation
+              ? getLabelFromValue(CUSTOMER_EXPECTATION_OPTIONS, request.customerExpectation)
+              : undefined
+          }
+          eta={request.waktuKirim}
+          created={currentRequest.timestamp}
+          updated={currentRequest.updatedDate}
+          updatedByUsername={currentRequest.updatedBy}
+        />
       </Card>
 
       <DetailItemsTable
@@ -728,28 +605,27 @@ export function RequestDetails({
         </div>
       )}
 
-      {/* Revision History - visible to all non-supplier users */}
-      {currentRequest.revisionHistory &&
-        currentRequest.revisionHistory.length > 0 && (
-          <RevisionHistoryPanel
-            title="Revision History"
-            createdTimestamp={currentRequest.timestamp}
-            createdBy={currentRequest.createdBy || ""}
-            revisions={currentRequest.revisionHistory}
-            entitySnapshot={{
-              pabrik: currentRequest.pabrik,
-              namaPelanggan: currentRequest.namaPelanggan,
-              kategoriBarang: currentRequest.kategoriBarang,
-              jenisProduk: currentRequest.jenisProduk,
-              namaProduk: currentRequest.namaProduk,
-              namaBasic: currentRequest.namaBasic,
-              waktuKirim: currentRequest.waktuKirim,
-              customerExpectation: currentRequest.customerExpectation,
-              detailItems: currentRequest.detailItems,
-              photoId: currentRequest.photoId,
-            }}
-          />
-        )}
+      {/* Revision History - always visible for non-supplier users */}
+      {userRole !== "supplier" && (
+        <RevisionHistoryPanel
+          title="Request Revision History"
+          createdTimestamp={currentRequest.timestamp}
+          createdBy={currentRequest.createdBy || ""}
+          revisions={currentRequest.revisionHistory || []}
+          entitySnapshot={{
+            pabrik: currentRequest.pabrik,
+            namaPelanggan: currentRequest.namaPelanggan,
+            kategoriBarang: currentRequest.kategoriBarang,
+            jenisProduk: currentRequest.jenisProduk,
+            namaProduk: currentRequest.namaProduk,
+            namaBasic: currentRequest.namaBasic,
+            waktuKirim: currentRequest.waktuKirim,
+            customerExpectation: currentRequest.customerExpectation,
+            detailItems: currentRequest.detailItems,
+            photoId: currentRequest.photoId,
+          }}
+        />
+      )}
 
       {/* Reject Confirmation Dialog */}
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>

@@ -140,15 +140,23 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       label: "Negotiation",
       orderStatuses: [
         "New Order",
-        "Viewed",
+        "Supplier Viewed",
         "Change Pending Approval",
+        "Pending Sales Review",
+        "Pending JB Review",
         "Order Revised",
       ],
     },
     {
       value: "shipping",
       label: "Shipping",
-      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
+      orderStatuses: [
+        "In Production",
+        "Stock Ready",
+        "Shipping",
+        "Partially Delivered",
+        "Fully Delivered",
+      ],
     },
     {
       value: "closed",
@@ -175,15 +183,25 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       label: "In Negotiation",
       orderStatuses: [
         "New Order",
-        "Viewed",
+        "Supplier Viewed",
         "Change Pending Approval",
+        "Pending Sales Review",
+        "Pending JB Review",
+        "Pending Sales Review",
+        "Pending JB Review",
         "Order Revised",
       ],
     },
     {
       value: "shipping",
       label: "Shipping",
-      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
+      orderStatuses: [
+        "In Production",
+        "Stock Ready",
+        "Shipping",
+        "Partially Delivered",
+        "Fully Delivered",
+      ],
     },
     {
       value: "closed",
@@ -199,15 +217,23 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       label: "Negotiation",
       orderStatuses: [
         "New Order",
-        "Viewed",
+        "Supplier Viewed",
         "Change Pending Approval",
+        "Pending Sales Review",
+        "Pending JB Review",
         "Order Revised",
       ],
     },
     {
       value: "shipping",
       label: "Shipping",
-      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
+      orderStatuses: [
+        "In Production",
+        "Stock Ready",
+        "Shipping",
+        "Partially Delivered",
+        "Fully Delivered",
+      ],
     },
     {
       value: "rejected",
@@ -977,11 +1003,9 @@ export function UnifiedOrders({
                         }
                         onSeeDetail={
                           onViewRequestDetails
-                            ? (_o) =>
-                                onViewRequestDetails(request, activeTab)
+                            ? (_o) => onViewRequestDetails(request, activeTab)
                             : userRole === "jb"
-                              ? (_o) =>
-                                  handleVerifyRequest(request, activeTab)
+                              ? (_o) => handleVerifyRequest(request, activeTab)
                               : undefined
                         }
                         currentUser={currentUser}
@@ -1006,7 +1030,7 @@ export function UnifiedOrders({
                                   userRole === "supplier" &&
                                   o.status === "New Order"
                                 ) {
-                                  handleUpdateStatus(o.id, "Viewed");
+                                  handleUpdateStatus(o.id, "Supplier Viewed");
                                 }
                                 onSeeDetail(o, activeTab);
                               }

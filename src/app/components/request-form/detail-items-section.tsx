@@ -34,6 +34,10 @@ interface DetailItemsSectionProps {
   showCopy?: boolean;
   /** Called when a row's notes icon is clicked. x/y are viewport coordinates. */
   onNotesClick?: (itemId: string, x: number, y: number) => void;
+  /** IDs of rows soft-marked for deletion (shown with strikethrough). */
+  markedForDeletion?: Set<string>;
+  /** Called when trash/undo button clicked in soft-delete mode. */
+  onToggleDelete?: (id: string) => void;
 }
 
 /**
@@ -54,6 +58,8 @@ export function DetailItemsSection({
   isDisabled = false,
   showCopy = true,
   onNotesClick,
+  markedForDeletion,
+  onToggleDelete,
 }: DetailItemsSectionProps) {
   const {
     detailInput,
@@ -137,7 +143,11 @@ export function DetailItemsSection({
         onRowClick={handleRowClick}
         onEdit={showInput ? handleEdit : undefined}
         onCopy={showCopy ? handleCopy : undefined}
-        onDelete={showInput ? handleDelete : undefined}
+        onDelete={showInput && !onToggleDelete ? handleDelete : undefined}
+        onToggleDelete={
+          showInput && onToggleDelete ? onToggleDelete : undefined
+        }
+        markedForDeletion={markedForDeletion}
         onNotesClick={onNotesClick ?? (() => {})}
         rowRefs={rowRefs}
         cardRefs={cardRefs}

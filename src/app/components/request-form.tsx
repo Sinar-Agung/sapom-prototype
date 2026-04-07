@@ -56,6 +56,8 @@ export function RequestForm(props: RequestFormProps) {
     namaPelanggan: { id: "", name: "" },
     waktuKirim: undefined as Date | undefined,
     customerExpectation: "",
+    notes: "",
+    notes: "",
   });
 
   const detailItemsState = useDetailItems({
@@ -305,6 +307,7 @@ export function RequestForm(props: RequestFormProps) {
             namaPelanggan: formData.namaPelanggan,
             waktuKirim: newWaktuKirim,
             customerExpectation: formData.customerExpectation,
+            notes: formData.notes,
             detailItems: detailItems,
             ...(photoId ? { photoId } : {}),
           },
@@ -317,6 +320,7 @@ export function RequestForm(props: RequestFormProps) {
             namaPelanggan: oldRequest.namaPelanggan,
             waktuKirim: oldRequest.waktuKirim,
             customerExpectation: oldRequest.customerExpectation,
+            notes: oldRequest.notes,
             detailItems: oldRequest.detailItems,
             ...(oldRequest.photoId ? { photoId: oldRequest.photoId } : {}),
           },
@@ -333,6 +337,7 @@ export function RequestForm(props: RequestFormProps) {
           namaPelanggan: formData.namaPelanggan,
           waktuKirim: newWaktuKirim,
           customerExpectation: formData.customerExpectation,
+          notes: formData.notes,
           detailItems: detailItems,
           photoId: photoId,
           fotoBarangBase64: undefined,
@@ -369,6 +374,7 @@ export function RequestForm(props: RequestFormProps) {
         namaPelanggan: formData.namaPelanggan,
         waktuKirim: formData.waktuKirim?.toISOString() || "",
         customerExpectation: formData.customerExpectation,
+        notes: formData.notes || undefined,
         detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
         photoId: photoId,
         status: "Open", // Default status for new orders
@@ -456,6 +462,7 @@ export function RequestForm(props: RequestFormProps) {
               ? new Date(initialData.waktuKirim)
               : undefined,
         customerExpectation: initialData.customerExpectation,
+        notes: initialData.notes || "",
       };
       setFormData(initialFormData);
       detailItemsState.resetAll(initialData.detailItems);

@@ -65,7 +65,7 @@ const REQUEST_SORT_OPTIONS: SortOption[] = [
   { value: "sales", label: "Sales" },
   { value: "atasNama", label: "Customer Name" },
   { value: "pabrik", label: "Supplier" },
-  { value: "requestNo", label: "Request No" },
+  { value: "requestNo", label: "PO Number" },
 ];
 
 function useRequestSortOptions() {
@@ -525,7 +525,9 @@ export function MyOrders({
 
   const renderOrderCard = (order: Request) => {
     const isExpanded = expandedOrderId === order.id;
-    const showSalesName = !!(order.createdBy && order.createdBy !== currentUser);
+    const showSalesName = !!(
+      order.createdBy && order.createdBy !== currentUser
+    );
     const orderData = requestToOrder(order);
 
     return (
@@ -537,9 +539,7 @@ export function MyOrders({
         activeTab={activeTab}
         isExpanded={isExpanded}
         onToggleExpand={() => toggleExpand(order.id)}
-        onEditOrder={
-          onEditOrder ? (_o) => onEditOrder(order) : undefined
-        }
+        onEditOrder={onEditOrder ? (_o) => onEditOrder(order) : undefined}
         onDuplicateOrder={
           onDuplicateOrder ? (_o) => onDuplicateOrder(order) : undefined
         }

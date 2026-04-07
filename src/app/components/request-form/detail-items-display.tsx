@@ -1,6 +1,6 @@
 import { NewBadge } from "@/app/components/new-badge";
 import { Button } from "@/app/components/ui/button";
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 export interface DetailBarangItem {
@@ -23,6 +23,8 @@ interface DetailItemsDisplayProps {
   onEdit?: (item: DetailBarangItem) => void;
   onCopy?: (item: DetailBarangItem) => void;
   onDelete?: (id: string) => void;
+  markedForDeletion?: Set<string>;
+  onToggleDelete?: (id: string) => void;
   onNotesClick: (itemId: string, x: number, y: number) => void;
   rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
   cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
@@ -44,6 +46,8 @@ export function DetailItemsDisplay({
   onEdit,
   onCopy,
   onDelete,
+  markedForDeletion,
+  onToggleDelete,
   onNotesClick,
   rowRefs,
   cardRefs,
@@ -76,7 +80,10 @@ export function DetailItemsDisplay({
     : "max-h-[600px] sm:max-h-[250px]"; // Taller when form is collapsed
 
   const hasActions =
-    onEdit !== undefined || onCopy !== undefined || onDelete !== undefined;
+    onEdit !== undefined ||
+    onCopy !== undefined ||
+    onDelete !== undefined ||
+    onToggleDelete !== undefined;
 
   return (
     <div
@@ -96,6 +103,7 @@ export function DetailItemsDisplay({
             const isAnimating = animatingIds.has(item.id);
             const isRelocating = relocatingIds.has(item.id);
             const isEditing = editingDetailId === item.id;
+            const isPendingDelete = markedForDeletion?.has(item.id) ?? false;
 
             return (
               <div key={item.id} className="relative">
@@ -106,6 +114,22 @@ export function DetailItemsDisplay({
                       New
                     </div>
                   </div>
+                )}
+
+                {/* Pending-delete stripe */}
+                {isPendingDelete && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: 0,
+                      right: 0,
+                      height: "2px",
+                      background: "#ef4444",
+                      zIndex: 5,
+                      pointerEvents: "none",
+                    }}
+                  />
                 )}
 
                 {/* Card element */}
@@ -219,18 +243,28 @@ export function DetailItemsDisplay({
                             <Copy className="w-3 h-3" />
                           </Button>
                         )}
-                        {onDelete && (
+                        {(onDelete || onToggleDelete) && (
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onDelete(item.id);
+                              if (onToggleDelete) {
+                                onToggleDelete(item.id);
+                              } else if (onDelete) {
+                                onDelete(item.id);
+                              }
                             }}
-                            variant="destructive"
+                            variant={
+                              isPendingDelete ? "outline" : "destructive"
+                            }
                             size="sm"
                             className="h-7 px-2 text-xs"
                             disabled={editingDetailId !== null && !isEditing}
                           >
-                            <Trash2 className="w-3 h-3" />
+                            {isPendingDelete ? (
+                              <RotateCcw className="w-3 h-3" />
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
                           </Button>
                         )}
                       </div>
@@ -279,6 +313,14 @@ export function DetailItemsDisplay({
                 const isAnimating = animatingIds.has(item.id);
                 const isRelocating = relocatingIds.has(item.id);
                 const isEditing = editingDetailId === item.id;
+                const isPendingDelete =
+                  markedForDeletion?.has(item.id) ?? false;
+                const strikeStyle = isPendingDelete
+                  ? {
+                      backgroundImage:
+                        "linear-gradient(transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px))",
+                    }
+                  : undefined;
 
                 return (
                   <tr
@@ -296,16 +338,21 @@ export function DetailItemsDisplay({
                         ? "opacity-50 pointer-events-none"
                         : ""
                     } ${
-                      isEditing
-                        ? "editing-pulse"
-                        : isAnimating
-                          ? "glint-animation"
-                          : isNewlyAdded
-                            ? "golden-shimmer"
-                            : "hover:bg-gray-50"
+                      isPendingDelete
+                        ? ""
+                        : isEditing
+                          ? "editing-pulse"
+                          : isAnimating
+                            ? "glint-animation"
+                            : isNewlyAdded
+                              ? "golden-shimmer"
+                              : "hover:bg-gray-50"
                     } cursor-pointer`}
                   >
-                    <td className="border p-2 text-center relative">
+                    <td
+                      className="border p-2 text-center relative"
+                      style={strikeStyle}
+                    >
                       {isNewlyAdded && (
                         <div className="absolute -top-1 -left-1">
                           <NewBadge className="w-8 h-8" />
@@ -315,20 +362,31 @@ export function DetailItemsDisplay({
                     </td>
                     <td
                       className={`border p-2 ${isNewlyAdded || isAnimating ? "" : getKadarColor(item.kadar)}`}
+                      style={strikeStyle}
                     >
                       {item.kadar.toUpperCase()}
                     </td>
-                    <td className={`border p-2 ${getWarnaColor(item.warna)}`}>
+                    <td
+                      className={`border p-2 ${getWarnaColor(item.warna)}`}
+                      style={strikeStyle}
+                    >
                       {getWarnaLabel(item.warna)}
                     </td>
-                    <td className="border p-2">
+                    <td className="border p-2" style={strikeStyle}>
                       {ukuranDisplay.showUnit
                         ? `${ukuranDisplay.value} cm`
                         : ukuranDisplay.value}
                     </td>
-                    <td className="border p-2">{item.berat}</td>
-                    <td className="border p-2">{item.pcs}</td>
-                    <td className="border p-2 w-[200px] min-w-[200px] max-w-[200px]">
+                    <td className="border p-2" style={strikeStyle}>
+                      {item.berat}
+                    </td>
+                    <td className="border p-2" style={strikeStyle}>
+                      {item.pcs}
+                    </td>
+                    <td
+                      className="border p-2 w-[200px] min-w-[200px] max-w-[200px]"
+                      style={strikeStyle}
+                    >
                       <div
                         className={`truncate ${item.notes ? "cursor-pointer hover:text-gray-700" : ""}`}
                         onClick={(e) => {
@@ -375,18 +433,28 @@ export function DetailItemsDisplay({
                               <Copy className="w-3 h-3" />
                             </Button>
                           )}
-                          {onDelete && (
+                          {(onDelete || onToggleDelete) && (
                             <Button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onDelete(item.id);
+                                if (onToggleDelete) {
+                                  onToggleDelete(item.id);
+                                } else if (onDelete) {
+                                  onDelete(item.id);
+                                }
                               }}
-                              variant="destructive"
+                              variant={
+                                isPendingDelete ? "outline" : "destructive"
+                              }
                               size="sm"
                               className="h-6 px-2 text-xs"
                               disabled={editingDetailId !== null && !isEditing}
                             >
-                              <Trash2 className="w-3 h-3" />
+                              {isPendingDelete ? (
+                                <RotateCcw className="w-3 h-3" />
+                              ) : (
+                                <Trash2 className="w-3 h-3" />
+                              )}
                             </Button>
                           )}
                         </div>

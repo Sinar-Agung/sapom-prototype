@@ -1,23 +1,65 @@
-import {
-  getLabelFromValue,
-  JENIS_PRODUK_OPTIONS,
-  NAMA_BASIC_OPTIONS,
-  NAMA_PRODUK_OPTIONS,
-} from "@/app/data/order-data";
-import { Order } from "@/app/types/order";
+import { EntityReference, Order } from "@/app/types/order";
 import { Request } from "@/app/types/request";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Badge } from "./ui/badge";
+import { OrderCard } from "./order-card";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
-interface ETACalendarProps {
-  userRole: "sales" | "jb";
+function requestToOrder(request: Request): Order {
+  const pabrik: EntityReference =
+    typeof request.pabrik === "string"
+      ? { id: "", name: request.pabrik }
+      : (request.pabrik as EntityReference) || { id: "", name: "Unknown" };
+  return {
+    id: request.id,
+    PONumber: "",
+    requestNo: request.requestNo,
+    requestId: request.id,
+    sales: request.createdBy,
+    atasNama:
+      typeof request.namaPelanggan === "string"
+        ? request.namaPelanggan
+        : (request.namaPelanggan as EntityReference)?.name || "",
+    createdDate: request.timestamp,
+    createdBy: request.createdBy || "",
+    updatedDate: request.updatedDate,
+    jbId: "",
+    branchCode: request.branchCode,
+    pabrik,
+    kategoriBarang: request.kategoriBarang,
+    jenisProduk: request.jenisProduk,
+    namaProduk: request.namaProduk || "",
+    namaBasic: request.namaBasic || "",
+    waktuKirim: request.waktuKirim || "",
+    customerExpectation: request.customerExpectation || "",
+    detailItems: request.detailItems || [],
+    status: request.status as any,
+    photoId: request.photoId,
+    viewedBy: request.viewedBy || [],
+    rejectionReason: request.rejectionReason,
+  };
 }
 
-export function ETACalendar({ userRole }: ETACalendarProps) {
+interface ETACalendarProps {
+  userRole: "sales" | "jb";
+  currentUser?: string;
+  onSeeDetail?: (order: Order) => void;
+  onUpdateOrder?: (order: Order) => void;
+  onEditOrder?: (order: Order) => void;
+  onCancelOrder?: (id: string) => void;
+  onDuplicateOrder?: (order: Order) => void;
+}
+
+export function ETACalendar({
+  userRole,
+  currentUser,
+  onSeeDetail,
+  onUpdateOrder,
+  onEditOrder,
+  onCancelOrder,
+  onDuplicateOrder,
+}: ETACalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -30,7 +72,8 @@ export function ETACalendar({ userRole }: ETACalendarProps) {
       localStorage.getItem("requests") ?? "[]",
     );
     const orders: Order[] = JSON.parse(localStorage.getItem("orders") ?? "[]");
-    const currentUser =
+    const user =
+      currentUser ||
       sessionStorage.getItem("username") ||
       localStorage.getItem("username") ||
       "";
@@ -44,7 +87,7 @@ export function ETACalendar({ userRole }: ETACalendarProps) {
         r.status === "Ordered"
       )
         return false;
-      if (userRole === "sales" && r.createdBy !== currentUser) return false;
+      if (userRole === "sales" && r.createdBy !== user) return false;
       return true;
     });
 
@@ -58,33 +101,38 @@ export function ETACalendar({ userRole }: ETACalendarProps) {
         o.status === "Rejected"
       )
         return false;
-      if (userRole === "sales" && o.sales !== currentUser) return false;
+      if (userRole === "sales" && o.sales !== user) return false;
       return true;
     });
 
     // Build a date -> items map
     const map: Record<string, { requests: Request[]; orders: Order[] }> = {};
     const allItems: Array<
-      | { type: "request"; item: Request; eta: string }
-      | { type: "order"; item: Order; eta: string }
+      | { type: "request"; item: Request; eta: string; orderData: Order }
+      | { type: "order"; item: Order; eta: string; orderData: Order }
     > = [];
 
     for (const r of activeRequests) {
       const dateKey = r.waktuKirim.split("T")[0];
       if (!map[dateKey]) map[dateKey] = { requests: [], orders: [] };
       map[dateKey].requests.push(r);
-      allItems.push({ type: "request", item: r, eta: dateKey });
+      allItems.push({
+        type: "request",
+        item: r,
+        eta: dateKey,
+        orderData: requestToOrder(r),
+      });
     }
 
     for (const o of activeOrders) {
       const dateKey = o.waktuKirim.split("T")[0];
       if (!map[dateKey]) map[dateKey] = { requests: [], orders: [] };
       map[dateKey].orders.push(o);
-      allItems.push({ type: "order", item: o, eta: dateKey });
+      allItems.push({ type: "order", item: o, eta: dateKey, orderData: o });
     }
 
     return { etaMap: map, items: allItems };
-  }, [userRole]);
+  }, [userRole, currentUser]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -118,17 +166,7 @@ export function ETACalendar({ userRole }: ETACalendarProps) {
     ? items.filter((i) => i.eta === selectedDate)
     : [];
 
-  const getProductName = (item: Request | Order) => {
-    const jenisProdukLabel = getLabelFromValue(
-      JENIS_PRODUK_OPTIONS,
-      item.jenisProduk,
-    );
-    const productNameLabel =
-      item.kategoriBarang === "basic"
-        ? getLabelFromValue(NAMA_BASIC_OPTIONS, item.namaBasic)
-        : getLabelFromValue(NAMA_PRODUK_OPTIONS, item.namaProduk);
-    return `${jenisProdukLabel} ${productNameLabel}`;
-  };
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
@@ -256,46 +294,33 @@ export function ETACalendar({ userRole }: ETACalendarProps) {
             </p>
           ) : (
             <div className="space-y-2">
-              {selectedItems.map((entry, idx) => {
-                const isRequest = entry.type === "request";
-                const item = entry.item;
-                const productName = getProductName(item);
-                const status = item.status;
-                const number = isRequest
-                  ? (item as Request).requestNo
-                  : (item as Order).PONumber;
-
-                return (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between gap-3 p-2 rounded-lg border text-sm"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <Badge
-                          variant="secondary"
-                          className={
-                            isRequest
-                              ? "bg-orange-100 text-orange-700"
-                              : "bg-blue-100 text-blue-700"
-                          }
-                        >
-                          {isRequest ? "Request" : "Order"}
-                        </Badge>
-                        <span className="font-mono text-xs text-gray-600">
-                          {number}
-                        </span>
-                      </div>
-                      <p className="font-medium truncate">{productName}</p>
-                    </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${getStatusBadgeClasses(status)}`}
-                    >
-                      {status}
-                    </span>
-                  </div>
-                );
-              })}
+              {selectedItems.map((entry) => (
+                <OrderCard
+                  key={entry.orderData.id}
+                  order={entry.orderData}
+                  isExpanded={expandedId === entry.orderData.id}
+                  onToggleExpand={() =>
+                    setExpandedId(
+                      expandedId === entry.orderData.id
+                        ? null
+                        : entry.orderData.id,
+                    )
+                  }
+                  userRole={userRole}
+                  currentUser={
+                    currentUser ||
+                    sessionStorage.getItem("username") ||
+                    localStorage.getItem("username") ||
+                    ""
+                  }
+                  onSeeDetail={onSeeDetail}
+                  onUpdateOrder={onUpdateOrder}
+                  onEditOrder={onEditOrder}
+                  onCancelOrder={onCancelOrder}
+                  onDuplicateOrder={onDuplicateOrder}
+                  showSalesName={userRole === "jb"}
+                />
+              ))}
             </div>
           )}
         </Card>

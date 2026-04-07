@@ -7,12 +7,12 @@ import {
   PABRIK_OPTIONS,
   getLabelFromValue,
 } from "@/app/data/order-data";
-import { Order, OrderShipping } from "@/app/types/order";
-import { Request } from "@/app/types/request";
-import { getImage } from "@/app/utils/image-storage";
+import { Order, OrderRevision, OrderShipping } from "@/app/types/order";
+import { DetailBarangItem, Request } from "@/app/types/request";
+import { useImageMap } from "@/app/utils/image-storage";
 import { notifyOrderStatusChanged } from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
+import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -22,9 +22,26 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  X,
+  XCircle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { DetailItemsTable } from "./ui/detail-items-table";
@@ -38,6 +55,7 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { ProductHeader } from "./ui/product-header";
 import { Textarea } from "./ui/textarea";
 
 // Image mapping for Nama Basic
@@ -82,6 +100,14 @@ export function OrderDetails({
     Set<number>
   >(new Set());
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
+  const [rowDecisions, setRowDecisions] = useState<
+    Record<string, "accept" | "reject">
+  >({});
+  const [etaDecision, setEtaDecision] = useState<"accept" | null>(null);
+  const [photoDecision, setPhotoDecision] = useState<"accept" | null>(null);
+  const [showRejectReasonDialog, setShowRejectReasonDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectContext, setRejectContext] = useState<string>("");
 
   useEffect(() => {
     if (order) setCurrentOrder(order);
@@ -89,6 +115,11 @@ export function OrderDetails({
 
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [pendingAction, setPendingAction] = useState<{
+    label: string;
+    description: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [showShippingDialog, setShowShippingDialog] = useState(false);
   const [shippingPcs, setShippingPcs] = useState<Record<string, string>>({});
   const userRole = (sessionStorage.getItem("userRole") ||
@@ -145,14 +176,49 @@ export function OrderDetails({
     const idx = allOrders.findIndex((o) => o.id === currentOrder.id);
     if (idx === -1) return;
 
-    // Mark approval for the current user's role
+    // Apply per-row decisions when there are any
+    if (Object.keys(rowDecisions).length > 0) {
+      const lastRevision =
+        currentOrder.revisionHistory?.[currentOrder.revisionHistory.length - 1];
+      if (lastRevision?.previousValues.detailItems) {
+        const pairs = buildSortedPairs(
+          lastRevision.previousValues.detailItems,
+          allOrders[idx].detailItems,
+        );
+        const finalItems: DetailBarangItem[] = [];
+        for (const { orig, prop, pairKey } of pairs) {
+          const decision = rowDecisions[pairKey];
+          if (!prop) {
+            // Deleted row — keep original only if user rejected the deletion
+            if (decision === "reject" && orig) finalItems.push(orig);
+          } else if (!orig) {
+            // New row — include only if user accepted it
+            if (decision === "accept") finalItems.push(prop);
+          } else {
+            // Modified row — rejected means remove the row entirely
+            if (decision !== "reject")
+              finalItems.push(decision === "accept" ? prop : orig);
+          }
+        }
+        allOrders[idx].detailItems = finalItems;
+      }
+    }
+
+    // Mark approval for the current user's role, and save sales row decisions for JB visibility
     if (userRole === "jb") {
       allOrders[idx].jbApproved = true;
     } else if (userRole === "sales") {
       allOrders[idx].salesApproved = true;
+      // Persist row-level decisions so JB can see which rows sales rejected
+      if (Object.keys(rowDecisions).length > 0) {
+        const revisions = allOrders[idx].revisionHistory;
+        if (revisions && revisions.length > 0) {
+          revisions[revisions.length - 1].salesRowDecisions = { ...rowDecisions };
+        }
+      }
     }
 
-    // Only move to Order Revised when both have approved
+    // Only move to Order Revised when both have approved (sequential: Sales first, then JB)
     if (allOrders[idx].jbApproved && allOrders[idx].salesApproved) {
       allOrders[idx].status = "Order Revised";
       allOrders[idx].updatedDate = Date.now();
@@ -163,18 +229,23 @@ export function OrderDetails({
         "Both parties approved. Order is now ready for production.",
       );
     } else {
+      // Sales just submitted: advance to Pending JB Review
+      if (userRole === "sales") {
+        allOrders[idx].status = "Pending JB Review";
+      }
       allOrders[idx].updatedDate = Date.now();
       allOrders[idx].updatedBy = currentUser;
       localStorage.setItem("orders", JSON.stringify(allOrders));
       setCurrentOrder({ ...allOrders[idx] });
       const waitingFor = userRole === "jb" ? "Sales" : "JB";
-      toast.success(
-        `Approved. Waiting for ${waitingFor} to also approve before the order is confirmed.`,
-      );
+      toast.success(`Review submitted. Awaiting ${waitingFor} review.`);
     }
   };
 
-  const handleRejectSupplierRevision = () => {
+  const handleRejectSupplierRevision = (
+    reason: string = "",
+    context: string = "",
+  ) => {
     const savedOrders = localStorage.getItem("orders");
     if (!savedOrders) return;
     const allOrders: Order[] = JSON.parse(savedOrders);
@@ -184,7 +255,6 @@ export function OrderDetails({
     const revisions = existing.revisionHistory || [];
     const lastRevision = revisions[revisions.length - 1];
     if (lastRevision) {
-      // Revert the order to the previous values before the supplier's proposed change
       allOrders[idx] = {
         ...existing,
         detailItems:
@@ -200,19 +270,35 @@ export function OrderDetails({
         namaBasic: lastRevision.previousValues.namaBasic || existing.namaBasic,
         photoId: lastRevision.previousValues.photoId || existing.photoId,
         revisionHistory: revisions.slice(0, -1),
-        status: "Viewed",
+        status: "Cancelled",
         updatedDate: Date.now(),
         updatedBy: currentUser,
+        ...(() => {
+          const parts = [
+            context.trim() ? `Rejected part: ${context.trim()}` : null,
+            reason.trim() ? `Reason: ${reason.trim()}` : null,
+          ].filter(Boolean);
+          return parts.length ? { revisionNotes: parts.join(" | ") } : {};
+        })(),
       };
     } else {
-      allOrders[idx].status = "Viewed";
+      allOrders[idx].status = "Cancelled";
     }
     localStorage.setItem("orders", JSON.stringify(allOrders));
     setCurrentOrder(allOrders[idx]);
-    toast.success(
-      "Supplier revision rejected. Order reverted to original values.",
-    );
+    toast.success("Supplier revision rejected. Order has been cancelled.");
     setTimeout(() => onBack(), 500);
+  };
+
+  const handleConfirmReject = () => {
+    if (!rejectReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+    setShowRejectReasonDialog(false);
+    handleRejectSupplierRevision(rejectReason, rejectContext);
+    setRejectReason("");
+    setRejectContext("");
   };
 
   const handleSubmitShipping = () => {
@@ -288,14 +374,15 @@ export function OrderDetails({
     }
   }, [order]);
 
-  const formatDate = (isoString: string) => {
-    if (!isoString) return "";
-    return new Date(isoString).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  // Collect all photo IDs referenced by this order (current + all revision history)
+  const allOrderPhotoIds = [
+    currentOrder.photoId,
+    ...(currentOrder.revisionHistory || []).flatMap((r: OrderRevision) => [
+      r.previousValues?.photoId,
+      r.changes?.photoId,
+    ]),
+  ].filter(Boolean) as string[];
+  const imageMap = useImageMap(allOrderPhotoIds);
 
   const formatTimestamp = (timestamp: number) => {
     if (!timestamp) return "";
@@ -321,10 +408,59 @@ export function OrderDetails({
     return `${dateStr}, ${timeStr}`;
   };
 
+  const compareItems = (a: DetailBarangItem, b: DetailBarangItem) => {
+    const kadarA = parseInt(a.kadar.replace(/[^0-9]/g, "")) || 0;
+    const kadarB = parseInt(b.kadar.replace(/[^0-9]/g, "")) || 0;
+    if (kadarA !== kadarB) return kadarA - kadarB;
+    if (a.warna !== b.warna) return a.warna.localeCompare(b.warna);
+    if (a.ukuran !== b.ukuran) return a.ukuran.localeCompare(b.ukuran);
+    return parseFloat(a.berat || "0") - parseFloat(b.berat || "0");
+  };
+
+  const sortDetailItems = (items: DetailBarangItem[]): DetailBarangItem[] =>
+    [...items].sort(compareItems);
+
+  const buildSortedPairs = (
+    origItems: DetailBarangItem[],
+    propItems: DetailBarangItem[],
+  ) => {
+    const propById = new Map(propItems.map((item) => [item.id, item]));
+    const origById = new Map(origItems.map((item) => [item.id, item]));
+
+    const pairs: Array<{
+      orig: DetailBarangItem | undefined;
+      prop: DetailBarangItem | undefined;
+      pairKey: string;
+    }> = [];
+
+    // Pair each original item with its proposed counterpart (same ID), or mark as deleted
+    for (const orig of origItems) {
+      pairs.push({
+        orig,
+        prop: propById.get(orig.id),
+        pairKey: orig.id,
+      });
+    }
+
+    // New items added by supplier (no matching original ID)
+    for (const prop of propItems) {
+      if (!origById.has(prop.id)) {
+        pairs.push({
+          orig: undefined,
+          prop,
+          pairKey: `new_${prop.id}`,
+        });
+      }
+    }
+
+    return pairs.sort((a, b) =>
+      compareItems(a.prop ?? a.orig!, b.prop ?? b.orig!),
+    );
+  };
+
   const getOrderImage = () => {
-    // First, check if there's a photoId and retrieve image from storage
     if (currentOrder.photoId) {
-      const storedImage = getImage(currentOrder.photoId);
+      const storedImage = imageMap.get(currentOrder.photoId);
       if (storedImage) {
         return storedImage;
       }
@@ -335,6 +471,8 @@ export function OrderDetails({
     }
     return italySanta;
   };
+
+  if (!order) return null;
 
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
@@ -395,112 +533,63 @@ export function OrderDetails({
 
   return (
     <div className="min-h-screen pb-20 md:pb-4">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          className="h-8 w-8 p-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold">
-            {reviewMode ? "Review Order Revision" : "Order Details"}
-          </h1>
-          <p className="text-sm text-gray-600 font-mono font-semibold">
-            {order.PONumber}
-          </p>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-white -mx-4 px-4 pt-4 pb-3 border-b border-gray-100 shadow-sm mb-4">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="h-8 w-8 p-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold">
+              {reviewMode ? "Review Order Revision" : "Order Details"}
+            </h1>
+            <p className="text-sm text-gray-600 font-mono font-semibold truncate">
+              {order.PONumber}
+            </p>
+          </div>
+          <span
+            className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 ${getStatusBadgeClasses(currentOrder.status)}`}
+          >
+            {currentOrder.status}
+          </span>
         </div>
-        {/* <span
-          className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(currentOrder.status)}`}
-        >
-          {currentOrder.status}
-        </span> */}
       </div>
 
       {/* Combined Order Details Card */}
       <Card className="p-4 mb-4">
-        <div className="flex gap-4">
-          {/* Product Image */}
-          <div className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
-            <img
-              src={getOrderImage()}
-              alt={productNameLabel}
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          {/* Order Info */}
-          <div className="flex-1">
-            <h2 className="text-lg font-bold mb-2">
-              {jenisProdukLabel} {productNameLabel}
-            </h2>
-            <div className="grid grid-cols-[minmax(160px,auto)_auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
-              {userRole !== "supplier" && (
-                <>
-                  <span className="text-gray-600">Created By</span>
-                  <span>:</span>
-                  <span className="font-bold">
-                    {getFullNameFromUsername(order.jbId)}
-                  </span>
-                </>
-              )}
-              <span className="text-gray-600">PO Number</span>
-              <span>:</span>
-              <span className="font-mono font-semibold text-blue-700">
-                {order.PONumber}
-              </span>
-              {userRole !== "supplier" && (
-                <>
-                  <span className="text-gray-600">Request No</span>
-                  <span>:</span>
-                  {order.requestNo ? (
-                    <a
-                      onClick={() => setShowRequestDialog(true)}
-                      className="font-mono text-blue-600 underline hover:text-blue-800 cursor-pointer"
-                    >
-                      {order.requestNo}
-                    </a>
-                  ) : (
-                    <span className="font-mono">-</span>
-                  )}
-                </>
-              )}
-
-              <span className="text-gray-600">Created</span>
-              <span>:</span>
-              <span>{formatTimestamp(order.createdDate)}</span>
-              {order.branchCode && (
-                <>
-                  <span className="text-gray-600">Branch</span>
-                  <span>:</span>
-                  <span className="font-medium">
-                    {getBranchName(order.branchCode)}
-                  </span>
-                </>
-              )}
-              <span className="text-gray-600">Supplier</span>
-              <span>:</span>
-              <span className="font-medium">{pabrikLabel}</span>
-              <span className="text-gray-600">ETA</span>
-              <span>:</span>
-              <span>{formatDate(order.waktuKirim)}</span>
-              <span className="text-gray-600">Status</span>
-              <span>:</span>
-              <span
-                className={`inline-block text-xs ${getStatusBadgeClasses(currentOrder.status)} px-2 py-1 rounded-full font-medium w-fit`}
-              >
-                {currentOrder.status}
-              </span>
-            </div>
-          </div>
-        </div>
+        <ProductHeader
+          imageSrc={getOrderImage() as string}
+          imageAlt={productNameLabel}
+          title={`${jenisProdukLabel} ${productNameLabel}`}
+          visibleAttributes={[
+            "createdBy",
+            "poNumber",
+            "branch",
+            "supplier",
+            "eta",
+            "status",
+            "created",
+          ]}
+          status={currentOrder.status}
+          poNumber={order.PONumber}
+          createdByUsername={userRole !== "supplier" ? order.jbId : undefined}
+          branchCode={order.branchCode}
+          supplier={pabrikLabel}
+          eta={order.waktuKirim}
+          created={order.createdDate}
+          onOriginalRequest={() => setShowRequestDialog(true)}
+          hasRelatedRequest={!!relatedRequest}
+        />
 
         {/* Supplier Revision Review - shown for Sales/JB when supplier has proposed changes */}
         {(userRole === "sales" || userRole === "jb") &&
-          currentOrder.status === "Change Pending Approval" &&
+          (currentOrder.status === "Pending Sales Review" ||
+            currentOrder.status === "Pending JB Review") &&
           currentOrder.revisionHistory &&
           currentOrder.revisionHistory.length > 0 &&
           (() => {
@@ -511,6 +600,59 @@ export function OrderDetails({
             const etaChanged =
               lastRevision.previousValues.waktuKirim !==
               currentOrder.waktuKirim;
+
+            // Photo change at outer level so allItemsDecided can reference it
+            const photoChangedOuter =
+              lastRevision.previousValues.photoId !==
+                lastRevision.changes.photoId &&
+              !!(
+                lastRevision.previousValues.photoId ||
+                lastRevision.changes.photoId
+              );
+
+            // Compute whether every changed row has a decision
+            // For JB or Sales reviewing submitted decisions: use the full supplier proposal
+            const revisedPropItems =
+              lastRevision.changes.detailItems &&
+              (userRole === "jb" || (userRole === "sales" && currentOrder.salesApproved))
+                ? lastRevision.changes.detailItems
+                : currentOrder.detailItems;
+            const revisedPairs = lastRevision.previousValues.detailItems
+              ? buildSortedPairs(
+                  lastRevision.previousValues.detailItems,
+                  revisedPropItems,
+                )
+              : [];
+            const salesDecisionsOuter = lastRevision.salesRowDecisions ?? {};
+            const allItemsDecided =
+              (!etaChanged || etaDecision === "accept") &&
+              (!photoChangedOuter || photoDecision === "accept") &&
+              revisedPairs
+                .filter(({ orig, prop, pairKey }) => {
+                  // Sales-rejected rows don't need a JB decision
+                  if (salesDecisionsOuter[pairKey] === "reject") return false;
+                  const del = !!orig && !prop;
+                  const nw = !orig && !!prop;
+                  return (
+                    nw ||
+                    del ||
+                    (!nw &&
+                      !del &&
+                      (orig!.kadar !== prop!.kadar ||
+                        orig!.warna !== prop!.warna ||
+                        orig!.ukuran !== prop!.ukuran ||
+                        (orig!.berat || "") !== (prop!.berat || "") ||
+                        orig!.pcs !== prop!.pcs))
+                  );
+                })
+                .every(({ pairKey }) => !!rowDecisions[pairKey]);
+
+            // Who can take action: Sales at Pending Sales Review, JB at Pending JB Review
+            const canAct =
+              (currentOrder.status === "Pending Sales Review" &&
+                userRole === "sales") ||
+              (currentOrder.status === "Pending JB Review" &&
+                userRole === "jb");
 
             return (
               <Card className="p-4 mb-4 border-orange-300 bg-orange-50">
@@ -575,7 +717,7 @@ export function OrderDetails({
                     <p className="text-xs font-semibold text-gray-700 mb-1">
                       Proposed ETA Change:
                     </p>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm flex-wrap">
                       <span className="text-red-600 line-through">
                         {lastRevision.previousValues.waktuKirim
                           ? new Date(
@@ -591,6 +733,37 @@ export function OrderDetails({
                             ).toLocaleDateString("id-ID")
                           : "-"}
                       </span>
+                      <div className="flex gap-1 ml-2">
+                        {canAct && (
+                          <>
+                            <button
+                              onClick={() =>
+                                setEtaDecision(
+                                  etaDecision === "accept" ? null : "accept",
+                                )
+                              }
+                              title="Accept ETA change"
+                              className={`h-6 w-6 rounded flex items-center justify-center transition-colors ${
+                                etaDecision === "accept"
+                                  ? "bg-green-600 text-white"
+                                  : "border border-green-600 text-green-600 hover:bg-green-50"
+                              }`}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRejectContext("ETA change");
+                                setShowRejectReasonDialog(true);
+                              }}
+                              title="Reject ETA change (will cancel order)"
+                              className="h-6 w-6 rounded flex items-center justify-center transition-colors border border-red-500 text-red-500 hover:bg-red-50"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -611,10 +784,11 @@ export function OrderDetails({
                   lastRevision.changes.photoId) &&
                   (() => {
                     const beforeImg = lastRevision.previousValues.photoId
-                      ? getImage(lastRevision.previousValues.photoId)
+                      ? (imageMap.get(lastRevision.previousValues.photoId) ??
+                        null)
                       : null;
                     const afterImg = lastRevision.changes.photoId
-                      ? getImage(lastRevision.changes.photoId)
+                      ? (imageMap.get(lastRevision.changes.photoId) ?? null)
                       : null;
                     const photoChanged =
                       lastRevision.previousValues.photoId !==
@@ -655,6 +829,35 @@ export function OrderDetails({
                             className="w-36 h-36 object-cover rounded border"
                           />
                         )}
+                        {photoChanged && canAct && (
+                          <div className="flex gap-1 mt-2">
+                            <button
+                              onClick={() =>
+                                setPhotoDecision(
+                                  photoDecision === "accept" ? null : "accept",
+                                )
+                              }
+                              title="Accept photo change"
+                              className={`h-6 w-6 rounded flex items-center justify-center transition-colors ${
+                                photoDecision === "accept"
+                                  ? "bg-green-600 text-white"
+                                  : "border border-green-600 text-green-600 hover:bg-green-50"
+                              }`}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRejectContext("Photo change");
+                                setShowRejectReasonDialog(true);
+                              }}
+                              title="Reject photo change (will cancel order)"
+                              className="h-6 w-6 rounded flex items-center justify-center transition-colors border border-red-500 text-red-500 hover:bg-red-50"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -662,183 +865,414 @@ export function OrderDetails({
                 {lastRevision.previousValues.detailItems &&
                   (() => {
                     const origItems = lastRevision.previousValues.detailItems!;
-                    const propItems = currentOrder.detailItems;
-                    const maxLen = Math.max(origItems.length, propItems.length);
-                    const diffCell = "bg-amber-200";
-                    const getChanged = (
-                      oi: (typeof origItems)[0] | undefined,
-                      pi: (typeof propItems)[0] | undefined,
-                    ) =>
-                      !oi || !pi
-                        ? {}
-                        : {
-                            kadar: oi.kadar !== pi.kadar,
-                            warna: oi.warna !== pi.warna,
-                            ukuran: oi.ukuran !== pi.ukuran,
-                            berat: (oi.berat || "") !== (pi.berat || ""),
-                            pcs: oi.pcs !== pi.pcs,
-                          };
+                    // When JB reviews or Sales views their submitted review, show the full supplier
+                    // proposal (before sales filtered it) so all rows are visible with sales decisions.
+                    const useFullProposal =
+                      lastRevision.changes.detailItems &&
+                      (userRole === "jb" ||
+                        (userRole === "sales" && currentOrder.salesApproved));
+                    const propItems = useFullProposal
+                      ? lastRevision.changes.detailItems!
+                      : currentOrder.detailItems;
+                    const sortedPairs = buildSortedPairs(origItems, propItems);
+                    const salesDecisions = lastRevision.salesRowDecisions ?? {};
                     return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                        <div>
-                          <p className="text-xs font-semibold text-gray-700 mb-1">
-                            Original Items:
-                          </p>
-                          <div className="overflow-auto max-h-[200px]">
-                            <table className="w-full border-collapse border text-xs">
-                              <thead className="bg-gray-100 sticky top-0">
-                                <tr>
-                                  <th className="border p-1">#</th>
-                                  <th className="border p-1">Kadar</th>
-                                  <th className="border p-1">Warna</th>
-                                  <th className="border p-1">Ukuran</th>
-                                  <th className="border p-1">Berat</th>
-                                  <th className="border p-1">Pcs</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {Array.from({ length: maxLen }, (_, idx) => {
-                                  const item = origItems[idx];
-                                  if (!item) return null;
-                                  const propItem = propItems[idx];
-                                  const changed = getChanged(item, propItem);
-                                  const rowBg = propItem ? "" : "bg-red-100";
-                                  const ud = getUkuranDisplay(item.ukuran);
-                                  return (
-                                    <tr key={idx} className={rowBg}>
-                                      <td className="border p-1 text-center">
-                                        {idx + 1}
-                                      </td>
-                                      <td
-                                        className={`border p-1 font-medium ${changed.kadar ? diffCell : ""}`}
-                                      >
-                                        {item.kadar.toUpperCase()}
-                                      </td>
-                                      <td
-                                        className={`border p-1 ${changed.warna ? diffCell : getWarnaColor(item.warna)}`}
-                                      >
-                                        {getWarnaLabel(item.warna)}
-                                      </td>
-                                      <td
-                                        className={`border p-1 ${changed.ukuran ? diffCell : ""}`}
-                                      >
-                                        {ud.showUnit
-                                          ? `${ud.value} cm`
-                                          : ud.value}
-                                      </td>
-                                      <td
-                                        className={`border p-1 ${changed.berat ? diffCell : ""}`}
-                                      >
-                                        {item.berat || "-"}
-                                      </td>
-                                      <td
-                                        className={`border p-1 ${changed.pcs ? diffCell : ""}`}
-                                      >
-                                        {item.pcs}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                      <div className="mb-4">
+                        <p className="text-xs font-semibold text-gray-700 mb-1">
+                          Item Changes:
+                        </p>
+                        <div className="overflow-auto max-h-[280px]">
+                          <table className="w-full border-collapse border text-xs">
+                            <thead className="bg-orange-50 sticky top-0">
+                              <tr>
+                                <th className="border p-1 w-6">#</th>
+                                <th className="border p-1">Kadar</th>
+                                <th className="border p-1">Warna</th>
+                                <th className="border p-1">Ukuran</th>
+                                <th className="border p-1">Berat</th>
+                                <th className="border p-1">Pcs</th>
+                                <th className="border p-1">Supplier's change</th>
+                                <th className="border p-1">Sales's choice</th>
+                                <th className="border p-1"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sortedPairs.map(
+                                ({ orig, prop, pairKey }, displayIdx) => {
+                                  const decision = rowDecisions[pairKey];
+                                  // Effective sales decision: in-progress local decision (while reviewing) OR saved decision (after submission)
+                                  const effectiveSalesDecision =
+                                    (canAct && userRole === "sales")
+                                      ? decision
+                                      : salesDecisions[pairKey];
+                                  // Whether a sales decision is visible (during review by sales, or after submission for JB/sales)
+                                  const salesDecisionMade =
+                                    (canAct && userRole === "sales" && !!decision) ||
+                                    ((userRole === "jb" || (userRole === "sales" && currentOrder.salesApproved)) &&
+                                      !!salesDecisions[pairKey]);
+                                  const salesRejectedRow =
+                                    salesDecisionMade &&
+                                    effectiveSalesDecision === "reject";
+                                  const isDeleted = !!orig && !prop;
+                                  const isNew = !orig && !!prop;
+                                  const kadarChanged =
+                                    !isNew &&
+                                    !isDeleted &&
+                                    orig!.kadar !== prop!.kadar;
+                                  const warnaChanged =
+                                    !isNew &&
+                                    !isDeleted &&
+                                    orig!.warna !== prop!.warna;
+                                  const ukuranChanged =
+                                    !isNew &&
+                                    !isDeleted &&
+                                    orig!.ukuran !== prop!.ukuran;
+                                  const beratChanged =
+                                    !isNew &&
+                                    !isDeleted &&
+                                    (orig!.berat || "") !== (prop!.berat || "");
+                                  const pcsChanged =
+                                    !isNew &&
+                                    !isDeleted &&
+                                    orig!.pcs !== prop!.pcs;
+                                  const hasChange =
+                                    isNew ||
+                                    isDeleted ||
+                                    kadarChanged ||
+                                    warnaChanged ||
+                                    ukuranChanged ||
+                                    beratChanged ||
+                                    pcsChanged;
+                                  const isAccepted = decision === "accept";
+                                  const isRejected = decision === "reject";
+                                  // Whether sales already accepted this row (visible to JB and Sales after submission)
+                                  const salesAcceptedRow =
+                                    salesDecisionMade &&
+                                    effectiveSalesDecision === "accept";
 
-                        <div>
-                          <p className="text-xs font-semibold text-green-700 mb-1">
-                            Proposed Items:
-                          </p>
-                          <div className="overflow-auto max-h-[200px]">
-                            <table className="w-full border-collapse border text-xs">
-                              <thead className="bg-green-50 sticky top-0">
-                                <tr>
-                                  <th className="border p-1">#</th>
-                                  <th className="border p-1">Kadar</th>
-                                  <th className="border p-1">Warna</th>
-                                  <th className="border p-1">Ukuran</th>
-                                  <th className="border p-1">Berat</th>
-                                  <th className="border p-1">Pcs</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {Array.from({ length: maxLen }, (_, idx) => {
-                                  const item = propItems[idx];
-                                  if (!item) return null;
-                                  const origItem = origItems[idx];
-                                  const changed = getChanged(origItem, item);
-                                  const rowBg = origItem ? "" : "bg-green-100";
-                                  const ud = getUkuranDisplay(item.ukuran);
+                                  // User confirmed the row will be removed:
+                                  // - deleted by supplier and user accepted the deletion
+                                  // - new row added by supplier that user rejected
+                                  // - updated row that user rejected (row is dropped)
+                                  const isConfirmedRemoval =
+                                    salesRejectedRow ||
+                                    (isDeleted && isAccepted) ||
+                                    (isNew && isRejected) ||
+                                    (!isNew && !isDeleted && isRejected);
+
+                                  // Any row that should show strikethrough on values:
+                                  // - supplier proposed deletion (any decision state)
+                                  // - new row that user rejected
+                                  // - updated row that user rejected
+                                  const needsStrike =
+                                    isDeleted || isConfirmedRemoval;
+
+                                  // For modified rows that are rejected (or sales-rejected), show the proposed values with strikethrough
+                                  const displayItem =
+                                    salesRejectedRow
+                                      ? (prop ?? orig!)
+                                      : (!isNew && isRejected && orig
+                                          ? orig
+                                          : (prop ?? orig!));
+                                  const origUd = orig
+                                    ? getUkuranDisplay(orig.ukuran)
+                                    : null;
+                                  const displayUd = getUkuranDisplay(
+                                    displayItem.ukuran,
+                                  );
+
+                                  let rowBg = "";
+                                  if (isConfirmedRemoval) rowBg = "bg-red-50";
+                                  else if (isDeleted) rowBg = "bg-red-50";
+                                  else if (salesAcceptedRow) rowBg = "bg-green-50";
+                                  else if (isNew)
+                                    rowBg = isAccepted
+                                      ? "bg-green-100"
+                                      : "bg-green-50";
+                                  else if (!isNew && isRejected)
+                                    rowBg = "bg-amber-50";
+                                  else if (isAccepted) rowBg = "bg-green-50";
+
+                                  const showStrikeLine = isConfirmedRemoval;
+                                  const strikeLineTdStyle = showStrikeLine
+                                    ? {
+                                        backgroundImage:
+                                          "linear-gradient(transparent calc(50% - 1px), #ef4444 calc(50% - 1px), #ef4444 calc(50% + 1px), transparent calc(50% + 1px))",
+                                      }
+                                    : undefined;
+
                                   return (
-                                    <tr key={idx} className={rowBg}>
-                                      <td className="border p-1 text-center">
-                                        {idx + 1}
-                                      </td>
+                                    <tr key={pairKey} className={rowBg}>
+                                      {/* # cell — XCircle when confirmed removal, strikethrough when pending deletion */}
                                       <td
-                                        className={`border p-1 font-medium ${changed.kadar ? diffCell : ""}`}
+                                        className="border p-1 text-center"
+                                        style={strikeLineTdStyle}
                                       >
-                                        {item.kadar.toUpperCase()}
+                                        {isConfirmedRemoval ? (
+                                          <XCircle className="w-3.5 h-3.5 text-red-500 mx-auto" />
+                                        ) : isDeleted ? (
+                                          <span className="line-through text-red-500">
+                                            {displayIdx + 1}
+                                          </span>
+                                        ) : (
+                                          displayIdx + 1
+                                        )}
                                       </td>
+
+                                      {/* Kadar */}
                                       <td
-                                        className={`border p-1 ${changed.warna ? diffCell : getWarnaColor(item.warna)}`}
+                                        className="border p-1 font-medium"
+                                        style={strikeLineTdStyle}
                                       >
-                                        {getWarnaLabel(item.warna)}
+                                        {kadarChanged && !isRejected && (
+                                          <span className="line-through text-red-500 mr-1">
+                                            {orig!.kadar.toUpperCase()}
+                                          </span>
+                                        )}
+                                        <span
+                                          className={`${
+                                            kadarChanged && !isRejected && !salesRejectedRow
+                                              ? "text-green-700 font-semibold"
+                                              : ""
+                                          } ${needsStrike ? "line-through text-red-500" : ""}`}
+                                        >
+                                          {displayItem.kadar.toUpperCase()}
+                                        </span>
                                       </td>
+
+                                      {/* Warna */}
                                       <td
-                                        className={`border p-1 ${changed.ukuran ? diffCell : ""}`}
+                                        className={`border p-1 ${
+                                          !warnaChanged && !needsStrike
+                                            ? getWarnaColor(displayItem.warna)
+                                            : ""
+                                        }`}
+                                        style={strikeLineTdStyle}
                                       >
-                                        {ud.showUnit
-                                          ? `${ud.value} cm`
-                                          : ud.value}
+                                        {warnaChanged && !isRejected && (
+                                          <span className="line-through text-red-500 mr-1">
+                                            {getWarnaLabel(orig!.warna)}
+                                          </span>
+                                        )}
+                                        <span
+                                          className={`${
+                                            warnaChanged && !isRejected && !salesRejectedRow
+                                              ? "text-green-700 font-semibold"
+                                              : ""
+                                          } ${needsStrike ? "line-through text-red-500" : ""}`}
+                                        >
+                                          {getWarnaLabel(displayItem.warna)}
+                                        </span>
                                       </td>
+
+                                      {/* Ukuran */}
                                       <td
-                                        className={`border p-1 ${changed.berat ? diffCell : ""}`}
+                                        className="border p-1"
+                                        style={strikeLineTdStyle}
                                       >
-                                        {item.berat || "-"}
+                                        {ukuranChanged &&
+                                          origUd &&
+                                          !isRejected && (
+                                            <span className="line-through text-red-500 mr-1">
+                                              {origUd.showUnit
+                                                ? `${origUd.value} cm`
+                                                : origUd.value}
+                                            </span>
+                                          )}
+                                        <span
+                                          className={`${
+                                            ukuranChanged && !isRejected && !salesRejectedRow
+                                              ? "text-green-700 font-semibold"
+                                              : ""
+                                          } ${needsStrike ? "line-through text-red-500" : ""}`}
+                                        >
+                                          {displayUd.showUnit
+                                            ? `${displayUd.value} cm`
+                                            : displayUd.value}
+                                        </span>
                                       </td>
+
+                                      {/* Berat */}
                                       <td
-                                        className={`border p-1 ${changed.pcs ? diffCell : ""}`}
+                                        className="border p-1"
+                                        style={strikeLineTdStyle}
                                       >
-                                        {item.pcs}
+                                        {beratChanged && !isRejected && (
+                                          <span className="line-through text-red-500 mr-1">
+                                            {orig!.berat || "-"}
+                                          </span>
+                                        )}
+                                        <span
+                                          className={`${
+                                            beratChanged && !isRejected && !salesRejectedRow
+                                              ? "text-green-700 font-semibold"
+                                              : ""
+                                          } ${needsStrike ? "line-through text-red-500" : ""}`}
+                                        >
+                                          {displayItem.berat || "-"}
+                                        </span>
+                                      </td>
+
+                                      {/* Pcs */}
+                                      <td
+                                        className="border p-1"
+                                        style={strikeLineTdStyle}
+                                      >
+                                        {pcsChanged && !isRejected && (
+                                          <span className="line-through text-red-500 mr-1">
+                                            {orig!.pcs}
+                                          </span>
+                                        )}
+                                        <span
+                                          className={`${
+                                            pcsChanged && !isRejected && !salesRejectedRow
+                                              ? "text-green-700 font-semibold"
+                                              : ""
+                                          } ${needsStrike ? "line-through text-red-500" : ""}`}
+                                        >
+                                          {displayItem.pcs}
+                                        </span>
+                                      </td>
+
+                                      {/* Supplier's change */}
+                                      <td className="border p-1 text-center whitespace-nowrap">
+                                        {isDeleted && (
+                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
+                                            Removed
+                                          </span>
+                                        )}
+                                        {isNew && (
+                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">
+                                            New
+                                          </span>
+                                        )}
+                                        {!isDeleted && !isNew && hasChange && (
+                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
+                                            Updated
+                                          </span>
+                                        )}
+                                        {!hasChange && (
+                                          <span className="text-gray-400">—</span>
+                                        )}
+                                      </td>
+
+                                      {/* Sales's choice */}
+                                      <td className="border p-1 text-center whitespace-nowrap">
+                                        {salesRejectedRow && (
+                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
+                                            ✕ Rejected
+                                          </span>
+                                        )}
+                                        {salesAcceptedRow && (
+                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">
+                                            ✓ Approved
+                                          </span>
+                                        )}
+                                        {!salesRejectedRow && !salesAcceptedRow && (
+                                          <span className="text-gray-400">—</span>
+                                        )}
+                                      </td>
+
+                                      {/* Accept / Reject buttons — only on changed rows, only when canAct, not for sales-rejected rows */}
+                                      <td className="border p-1 text-center whitespace-nowrap">
+                                        {hasChange && canAct && !salesRejectedRow && (
+                                          <div className="flex gap-1 justify-center">
+                                            <button
+                                              onClick={() =>
+                                                setRowDecisions(
+                                                  (
+                                                    prev: Record<
+                                                      string,
+                                                      "accept" | "reject"
+                                                    >,
+                                                  ) => ({
+                                                    ...prev,
+                                                    [pairKey]:
+                                                      prev[pairKey] === "accept"
+                                                        ? (undefined as any)
+                                                        : "accept",
+                                                  }),
+                                                )
+                                              }
+                                              title="Accept this change"
+                                              className={`h-5 w-5 rounded flex items-center justify-center transition-colors ${
+                                                isAccepted
+                                                  ? "bg-green-600 text-white"
+                                                  : "border border-green-600 text-green-600 hover:bg-green-50"
+                                              }`}
+                                            >
+                                              <Check className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                if (isDeleted) {
+                                                  const label = `Removed row #${displayIdx + 1}: ${orig!.kadar} ${orig!.warna} ${orig!.ukuran}`;
+                                                  setRejectContext(label);
+                                                  setShowRejectReasonDialog(
+                                                    true,
+                                                  );
+                                                } else {
+                                                  setRowDecisions(
+                                                    (
+                                                      prev: Record<
+                                                        string,
+                                                        "accept" | "reject"
+                                                      >,
+                                                    ) => ({
+                                                      ...prev,
+                                                      [pairKey]:
+                                                        prev[pairKey] ===
+                                                        "reject"
+                                                          ? (undefined as any)
+                                                          : "reject",
+                                                    }),
+                                                  );
+                                                }
+                                              }}
+                                              title={
+                                                isDeleted
+                                                  ? "Reject this removal (will cancel order)"
+                                                  : "Reject this change"
+                                              }
+                                              className={`h-5 w-5 rounded flex items-center justify-center transition-colors ${
+                                                isRejected
+                                                  ? "bg-red-600 text-white"
+                                                  : "border border-red-500 text-red-500 hover:bg-red-50"
+                                              }`}
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        )}
                                       </td>
                                     </tr>
                                   );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
+                                },
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     );
                   })()}
 
                 <div className="flex gap-3 justify-end">
-                  {/* Only show Reject if user hasn't approved */}
-                  {!(userRole === "jb" && currentOrder.jbApproved) &&
-                    !(userRole === "sales" && currentOrder.salesApproved) && (
-                      <Button
-                        variant="outline"
-                        onClick={handleRejectSupplierRevision}
-                        className="border-red-300 text-red-600 hover:bg-red-50"
-                      >
-                        Reject Revision
-                      </Button>
-                    )}
-                  {/* Only show Approve if current user hasn't already approved */}
-                  {!(userRole === "jb" && currentOrder.jbApproved) &&
-                    !(userRole === "sales" && currentOrder.salesApproved) && (
-                      <Button
-                        onClick={handleApproveSupplierRevision}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        Approve
-                      </Button>
-                    )}
-                  {/* Show waiting message if already approved */}
-                  {((userRole === "jb" && currentOrder.jbApproved) ||
-                    (userRole === "sales" && currentOrder.salesApproved)) && (
-                    <span className="text-sm text-green-700 font-medium self-center">
-                      ✓ You have approved. Waiting for{" "}
-                      {userRole === "jb" ? "Sales" : "JB"} to approve.
+                  {canAct && (
+                    <Button
+                      onClick={handleApproveSupplierRevision}
+                      disabled={!allItemsDecided}
+                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Submit
+                    </Button>
+                  )}
+                  {!canAct && (
+                    <span className="text-sm text-gray-500 italic self-center">
+                      {currentOrder.status === "Pending Sales Review"
+                        ? "Awaiting Sales review…"
+                        : userRole === "sales"
+                          ? "✓ Your review has been submitted. Awaiting JB review."
+                          : "✓ Your review has been submitted. Awaiting JB review."}
                     </span>
                   )}
                 </div>
@@ -847,840 +1281,227 @@ export function OrderDetails({
           })()}
 
         {/* Order Items */}
-        {currentOrder.status !== "Change Pending Approval" && (
-          <div className="border-t pt-4 mt-4">
-            <DetailItemsTable
-              items={order.detailItems}
-              mode="readonly"
-              getKadarColor={getKadarColor}
-              getWarnaColor={getWarnaColor}
-              getWarnaLabel={getWarnaLabel}
-              getUkuranLabel={(ukuran) => {
-                const display = getUkuranDisplay(ukuran);
-                return display.showUnit ? `${display.value} cm` : display.value;
-              }}
-              title="Order Items"
-            />
-          </div>
-        )}
-
-        {/* Revision History - Unified Timeline Panel (all users; suppliers when Order Revised or Change Pending Approval) */}
-        {(userRole !== "supplier" ||
-          currentOrder.status === "Order Revised" ||
-          currentOrder.status === "Change Pending Approval") &&
-          currentOrder.revisionHistory &&
-          currentOrder.revisionHistory.length > 0 && (
+        {currentOrder.status !== "Pending Sales Review" &&
+          currentOrder.status !== "Pending JB Review" &&
+          currentOrder.status !== "Change Pending Approval" && (
             <div className="border-t pt-4 mt-4">
-              <button
-                onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
-                className="w-full flex items-center justify-between hover:bg-gray-50 py-1 rounded-lg transition-colors"
-              >
-                <h3 className="font-semibold text-gray-900">
-                  Revision History
-                </h3>
-                {isRevisionHistoryOpen ? (
-                  <ChevronUp className="w-5 h-5 text-gray-500" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-500" />
-                )}
-              </button>
-
-              {isRevisionHistoryOpen && (
-                <div className="mt-6 relative">
-                  {/* Vertical timeline line */}
-                  <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
-
-                  <div className="flex flex-col">
-                    {/* Initial Version */}
-                    {(() => {
-                      const isExpanded = expandedRevisions.has(-1);
-                      const firstRevision = currentOrder.revisionHistory[0];
-
-                      return (
-                        <div className="flex gap-4 pb-6 order-last">
-                          {/* Left: date/time column */}
-                          <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                            <div className="font-medium text-gray-700">
-                              {new Date(
-                                currentOrder.createdDate,
-                              ).toLocaleDateString("id-ID", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })}
-                            </div>
-                            <div>
-                              {new Date(
-                                currentOrder.createdDate,
-                              ).toLocaleTimeString("id-ID", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Timeline dot */}
-                          <div className="relative flex flex-col items-center">
-                            <div className="w-3 h-3 rounded-full bg-blue-400 border-2 border-white ring-1 ring-blue-400 mt-2 z-10" />
-                          </div>
-
-                          {/* Right: title + collapsible content */}
-                          <div className="flex-1 pb-2">
-                            <button
-                              onClick={() => {
-                                const newExpanded = new Set(expandedRevisions);
-                                if (isExpanded) {
-                                  newExpanded.delete(-1);
-                                } else {
-                                  newExpanded.add(-1);
-                                }
-                                setExpandedRevisions(newExpanded);
-                              }}
-                              className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                            >
-                              <div>
-                                <p className="font-medium text-sm">
-                                  Initial version
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Created by{" "}
-                                  {getFullNameFromUsername(
-                                    currentOrder.createdBy,
-                                  )}
-                                </p>
-                              </div>
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                              )}
-                            </button>
-
-                            {isExpanded && (
-                              <div className="mt-2 border rounded-lg bg-white p-4 text-sm">
-                                <div className="flex flex-col md:flex-row gap-4">
-                                  {/* Left side: Fields */}
-                                  <div className="flex-1 space-y-3">
-                                    {/* Product Category */}
-                                    <div>
-                                      <p className="font-medium text-gray-700 text-xs mb-1">
-                                        Product Category
-                                      </p>
-                                      <p className="text-gray-900">
-                                        {getLabelFromValue(
-                                          [
-                                            { value: "basic", label: "Basic" },
-                                            { value: "model", label: "Model" },
-                                          ],
-                                          firstRevision?.previousValues
-                                            .kategoriBarang ||
-                                            currentOrder.kategoriBarang,
-                                        )}
-                                      </p>
-                                    </div>
-
-                                    {/* Product Type */}
-                                    <div>
-                                      <p className="font-medium text-gray-700 text-xs mb-1">
-                                        Product Type
-                                      </p>
-                                      <p className="text-gray-900">
-                                        {getLabelFromValue(
-                                          JENIS_PRODUK_OPTIONS,
-                                          firstRevision?.previousValues
-                                            .jenisProduk ||
-                                            currentOrder.jenisProduk,
-                                        )}
-                                      </p>
-                                    </div>
-
-                                    {/* Basic Name */}
-                                    {(firstRevision?.previousValues.namaBasic ||
-                                      currentOrder.namaBasic) && (
-                                      <div>
-                                        <p className="font-medium text-gray-700 text-xs mb-1">
-                                          Basic Name
-                                        </p>
-                                        <p className="text-gray-900">
-                                          {getLabelFromValue(
-                                            NAMA_BASIC_OPTIONS,
-                                            firstRevision?.previousValues
-                                              .namaBasic ||
-                                              currentOrder.namaBasic,
-                                          )}
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    {/* Nama Produk */}
-                                    {(firstRevision?.previousValues
-                                      .namaProduk ||
-                                      currentOrder.namaProduk) && (
-                                      <div>
-                                        <p className="font-medium text-gray-700 text-xs mb-1">
-                                          Nama Produk
-                                        </p>
-                                        <p className="text-gray-900">
-                                          {getLabelFromValue(
-                                            NAMA_PRODUK_OPTIONS,
-                                            firstRevision?.previousValues
-                                              .namaProduk ||
-                                              currentOrder.namaProduk,
-                                          )}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Right side: Photo */}
-                                  {(firstRevision?.previousValues.photoId ||
-                                    currentOrder.photoId) && (
-                                    <div className="md:w-48">
-                                      <p className="font-medium text-gray-700 text-xs mb-2">
-                                        Product Photo
-                                      </p>
-                                      <img
-                                        src={
-                                          getImage(
-                                            firstRevision?.previousValues
-                                              .photoId ||
-                                              currentOrder.photoId ||
-                                              "",
-                                          ) || ""
-                                        }
-                                        alt="Product"
-                                        className="w-full h-48 object-cover rounded border"
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Detail Items */}
-                                {(() => {
-                                  const detailItems =
-                                    firstRevision?.previousValues.detailItems ||
-                                    currentOrder.detailItems;
-                                  return (
-                                    detailItems &&
-                                    detailItems.length > 0 && (
-                                      <div className="mt-4">
-                                        <p className="font-medium text-gray-700 text-xs mb-2">
-                                          Product Details ({detailItems.length}{" "}
-                                          items)
-                                        </p>
-                                        <div className="overflow-x-auto">
-                                          <table className="min-w-full text-xs border-collapse border">
-                                            <thead className="bg-gray-100">
-                                              <tr>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Kadar
-                                                </th>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Warna
-                                                </th>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Ukuran
-                                                </th>
-                                                <th className="border px-2 py-1 text-right">
-                                                  Berat
-                                                </th>
-                                                <th className="border px-2 py-1 text-right">
-                                                  Pcs
-                                                </th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {detailItems.map((item, idx) => (
-                                                <tr key={idx}>
-                                                  <td
-                                                    className={`border px-2 py-1 font-medium ${getKadarColor(item.kadar)}`}
-                                                  >
-                                                    {item.kadar}
-                                                  </td>
-                                                  <td
-                                                    className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                                  >
-                                                    {getWarnaLabel(item.warna)}
-                                                  </td>
-                                                  <td className="border px-2 py-1">
-                                                    {(() => {
-                                                      const ukuranDisplay =
-                                                        getUkuranDisplay(
-                                                          item.ukuran,
-                                                        );
-                                                      return ukuranDisplay.showUnit
-                                                        ? `${ukuranDisplay.value} cm`
-                                                        : ukuranDisplay.value;
-                                                    })()}
-                                                  </td>
-                                                  <td className="border px-2 py-1 text-right">
-                                                    {item.berat}
-                                                  </td>
-                                                  <td className="border px-2 py-1 text-right">
-                                                    {item.pcs}
-                                                  </td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                      </div>
-                                    )
-                                  );
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Revision entries */}
-                    {[...currentOrder.revisionHistory]
-                      .slice()
-                      .reverse()
-                      .map((revision, revIdx, arr) => {
-                        // Reverse index for expandedRevisions
-                        const index =
-                          currentOrder.revisionHistory.length - 1 - revIdx;
-                        const isExpanded = expandedRevisions.has(index);
-                        return (
-                          <div key={index} className="flex gap-4 pb-6">
-                            {/* Left: date/time column */}
-                            <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                              <div className="font-medium text-gray-700">
-                                {new Date(
-                                  revision.timestamp,
-                                ).toLocaleDateString("id-ID", {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                              </div>
-                              <div>
-                                {new Date(
-                                  revision.timestamp,
-                                ).toLocaleTimeString("id-ID", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Timeline dot */}
-                            <div className="relative flex flex-col items-center">
-                              <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-400 mt-2 z-10" />
-                            </div>
-
-                            {/* Right: title + collapsible content */}
-                            <div className="flex-1 pb-2">
-                              <button
-                                onClick={() => {
-                                  const newExpanded = new Set(
-                                    expandedRevisions,
-                                  );
-                                  if (isExpanded) {
-                                    newExpanded.delete(index);
-                                  } else {
-                                    newExpanded.add(index);
-                                  }
-                                  setExpandedRevisions(newExpanded);
-                                }}
-                                className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                              >
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    Revision #{revision.revisionNumber}
-                                    {index ===
-                                      currentOrder.revisionHistory.length -
-                                        1 && (
-                                      <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
-                                        Latest
-                                      </span>
-                                    )}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    Updated by{" "}
-                                    {getFullNameFromUsername(
-                                      revision.updatedBy,
-                                    )}
-                                  </p>
-                                </div>
-                                {isExpanded ? (
-                                  <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                                )}
-                              </button>
-
-                              {isExpanded && (
-                                <div className="mt-2 border rounded-lg bg-gray-50 p-4 text-sm">
-                                  {/* ETA before/after */}
-                                  {revision.changes.waktuKirim &&
-                                    revision.previousValues.waktuKirim !==
-                                      revision.changes.waktuKirim && (
-                                      <div className="mb-3 bg-yellow-50 border border-yellow-200 rounded p-2">
-                                        <p className="text-xs font-semibold text-gray-700 mb-1">
-                                          ETA Change
-                                        </p>
-                                        <div className="flex items-center gap-2 text-sm">
-                                          <span className="text-red-600 line-through">
-                                            {revision.previousValues.waktuKirim
-                                              ? new Date(
-                                                  revision.previousValues
-                                                    .waktuKirim,
-                                                ).toLocaleDateString("id-ID")
-                                              : "—"}
-                                          </span>
-                                          <span className="text-gray-500">
-                                            →
-                                          </span>
-                                          <span className="text-green-700 font-semibold">
-                                            {new Date(
-                                              revision.changes.waktuKirim,
-                                            ).toLocaleDateString("id-ID")}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    )}
-                                  <div className="flex flex-col md:flex-row gap-4">
-                                    {/* Left side: Fields */}
-                                    <div className="flex-1 space-y-3">
-                                      {/* Product Category */}
-                                      {revision.changes.kategoriBarang && (
-                                        <div>
-                                          <p className="font-medium text-gray-700 text-xs mb-1">
-                                            Product Category
-                                          </p>
-                                          <p className="text-gray-900">
-                                            {getLabelFromValue(
-                                              [
-                                                {
-                                                  value: "basic",
-                                                  label: "Basic",
-                                                },
-                                                {
-                                                  value: "model",
-                                                  label: "Model",
-                                                },
-                                              ],
-                                              revision.changes.kategoriBarang,
-                                            )}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                      {/* Product Type */}
-                                      {revision.changes.jenisProduk && (
-                                        <div>
-                                          <p className="font-medium text-gray-700 text-xs mb-1">
-                                            Product Type
-                                          </p>
-                                          <p className="text-gray-900">
-                                            {getLabelFromValue(
-                                              JENIS_PRODUK_OPTIONS,
-                                              revision.changes.jenisProduk,
-                                            )}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                      {/* Basic Name */}
-                                      {revision.changes.namaBasic && (
-                                        <div>
-                                          <p className="font-medium text-gray-700 text-xs mb-1">
-                                            Basic Name
-                                          </p>
-                                          <p className="text-gray-900">
-                                            {getLabelFromValue(
-                                              NAMA_BASIC_OPTIONS,
-                                              revision.changes.namaBasic,
-                                            )}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                      {/* Nama Produk */}
-                                      {revision.changes.namaProduk && (
-                                        <div>
-                                          <p className="font-medium text-gray-700 text-xs mb-1">
-                                            Nama Produk
-                                          </p>
-                                          <p className="text-gray-900">
-                                            {getLabelFromValue(
-                                              NAMA_PRODUK_OPTIONS,
-                                              revision.changes.namaProduk,
-                                            )}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Right side: Photo before/after */}
-                                    {(revision.previousValues.photoId ||
-                                      revision.changes.photoId) &&
-                                      (() => {
-                                        const beforeImg = revision
-                                          .previousValues.photoId
-                                          ? getImage(
-                                              revision.previousValues.photoId,
-                                            )
-                                          : null;
-                                        const afterImg = revision.changes
-                                          .photoId
-                                          ? getImage(revision.changes.photoId)
-                                          : null;
-                                        const photoChanged =
-                                          revision.previousValues.photoId !==
-                                          revision.changes.photoId;
-                                        if (
-                                          photoChanged &&
-                                          beforeImg &&
-                                          afterImg
-                                        ) {
-                                          return (
-                                            <div className="flex gap-3 flex-wrap">
-                                              <div className="w-36">
-                                                <p className="font-medium text-gray-500 text-xs mb-1">
-                                                  Photo — Before
-                                                </p>
-                                                <img
-                                                  src={beforeImg}
-                                                  alt="Before"
-                                                  className="w-full h-36 object-cover rounded border border-red-200"
-                                                />
-                                              </div>
-                                              <div className="w-36">
-                                                <p className="font-medium text-green-700 text-xs mb-1">
-                                                  Photo — After
-                                                </p>
-                                                <img
-                                                  src={afterImg}
-                                                  alt="After"
-                                                  className="w-full h-36 object-cover rounded border border-green-400"
-                                                />
-                                              </div>
-                                            </div>
-                                          );
-                                        }
-                                        const singleImg = afterImg || beforeImg;
-                                        return singleImg ? (
-                                          <div className="md:w-48">
-                                            <p className="font-medium text-gray-700 text-xs mb-2">
-                                              Product Photo
-                                            </p>
-                                            <img
-                                              src={singleImg}
-                                              alt="Product"
-                                              className="w-full h-48 object-cover rounded border"
-                                            />
-                                          </div>
-                                        ) : null;
-                                      })()}
-                                  </div>
-
-                                  {/* Detail Items */}
-                                  {revision.changes.detailItems &&
-                                    revision.changes.detailItems.length > 0 && (
-                                      <div className="mt-4">
-                                        <p className="font-medium text-gray-700 text-xs mb-2">
-                                          Detail Barang (
-                                          {revision.changes.detailItems.length}{" "}
-                                          items)
-                                        </p>
-                                        <div className="overflow-x-auto">
-                                          <table className="min-w-full text-xs border-collapse border">
-                                            <thead className="bg-gray-100">
-                                              <tr>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Kadar
-                                                </th>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Warna
-                                                </th>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Ukuran
-                                                </th>
-                                                <th className="border px-2 py-1 text-right">
-                                                  Berat
-                                                </th>
-                                                <th className="border px-2 py-1 text-right">
-                                                  Pcs
-                                                </th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {revision.changes.detailItems.map(
-                                                (item, idx) => {
-                                                  // Get corresponding previous item for comparison
-                                                  const prevItem =
-                                                    revision.previousValues
-                                                      ?.detailItems?.[idx];
-
-                                                  // Check if this is a new item (no previous item at this index or beyond previous length)
-                                                  const isNewItem =
-                                                    !revision.previousValues
-                                                      ?.detailItems ||
-                                                    idx >=
-                                                      revision.previousValues
-                                                        .detailItems.length;
-
-                                                  // Determine if each field changed
-                                                  const kadarChanged =
-                                                    prevItem &&
-                                                    item.kadar !==
-                                                      prevItem.kadar;
-                                                  const warnaChanged =
-                                                    prevItem &&
-                                                    item.warna !==
-                                                      prevItem.warna;
-                                                  const ukuranChanged =
-                                                    prevItem &&
-                                                    item.ukuran !==
-                                                      prevItem.ukuran;
-                                                  const beratChanged =
-                                                    prevItem &&
-                                                    item.berat !==
-                                                      prevItem.berat;
-                                                  const pcsChanged =
-                                                    prevItem &&
-                                                    item.pcs !== prevItem.pcs;
-
-                                                  return (
-                                                    <tr
-                                                      key={idx}
-                                                      className={
-                                                        isNewItem
-                                                          ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50"
-                                                          : ""
-                                                      }
-                                                    >
-                                                      <td
-                                                        className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                      >
-                                                        {item.kadar}
-                                                      </td>
-                                                      <td
-                                                        className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                      >
-                                                        {getWarnaLabel(
-                                                          item.warna,
-                                                        )}
-                                                      </td>
-                                                      <td
-                                                        className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                      >
-                                                        {(() => {
-                                                          const ukuranDisplay =
-                                                            getUkuranDisplay(
-                                                              item.ukuran,
-                                                            );
-                                                          return ukuranDisplay.showUnit
-                                                            ? `${ukuranDisplay.value} cm`
-                                                            : ukuranDisplay.value;
-                                                        })()}
-                                                      </td>
-                                                      <td
-                                                        className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                      >
-                                                        {item.berat}
-                                                      </td>
-                                                      <td
-                                                        className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
-                                                      >
-                                                        {item.pcs}
-                                                      </td>
-                                                    </tr>
-                                                  );
-                                                },
-                                              )}
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                      </div>
-                                    )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
+              <DetailItemsTable
+                items={sortDetailItems(order.detailItems)}
+                mode="readonly"
+                getKadarColor={getKadarColor}
+                getWarnaColor={getWarnaColor}
+                getWarnaLabel={getWarnaLabel}
+                getUkuranLabel={(ukuran) => {
+                  const display = getUkuranDisplay(ukuran);
+                  return display.showUnit
+                    ? `${display.value} cm`
+                    : display.value;
+                }}
+                title="Order Items"
+              />
             </div>
           )}
 
-        {/* Request Revision History - visible to non-supplier users when linked request has revisions */}
-        {userRole !== "supplier" &&
-          relatedRequest &&
-          relatedRequest.revisionHistory &&
-          relatedRequest.revisionHistory.length > 0 && (
-            <div className="border-t pt-4 mt-4">
-              <button
-                onClick={() =>
-                  setIsRequestRevisionHistoryOpen(!isRequestRevisionHistoryOpen)
-                }
-                className="w-full flex items-center justify-between hover:bg-gray-50 py-1 rounded-lg transition-colors"
-              >
-                <h3 className="font-semibold text-gray-900">
-                  Request Revision History
-                </h3>
-                {isRequestRevisionHistoryOpen ? (
-                  <ChevronUp className="w-5 h-5 text-gray-500" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-500" />
-                )}
-              </button>
+        {/* Revision History - always visible for all users */}
+        {(userRole !== "supplier" ||
+          currentOrder.status === "Order Revised" ||
+          currentOrder.status === "Pending Sales Review" ||
+          currentOrder.status === "Pending JB Review" ||
+          currentOrder.status === "Change Pending Approval") && (
+          <div className="border-t pt-4 mt-4">
+            <button
+              onClick={() => setIsRevisionHistoryOpen(!isRevisionHistoryOpen)}
+              className="w-full flex items-center justify-between hover:bg-gray-50 py-1 rounded-lg transition-colors"
+            >
+              <h3 className="font-semibold text-gray-900">Revision History</h3>
+              {isRevisionHistoryOpen ? (
+                <ChevronUp className="w-5 h-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
 
-              {isRequestRevisionHistoryOpen && (
-                <div className="mt-6 relative">
-                  {/* Vertical timeline line */}
-                  <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
+            {isRevisionHistoryOpen && (
+              <div className="mt-6 relative">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
 
-                  <div className="flex flex-col">
-                    {/* Initial Version */}
-                    {(() => {
-                      const isExpanded = expandedRequestRevisions.has(-1);
-                      const firstRevision = relatedRequest.revisionHistory![0];
+                <div className="flex flex-col">
+                  {/* Initial Version */}
+                  {(() => {
+                    const isExpanded = expandedRevisions.has(-1);
+                    const firstRevision = currentOrder.revisionHistory[0];
 
-                      const initialPabrik =
-                        firstRevision?.previousValues.pabrik ??
-                        relatedRequest.pabrik;
-                      const initialPabrikLabel =
-                        typeof initialPabrik === "string"
-                          ? getLabelFromValue(PABRIK_OPTIONS, initialPabrik)
-                          : initialPabrik?.name || "";
+                    return (
+                      <div className="flex gap-4 pb-6 order-last">
+                        {/* Left: date/time column */}
+                        <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
+                          <div className="font-medium text-gray-700">
+                            {new Date(
+                              currentOrder.createdDate,
+                            ).toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </div>
+                          <div>
+                            {new Date(
+                              currentOrder.createdDate,
+                            ).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
 
-                      const initialPelanggan =
-                        firstRevision?.previousValues.namaPelanggan ??
-                        relatedRequest.namaPelanggan;
-                      const initialPelangganLabel =
-                        typeof initialPelanggan === "string"
-                          ? getLabelFromValue(
-                              ATAS_NAMA_OPTIONS,
-                              initialPelanggan,
-                            )
-                          : initialPelanggan?.name || "";
+                        {/* Timeline dot */}
+                        <div className="relative flex flex-col items-center">
+                          <div className="w-3 h-3 rounded-full bg-blue-400 border-2 border-white ring-1 ring-blue-400 mt-2 z-10" />
+                        </div>
 
-                      const initialDetailItems =
-                        firstRevision?.previousValues.detailItems ??
-                        relatedRequest.detailItems;
-
-                      return (
-                        <div className="flex gap-4 pb-6 order-last">
-                          <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                            <div className="font-medium text-gray-700">
-                              {new Date(
-                                relatedRequest.timestamp,
-                              ).toLocaleDateString("id-ID", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })}
-                            </div>
+                        {/* Right: title + collapsible content */}
+                        <div className="flex-1 pb-2">
+                          <button
+                            onClick={() => {
+                              const newExpanded = new Set(expandedRevisions);
+                              if (isExpanded) {
+                                newExpanded.delete(-1);
+                              } else {
+                                newExpanded.add(-1);
+                              }
+                              setExpandedRevisions(newExpanded);
+                            }}
+                            className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
+                          >
                             <div>
-                              {new Date(
-                                relatedRequest.timestamp,
-                              ).toLocaleTimeString("id-ID", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              <p className="font-medium text-sm">
+                                Initial version
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Created by{" "}
+                                {getFullNameFromUsername(
+                                  currentOrder.createdBy,
+                                )}
+                              </p>
                             </div>
-                          </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                            )}
+                          </button>
 
-                          <div className="relative flex flex-col items-center">
-                            <div className="w-3 h-3 rounded-full bg-blue-400 border-2 border-white ring-1 ring-blue-400 mt-2 z-10" />
-                          </div>
-
-                          <div className="flex-1 pb-2">
-                            <button
-                              onClick={() => {
-                                const newExpanded = new Set(
-                                  expandedRequestRevisions,
-                                );
-                                if (isExpanded) {
-                                  newExpanded.delete(-1);
-                                } else {
-                                  newExpanded.add(-1);
-                                }
-                                setExpandedRequestRevisions(newExpanded);
-                              }}
-                              className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                            >
-                              <div>
-                                <p className="font-medium text-sm">
-                                  Initial version
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Created by{" "}
-                                  {getFullNameFromUsername(
-                                    relatedRequest.createdBy || "",
-                                  )}
-                                </p>
-                              </div>
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                              )}
-                            </button>
-
-                            {isExpanded && (
-                              <div className="mt-2 border rounded-lg bg-white p-4 text-sm space-y-3">
-                                <div className="grid grid-cols-2 gap-3">
+                          {isExpanded && (
+                            <div className="mt-2 border rounded-lg bg-white p-4 text-sm">
+                              <div className="flex flex-col md:flex-row gap-4">
+                                {/* Left side: Fields */}
+                                <div className="flex-1 space-y-3">
+                                  {/* Product Category */}
                                   <div>
                                     <p className="font-medium text-gray-700 text-xs mb-1">
-                                      Supplier
-                                    </p>
-                                    <p className="text-gray-900">
-                                      {initialPabrikLabel}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-xs mb-1">
-                                      Customer
-                                    </p>
-                                    <p className="text-gray-900">
-                                      {initialPelangganLabel}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-xs mb-1">
-                                      ETA
-                                    </p>
-                                    <p className="text-gray-900">
-                                      {(firstRevision?.previousValues
-                                        .waktuKirim ??
-                                      relatedRequest.waktuKirim)
-                                        ? new Date(
-                                            firstRevision?.previousValues
-                                              .waktuKirim ??
-                                              relatedRequest.waktuKirim,
-                                          ).toLocaleDateString("id-ID")
-                                        : "-"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-xs mb-1">
-                                      Customer Expectation
+                                      Product Category
                                     </p>
                                     <p className="text-gray-900">
                                       {getLabelFromValue(
-                                        CUSTOMER_EXPECTATION_OPTIONS,
+                                        [
+                                          { value: "basic", label: "Basic" },
+                                          { value: "model", label: "Model" },
+                                        ],
                                         firstRevision?.previousValues
-                                          .customerExpectation ??
-                                          relatedRequest.customerExpectation,
+                                          .kategoriBarang ||
+                                          currentOrder.kategoriBarang,
                                       )}
                                     </p>
                                   </div>
+
+                                  {/* Product Type */}
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Product Type
+                                    </p>
+                                    <p className="text-gray-900">
+                                      {getLabelFromValue(
+                                        JENIS_PRODUK_OPTIONS,
+                                        firstRevision?.previousValues
+                                          .jenisProduk ||
+                                          currentOrder.jenisProduk,
+                                      )}
+                                    </p>
+                                  </div>
+
+                                  {/* Basic Name */}
+                                  {(firstRevision?.previousValues.namaBasic ||
+                                    currentOrder.namaBasic) && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Basic Name
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          NAMA_BASIC_OPTIONS,
+                                          firstRevision?.previousValues
+                                            .namaBasic ||
+                                            currentOrder.namaBasic,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Nama Produk */}
+                                  {(firstRevision?.previousValues.namaProduk ||
+                                    currentOrder.namaProduk) && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-1">
+                                        Nama Produk
+                                      </p>
+                                      <p className="text-gray-900">
+                                        {getLabelFromValue(
+                                          NAMA_PRODUK_OPTIONS,
+                                          firstRevision?.previousValues
+                                            .namaProduk ||
+                                            currentOrder.namaProduk,
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
-                                {initialDetailItems &&
-                                  initialDetailItems.length > 0 && (
-                                    <div className="mt-2">
+
+                                {/* Right side: Photo */}
+                                {(firstRevision?.previousValues.photoId ||
+                                  currentOrder.photoId) && (
+                                  <div className="md:w-48">
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Product Photo
+                                    </p>
+                                    <img
+                                      src={
+                                        imageMap.get(
+                                          firstRevision?.previousValues
+                                            .photoId ||
+                                            currentOrder.photoId ||
+                                            "",
+                                        ) || ""
+                                      }
+                                      alt="Product"
+                                      className="w-full h-48 object-cover rounded border"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Detail Items */}
+                              {(() => {
+                                const detailItems =
+                                  firstRevision?.previousValues.detailItems ||
+                                  currentOrder.detailItems;
+                                return (
+                                  detailItems &&
+                                  detailItems.length > 0 && (
+                                    <div className="mt-4">
                                       <p className="font-medium text-gray-700 text-xs mb-2">
-                                        Detail Barang (
-                                        {initialDetailItems.length} items)
+                                        Product Details ({detailItems.length}{" "}
+                                        items)
                                       </p>
                                       <div className="overflow-x-auto">
                                         <table className="min-w-full text-xs border-collapse border">
@@ -1704,165 +1525,134 @@ export function OrderDetails({
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {initialDetailItems.map(
-                                              (item, idx) => (
-                                                <tr key={idx}>
-                                                  <td className="border px-2 py-1 font-medium">
-                                                    {item.kadar}
-                                                  </td>
-                                                  <td
-                                                    className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                                  >
-                                                    {getWarnaLabel(item.warna)}
-                                                  </td>
-                                                  <td className="border px-2 py-1">
-                                                    {(() => {
-                                                      const ud =
-                                                        getUkuranDisplay(
-                                                          item.ukuran,
-                                                        );
-                                                      return ud.showUnit
-                                                        ? `${ud.value} cm`
-                                                        : ud.value;
-                                                    })()}
-                                                  </td>
-                                                  <td className="border px-2 py-1 text-right">
-                                                    {item.berat}
-                                                  </td>
-                                                  <td className="border px-2 py-1 text-right">
-                                                    {item.pcs}
-                                                  </td>
-                                                </tr>
-                                              ),
-                                            )}
+                                            {detailItems.map((item, idx) => (
+                                              <tr key={idx}>
+                                                <td
+                                                  className={`border px-2 py-1 font-medium ${getKadarColor(item.kadar)}`}
+                                                >
+                                                  {item.kadar}
+                                                </td>
+                                                <td
+                                                  className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
+                                                >
+                                                  {getWarnaLabel(item.warna)}
+                                                </td>
+                                                <td className="border px-2 py-1">
+                                                  {(() => {
+                                                    const ukuranDisplay =
+                                                      getUkuranDisplay(
+                                                        item.ukuran,
+                                                      );
+                                                    return ukuranDisplay.showUnit
+                                                      ? `${ukuranDisplay.value} cm`
+                                                      : ukuranDisplay.value;
+                                                  })()}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.berat}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.pcs}
+                                                </td>
+                                              </tr>
+                                            ))}
                                           </tbody>
                                         </table>
                                       </div>
                                     </div>
-                                  )}
-                              </div>
-                            )}
-                          </div>
+                                  )
+                                );
+                              })()}
+                            </div>
+                          )}
                         </div>
-                      );
-                    })()}
+                      </div>
+                    );
+                  })()}
 
-                    {/* Revision entries */}
-                    {[...relatedRequest.revisionHistory!]
-                      .slice()
-                      .reverse()
-                      .map((revision, index) => {
-                        const isExpanded = expandedRequestRevisions.has(index);
-
-                        const revPabrikLabel =
-                          typeof revision.changes.pabrik === "string"
-                            ? getLabelFromValue(
-                                PABRIK_OPTIONS,
-                                revision.changes.pabrik,
-                              )
-                            : revision.changes.pabrik?.name || "";
-                        const prevPabrikLabel =
-                          typeof revision.previousValues.pabrik === "string"
-                            ? getLabelFromValue(
-                                PABRIK_OPTIONS,
-                                revision.previousValues.pabrik,
-                              )
-                            : revision.previousValues.pabrik?.name || "";
-                        const pabrikChanged =
-                          JSON.stringify(revision.changes.pabrik) !==
-                          JSON.stringify(revision.previousValues.pabrik);
-
-                        const revPelangganLabel =
-                          typeof revision.changes.namaPelanggan === "string"
-                            ? getLabelFromValue(
-                                ATAS_NAMA_OPTIONS,
-                                revision.changes.namaPelanggan,
-                              )
-                            : revision.changes.namaPelanggan?.name || "";
-                        const prevPelangganLabel =
-                          typeof revision.previousValues.namaPelanggan ===
-                          "string"
-                            ? getLabelFromValue(
-                                ATAS_NAMA_OPTIONS,
-                                revision.previousValues.namaPelanggan,
-                              )
-                            : revision.previousValues.namaPelanggan?.name || "";
-                        const pelangganChanged =
-                          JSON.stringify(revision.changes.namaPelanggan) !==
-                          JSON.stringify(revision.previousValues.namaPelanggan);
-
-                        const etaChanged =
-                          revision.changes.waktuKirim &&
-                          revision.previousValues.waktuKirim !==
-                            revision.changes.waktuKirim;
-
-                        return (
-                          <div key={index} className="flex gap-4 pb-6">
-                            <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
-                              <div className="font-medium text-gray-700">
-                                {new Date(
-                                  revision.timestamp,
-                                ).toLocaleDateString("id-ID", {
+                  {/* Revision entries */}
+                  {[...(currentOrder.revisionHistory || [])]
+                    .slice()
+                    .reverse()
+                    .map((revision, revIdx, arr) => {
+                      // Reverse index for expandedRevisions
+                      const index =
+                        (currentOrder.revisionHistory?.length ?? 0) -
+                        1 -
+                        revIdx;
+                      const isExpanded = expandedRevisions.has(index);
+                      return (
+                        <div key={index} className="flex gap-4 pb-6">
+                          {/* Left: date/time column */}
+                          <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
+                            <div className="font-medium text-gray-700">
+                              {new Date(revision.timestamp).toLocaleDateString(
+                                "id-ID",
+                                {
                                   day: "2-digit",
                                   month: "short",
                                   year: "numeric",
-                                })}
-                              </div>
-                              <div>
-                                {new Date(
-                                  revision.timestamp,
-                                ).toLocaleTimeString("id-ID", {
+                                },
+                              )}
+                            </div>
+                            <div>
+                              {new Date(revision.timestamp).toLocaleTimeString(
+                                "id-ID",
+                                {
                                   hour: "2-digit",
                                   minute: "2-digit",
-                                })}
+                                },
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Timeline dot */}
+                          <div className="relative flex flex-col items-center">
+                            <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-400 mt-2 z-10" />
+                          </div>
+
+                          {/* Right: title + collapsible content */}
+                          <div className="flex-1 pb-2">
+                            <button
+                              onClick={() => {
+                                const newExpanded = new Set(expandedRevisions);
+                                if (isExpanded) {
+                                  newExpanded.delete(index);
+                                } else {
+                                  newExpanded.add(index);
+                                }
+                                setExpandedRevisions(newExpanded);
+                              }}
+                              className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
+                            >
+                              <div>
+                                <p className="font-medium text-sm">
+                                  Revision #{revision.revisionNumber}
+                                  {index ===
+                                    currentOrder.revisionHistory.length - 1 && (
+                                    <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
+                                      Latest
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Updated by{" "}
+                                  {getFullNameFromUsername(revision.updatedBy)}
+                                </p>
                               </div>
-                            </div>
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                              )}
+                            </button>
 
-                            <div className="relative flex flex-col items-center">
-                              <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-400 mt-2 z-10" />
-                            </div>
-
-                            <div className="flex-1 pb-2">
-                              <button
-                                onClick={() => {
-                                  const newExpanded = new Set(
-                                    expandedRequestRevisions,
-                                  );
-                                  if (isExpanded) {
-                                    newExpanded.delete(index);
-                                  } else {
-                                    newExpanded.add(index);
-                                  }
-                                  setExpandedRequestRevisions(newExpanded);
-                                }}
-                                className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
-                              >
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    Revision #{revision.revisionNumber}
-                                    {index === 0 && (
-                                      <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
-                                        Latest
-                                      </span>
-                                    )}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    Updated by{" "}
-                                    {getFullNameFromUsername(
-                                      revision.updatedBy,
-                                    )}
-                                  </p>
-                                </div>
-                                {isExpanded ? (
-                                  <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                                )}
-                              </button>
-
-                              {isExpanded && (
-                                <div className="mt-2 border rounded-lg bg-gray-50 p-4 text-sm space-y-3">
-                                  {etaChanged && (
+                            {isExpanded && (
+                              <div className="mt-2 border rounded-lg bg-gray-50 p-4 text-sm">
+                                {/* ETA before/after */}
+                                {revision.changes.waktuKirim &&
+                                  revision.previousValues.waktuKirim !==
+                                    revision.changes.waktuKirim && (
                                     <div className="mb-3 bg-yellow-50 border border-yellow-200 rounded p-2">
                                       <p className="text-xs font-semibold text-gray-700 mb-1">
                                         ETA Change
@@ -1879,159 +1669,797 @@ export function OrderDetails({
                                         <span className="text-gray-500">→</span>
                                         <span className="text-green-700 font-semibold">
                                           {new Date(
-                                            revision.changes.waktuKirim!,
+                                            revision.changes.waktuKirim,
                                           ).toLocaleDateString("id-ID")}
                                         </span>
                                       </div>
                                     </div>
                                   )}
-                                  {pabrikChanged && (
-                                    <div>
-                                      <p className="font-medium text-gray-700 text-xs mb-1">
-                                        Supplier
-                                      </p>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-red-600 line-through text-xs">
-                                          {prevPabrikLabel}
-                                        </span>
-                                        <span className="text-gray-400">→</span>
-                                        <span className="text-green-700 font-medium text-xs">
-                                          {revPabrikLabel}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {pelangganChanged && (
-                                    <div>
-                                      <p className="font-medium text-gray-700 text-xs mb-1">
-                                        Customer
-                                      </p>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-red-600 line-through text-xs">
-                                          {prevPelangganLabel}
-                                        </span>
-                                        <span className="text-gray-400">→</span>
-                                        <span className="text-green-700 font-medium text-xs">
-                                          {revPelangganLabel}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {revision.changes.detailItems &&
-                                    revision.changes.detailItems.length > 0 && (
+                                <div className="flex flex-col md:flex-row gap-4">
+                                  {/* Left side: Fields */}
+                                  <div className="flex-1 space-y-3">
+                                    {/* Product Category */}
+                                    {revision.changes.kategoriBarang && (
                                       <div>
-                                        <p className="font-medium text-gray-700 text-xs mb-2">
-                                          Detail Barang (
-                                          {revision.changes.detailItems.length}{" "}
-                                          items)
+                                        <p className="font-medium text-gray-700 text-xs mb-1">
+                                          Product Category
                                         </p>
-                                        <div className="overflow-x-auto">
-                                          <table className="min-w-full text-xs border-collapse border">
-                                            <thead className="bg-gray-100">
-                                              <tr>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Kadar
-                                                </th>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Warna
-                                                </th>
-                                                <th className="border px-2 py-1 text-left">
-                                                  Ukuran
-                                                </th>
-                                                <th className="border px-2 py-1 text-right">
-                                                  Berat
-                                                </th>
-                                                <th className="border px-2 py-1 text-right">
-                                                  Pcs
-                                                </th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {revision.changes.detailItems.map(
-                                                (item, idx) => {
-                                                  const prevItem =
-                                                    revision.previousValues
-                                                      ?.detailItems?.[idx];
-                                                  const isNewItem =
-                                                    !revision.previousValues
-                                                      ?.detailItems ||
-                                                    idx >=
-                                                      revision.previousValues
-                                                        .detailItems.length;
-                                                  return (
-                                                    <tr
-                                                      key={idx}
-                                                      className={
-                                                        isNewItem
-                                                          ? "bg-green-50"
-                                                          : ""
-                                                      }
-                                                    >
-                                                      <td className="border px-2 py-1 font-medium">
-                                                        {item.kadar}
-                                                      </td>
-                                                      <td
-                                                        className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
-                                                      >
-                                                        {getWarnaLabel(
-                                                          item.warna,
-                                                        )}
-                                                      </td>
-                                                      <td className="border px-2 py-1">
-                                                        {(() => {
-                                                          const ud =
-                                                            getUkuranDisplay(
-                                                              item.ukuran,
-                                                            );
-                                                          return ud.showUnit
-                                                            ? `${ud.value} cm`
-                                                            : ud.value;
-                                                        })()}
-                                                      </td>
-                                                      <td
-                                                        className={`border px-2 py-1 text-right ${prevItem && item.berat !== prevItem.berat ? "font-bold text-orange-600" : ""}`}
-                                                      >
-                                                        {item.berat}
-                                                      </td>
-                                                      <td
-                                                        className={`border px-2 py-1 text-right ${prevItem && item.pcs !== prevItem.pcs ? "font-bold text-orange-600" : ""}`}
-                                                      >
-                                                        {item.pcs}
-                                                      </td>
-                                                    </tr>
-                                                  );
-                                                },
-                                              )}
-                                            </tbody>
-                                          </table>
-                                        </div>
+                                        <p className="text-gray-900">
+                                          {getLabelFromValue(
+                                            [
+                                              {
+                                                value: "basic",
+                                                label: "Basic",
+                                              },
+                                              {
+                                                value: "model",
+                                                label: "Model",
+                                              },
+                                            ],
+                                            revision.changes.kategoriBarang,
+                                          )}
+                                        </p>
                                       </div>
                                     )}
+
+                                    {/* Product Type */}
+                                    {revision.changes.jenisProduk && (
+                                      <div>
+                                        <p className="font-medium text-gray-700 text-xs mb-1">
+                                          Product Type
+                                        </p>
+                                        <p className="text-gray-900">
+                                          {getLabelFromValue(
+                                            JENIS_PRODUK_OPTIONS,
+                                            revision.changes.jenisProduk,
+                                          )}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {/* Basic Name */}
+                                    {revision.changes.namaBasic && (
+                                      <div>
+                                        <p className="font-medium text-gray-700 text-xs mb-1">
+                                          Basic Name
+                                        </p>
+                                        <p className="text-gray-900">
+                                          {getLabelFromValue(
+                                            NAMA_BASIC_OPTIONS,
+                                            revision.changes.namaBasic,
+                                          )}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {/* Nama Produk */}
+                                    {revision.changes.namaProduk && (
+                                      <div>
+                                        <p className="font-medium text-gray-700 text-xs mb-1">
+                                          Nama Produk
+                                        </p>
+                                        <p className="text-gray-900">
+                                          {getLabelFromValue(
+                                            NAMA_PRODUK_OPTIONS,
+                                            revision.changes.namaProduk,
+                                          )}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Right side: Photo before/after */}
+                                  {(revision.previousValues.photoId ||
+                                    revision.changes.photoId) &&
+                                    (() => {
+                                      const beforeImg = revision.previousValues
+                                        .photoId
+                                        ? (imageMap.get(
+                                            revision.previousValues.photoId,
+                                          ) ?? null)
+                                        : null;
+                                      const afterImg = revision.changes.photoId
+                                        ? (imageMap.get(
+                                            revision.changes.photoId,
+                                          ) ?? null)
+                                        : null;
+                                      const photoChanged =
+                                        revision.previousValues.photoId !==
+                                        revision.changes.photoId;
+                                      if (
+                                        photoChanged &&
+                                        beforeImg &&
+                                        afterImg
+                                      ) {
+                                        return (
+                                          <div className="flex gap-3 flex-wrap">
+                                            <div className="w-36">
+                                              <p className="font-medium text-gray-500 text-xs mb-1">
+                                                Photo — Before
+                                              </p>
+                                              <img
+                                                src={beforeImg}
+                                                alt="Before"
+                                                className="w-full h-36 object-cover rounded border border-red-200"
+                                              />
+                                            </div>
+                                            <div className="w-36">
+                                              <p className="font-medium text-green-700 text-xs mb-1">
+                                                Photo — After
+                                              </p>
+                                              <img
+                                                src={afterImg}
+                                                alt="After"
+                                                className="w-full h-36 object-cover rounded border border-green-400"
+                                              />
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                      const singleImg = afterImg || beforeImg;
+                                      return singleImg ? (
+                                        <div className="md:w-48">
+                                          <p className="font-medium text-gray-700 text-xs mb-2">
+                                            Product Photo
+                                          </p>
+                                          <img
+                                            src={singleImg}
+                                            alt="Product"
+                                            className="w-full h-48 object-cover rounded border"
+                                          />
+                                        </div>
+                                      ) : null;
+                                    })()}
                                 </div>
+
+                                {/* Detail Items */}
+                                {revision.changes.detailItems &&
+                                  revision.changes.detailItems.length > 0 && (
+                                    <div className="mt-4">
+                                      <p className="font-medium text-gray-700 text-xs mb-2">
+                                        Detail Barang (
+                                        {revision.changes.detailItems.length}{" "}
+                                        items)
+                                      </p>
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full text-xs border-collapse border">
+                                          <thead className="bg-gray-100">
+                                            <tr>
+                                              <th className="border px-2 py-1 text-left">
+                                                Kadar
+                                              </th>
+                                              <th className="border px-2 py-1 text-left">
+                                                Warna
+                                              </th>
+                                              <th className="border px-2 py-1 text-left">
+                                                Ukuran
+                                              </th>
+                                              <th className="border px-2 py-1 text-right">
+                                                Berat
+                                              </th>
+                                              <th className="border px-2 py-1 text-right">
+                                                Pcs
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {revision.changes.detailItems.map(
+                                              (item, idx) => {
+                                                // Get corresponding previous item for comparison
+                                                const prevItem =
+                                                  revision.previousValues
+                                                    ?.detailItems?.[idx];
+
+                                                // Check if this is a new item (no previous item at this index or beyond previous length)
+                                                const isNewItem =
+                                                  !revision.previousValues
+                                                    ?.detailItems ||
+                                                  idx >=
+                                                    revision.previousValues
+                                                      .detailItems.length;
+
+                                                // Determine if each field changed
+                                                const kadarChanged =
+                                                  prevItem &&
+                                                  item.kadar !== prevItem.kadar;
+                                                const warnaChanged =
+                                                  prevItem &&
+                                                  item.warna !== prevItem.warna;
+                                                const ukuranChanged =
+                                                  prevItem &&
+                                                  item.ukuran !==
+                                                    prevItem.ukuran;
+                                                const beratChanged =
+                                                  prevItem &&
+                                                  item.berat !== prevItem.berat;
+                                                const pcsChanged =
+                                                  prevItem &&
+                                                  item.pcs !== prevItem.pcs;
+
+                                                return (
+                                                  <tr
+                                                    key={idx}
+                                                    className={
+                                                      isNewItem
+                                                        ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50"
+                                                        : ""
+                                                    }
+                                                  >
+                                                    <td
+                                                      className={`px-2 py-1 font-medium ${getKadarColor(item.kadar)} ${kadarChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                    >
+                                                      {item.kadar}
+                                                    </td>
+                                                    <td
+                                                      className={`px-2 py-1 ${getWarnaColor(item.warna)} ${warnaChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                    >
+                                                      {getWarnaLabel(
+                                                        item.warna,
+                                                      )}
+                                                    </td>
+                                                    <td
+                                                      className={`px-2 py-1 ${ukuranChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                    >
+                                                      {(() => {
+                                                        const ukuranDisplay =
+                                                          getUkuranDisplay(
+                                                            item.ukuran,
+                                                          );
+                                                        return ukuranDisplay.showUnit
+                                                          ? `${ukuranDisplay.value} cm`
+                                                          : ukuranDisplay.value;
+                                                      })()}
+                                                    </td>
+                                                    <td
+                                                      className={`px-2 py-1 text-right ${beratChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                    >
+                                                      {item.berat}
+                                                    </td>
+                                                    <td
+                                                      className={`px-2 py-1 text-right ${pcsChanged && !isNewItem ? "border-4 border-red-500 animate-pulse shadow-lg shadow-red-500/50" : "border"}`}
+                                                    >
+                                                      {item.pcs}
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              },
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Request Revision History - visible to non-supplier users whenever a linked request exists */}
+        {userRole !== "supplier" && relatedRequest && (
+          <div className="border-t pt-4 mt-4">
+            <button
+              onClick={() =>
+                setIsRequestRevisionHistoryOpen(!isRequestRevisionHistoryOpen)
+              }
+              className="w-full flex items-center justify-between hover:bg-gray-50 py-1 rounded-lg transition-colors"
+            >
+              <h3 className="font-semibold text-gray-900">
+                Request Revision History
+              </h3>
+              {isRequestRevisionHistoryOpen ? (
+                <ChevronUp className="w-5 h-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
+
+            {isRequestRevisionHistoryOpen && (
+              <div className="mt-6 relative">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[7.5rem] top-0 bottom-0 w-px bg-gray-200" />
+
+                <div className="flex flex-col">
+                  {/* Initial Version */}
+                  {(() => {
+                    const isExpanded = expandedRequestRevisions.has(-1);
+                    const firstRevision = (relatedRequest.revisionHistory ??
+                      [])[0];
+
+                    const initialPabrik =
+                      firstRevision?.previousValues.pabrik ??
+                      relatedRequest.pabrik;
+                    const initialPabrikLabel =
+                      typeof initialPabrik === "string"
+                        ? getLabelFromValue(PABRIK_OPTIONS, initialPabrik)
+                        : initialPabrik?.name || "";
+
+                    const initialPelanggan =
+                      firstRevision?.previousValues.namaPelanggan ??
+                      relatedRequest.namaPelanggan;
+                    const initialPelangganLabel =
+                      typeof initialPelanggan === "string"
+                        ? getLabelFromValue(ATAS_NAMA_OPTIONS, initialPelanggan)
+                        : initialPelanggan?.name || "";
+
+                    const initialDetailItems =
+                      firstRevision?.previousValues.detailItems ??
+                      relatedRequest.detailItems;
+
+                    return (
+                      <div className="flex gap-4 pb-6 order-last">
+                        <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
+                          <div className="font-medium text-gray-700">
+                            {new Date(
+                              relatedRequest.timestamp,
+                            ).toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </div>
+                          <div>
+                            {new Date(
+                              relatedRequest.timestamp,
+                            ).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="relative flex flex-col items-center">
+                          <div className="w-3 h-3 rounded-full bg-blue-400 border-2 border-white ring-1 ring-blue-400 mt-2 z-10" />
+                        </div>
+
+                        <div className="flex-1 pb-2">
+                          <button
+                            onClick={() => {
+                              const newExpanded = new Set(
+                                expandedRequestRevisions,
+                              );
+                              if (isExpanded) {
+                                newExpanded.delete(-1);
+                              } else {
+                                newExpanded.add(-1);
+                              }
+                              setExpandedRequestRevisions(newExpanded);
+                            }}
+                            className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
+                          >
+                            <div>
+                              <p className="font-medium text-sm">
+                                Initial version
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Created by{" "}
+                                {getFullNameFromUsername(
+                                  relatedRequest.createdBy || "",
+                                )}
+                              </p>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 border rounded-lg bg-white p-4 text-sm space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Supplier
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {initialPabrikLabel}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Customer
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {initialPelangganLabel}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    ETA
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {(firstRevision?.previousValues
+                                      .waktuKirim ?? relatedRequest.waktuKirim)
+                                      ? new Date(
+                                          firstRevision?.previousValues
+                                            .waktuKirim ??
+                                            relatedRequest.waktuKirim,
+                                        ).toLocaleDateString("id-ID")
+                                      : "-"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-700 text-xs mb-1">
+                                    Customer Expectation
+                                  </p>
+                                  <p className="text-gray-900">
+                                    {getLabelFromValue(
+                                      CUSTOMER_EXPECTATION_OPTIONS,
+                                      firstRevision?.previousValues
+                                        .customerExpectation ??
+                                        relatedRequest.customerExpectation,
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              {initialDetailItems &&
+                                initialDetailItems.length > 0 && (
+                                  <div className="mt-2">
+                                    <p className="font-medium text-gray-700 text-xs mb-2">
+                                      Detail Barang ({initialDetailItems.length}{" "}
+                                      items)
+                                    </p>
+                                    <div className="overflow-x-auto">
+                                      <table className="min-w-full text-xs border-collapse border">
+                                        <thead className="bg-gray-100">
+                                          <tr>
+                                            <th className="border px-2 py-1 text-left">
+                                              Kadar
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Warna
+                                            </th>
+                                            <th className="border px-2 py-1 text-left">
+                                              Ukuran
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Berat
+                                            </th>
+                                            <th className="border px-2 py-1 text-right">
+                                              Pcs
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {initialDetailItems.map(
+                                            (item, idx) => (
+                                              <tr key={idx}>
+                                                <td className="border px-2 py-1 font-medium">
+                                                  {item.kadar}
+                                                </td>
+                                                <td
+                                                  className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
+                                                >
+                                                  {getWarnaLabel(item.warna)}
+                                                </td>
+                                                <td className="border px-2 py-1">
+                                                  {(() => {
+                                                    const ud = getUkuranDisplay(
+                                                      item.ukuran,
+                                                    );
+                                                    return ud.showUnit
+                                                      ? `${ud.value} cm`
+                                                      : ud.value;
+                                                  })()}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.berat}
+                                                </td>
+                                                <td className="border px-2 py-1 text-right">
+                                                  {item.pcs}
+                                                </td>
+                                              </tr>
+                                            ),
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Revision entries */}
+                  {[...(relatedRequest.revisionHistory ?? [])]
+                    .slice()
+                    .reverse()
+                    .map((revision, index) => {
+                      const isExpanded = expandedRequestRevisions.has(index);
+
+                      const revPabrikLabel =
+                        typeof revision.changes.pabrik === "string"
+                          ? getLabelFromValue(
+                              PABRIK_OPTIONS,
+                              revision.changes.pabrik,
+                            )
+                          : revision.changes.pabrik?.name || "";
+                      const prevPabrikLabel =
+                        typeof revision.previousValues.pabrik === "string"
+                          ? getLabelFromValue(
+                              PABRIK_OPTIONS,
+                              revision.previousValues.pabrik,
+                            )
+                          : revision.previousValues.pabrik?.name || "";
+                      const pabrikChanged =
+                        JSON.stringify(revision.changes.pabrik) !==
+                        JSON.stringify(revision.previousValues.pabrik);
+
+                      const revPelangganLabel =
+                        typeof revision.changes.namaPelanggan === "string"
+                          ? getLabelFromValue(
+                              ATAS_NAMA_OPTIONS,
+                              revision.changes.namaPelanggan,
+                            )
+                          : revision.changes.namaPelanggan?.name || "";
+                      const prevPelangganLabel =
+                        typeof revision.previousValues.namaPelanggan ===
+                        "string"
+                          ? getLabelFromValue(
+                              ATAS_NAMA_OPTIONS,
+                              revision.previousValues.namaPelanggan,
+                            )
+                          : revision.previousValues.namaPelanggan?.name || "";
+                      const pelangganChanged =
+                        JSON.stringify(revision.changes.namaPelanggan) !==
+                        JSON.stringify(revision.previousValues.namaPelanggan);
+
+                      const etaChanged =
+                        revision.changes.waktuKirim &&
+                        revision.previousValues.waktuKirim !==
+                          revision.changes.waktuKirim;
+
+                      return (
+                        <div key={index} className="flex gap-4 pb-6">
+                          <div className="w-28 shrink-0 text-right text-xs text-gray-500 pt-2 pr-4">
+                            <div className="font-medium text-gray-700">
+                              {new Date(revision.timestamp).toLocaleDateString(
+                                "id-ID",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                },
+                              )}
+                            </div>
+                            <div>
+                              {new Date(revision.timestamp).toLocaleTimeString(
+                                "id-ID",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
                               )}
                             </div>
                           </div>
-                        );
-                      })}
-                  </div>
+
+                          <div className="relative flex flex-col items-center">
+                            <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-400 mt-2 z-10" />
+                          </div>
+
+                          <div className="flex-1 pb-2">
+                            <button
+                              onClick={() => {
+                                const newExpanded = new Set(
+                                  expandedRequestRevisions,
+                                );
+                                if (isExpanded) {
+                                  newExpanded.delete(index);
+                                } else {
+                                  newExpanded.add(index);
+                                }
+                                setExpandedRequestRevisions(newExpanded);
+                              }}
+                              className="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded p-2 -ml-2 transition-colors"
+                            >
+                              <div>
+                                <p className="font-medium text-sm">
+                                  Revision #{revision.revisionNumber}
+                                  {index === 0 && (
+                                    <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">
+                                      Latest
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Updated by{" "}
+                                  {getFullNameFromUsername(revision.updatedBy)}
+                                </p>
+                              </div>
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                              )}
+                            </button>
+
+                            {isExpanded && (
+                              <div className="mt-2 border rounded-lg bg-gray-50 p-4 text-sm space-y-3">
+                                {etaChanged && (
+                                  <div className="mb-3 bg-yellow-50 border border-yellow-200 rounded p-2">
+                                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                                      ETA Change
+                                    </p>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-red-600 line-through">
+                                        {revision.previousValues.waktuKirim
+                                          ? new Date(
+                                              revision.previousValues
+                                                .waktuKirim,
+                                            ).toLocaleDateString("id-ID")
+                                          : "—"}
+                                      </span>
+                                      <span className="text-gray-500">→</span>
+                                      <span className="text-green-700 font-semibold">
+                                        {new Date(
+                                          revision.changes.waktuKirim!,
+                                        ).toLocaleDateString("id-ID")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {pabrikChanged && (
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Supplier
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-red-600 line-through text-xs">
+                                        {prevPabrikLabel}
+                                      </span>
+                                      <span className="text-gray-400">→</span>
+                                      <span className="text-green-700 font-medium text-xs">
+                                        {revPabrikLabel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {pelangganChanged && (
+                                  <div>
+                                    <p className="font-medium text-gray-700 text-xs mb-1">
+                                      Customer
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-red-600 line-through text-xs">
+                                        {prevPelangganLabel}
+                                      </span>
+                                      <span className="text-gray-400">→</span>
+                                      <span className="text-green-700 font-medium text-xs">
+                                        {revPelangganLabel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {revision.changes.detailItems &&
+                                  revision.changes.detailItems.length > 0 && (
+                                    <div>
+                                      <p className="font-medium text-gray-700 text-xs mb-2">
+                                        Detail Barang (
+                                        {revision.changes.detailItems.length}{" "}
+                                        items)
+                                      </p>
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full text-xs border-collapse border">
+                                          <thead className="bg-gray-100">
+                                            <tr>
+                                              <th className="border px-2 py-1 text-left">
+                                                Kadar
+                                              </th>
+                                              <th className="border px-2 py-1 text-left">
+                                                Warna
+                                              </th>
+                                              <th className="border px-2 py-1 text-left">
+                                                Ukuran
+                                              </th>
+                                              <th className="border px-2 py-1 text-right">
+                                                Berat
+                                              </th>
+                                              <th className="border px-2 py-1 text-right">
+                                                Pcs
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {revision.changes.detailItems.map(
+                                              (item, idx) => {
+                                                const prevItem =
+                                                  revision.previousValues
+                                                    ?.detailItems?.[idx];
+                                                const isNewItem =
+                                                  !revision.previousValues
+                                                    ?.detailItems ||
+                                                  idx >=
+                                                    revision.previousValues
+                                                      .detailItems.length;
+                                                return (
+                                                  <tr
+                                                    key={idx}
+                                                    className={
+                                                      isNewItem
+                                                        ? "bg-green-50"
+                                                        : ""
+                                                    }
+                                                  >
+                                                    <td className="border px-2 py-1 font-medium">
+                                                      {item.kadar}
+                                                    </td>
+                                                    <td
+                                                      className={`border px-2 py-1 ${getWarnaColor(item.warna)}`}
+                                                    >
+                                                      {getWarnaLabel(
+                                                        item.warna,
+                                                      )}
+                                                    </td>
+                                                    <td className="border px-2 py-1">
+                                                      {(() => {
+                                                        const ud =
+                                                          getUkuranDisplay(
+                                                            item.ukuran,
+                                                          );
+                                                        return ud.showUnit
+                                                          ? `${ud.value} cm`
+                                                          : ud.value;
+                                                      })()}
+                                                    </td>
+                                                    <td
+                                                      className={`border px-2 py-1 text-right ${prevItem && item.berat !== prevItem.berat ? "font-bold text-orange-600" : ""}`}
+                                                    >
+                                                      {item.berat}
+                                                    </td>
+                                                    <td
+                                                      className={`border px-2 py-1 text-right ${prevItem && item.pcs !== prevItem.pcs ? "font-bold text-orange-600" : ""}`}
+                                                    >
+                                                      {item.pcs}
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              },
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Supplier Action Buttons */}
       {userRole === "supplier" &&
         (currentOrder.status === "New Order" ||
-          currentOrder.status === "Viewed") && (
+          currentOrder.status === "Supplier Viewed") && (
           <div className="flex gap-2 flex-wrap justify-end mt-4">
             <Button
               onClick={() =>
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "In Production",
-                  "You've marked the Order as In Production",
-                )
+                setPendingAction({
+                  label: "Start Production",
+                  description: "Are you sure you want to mark this order as In Production?",
+                  onConfirm: () =>
+                    handleUpdateStatusWithToast(
+                      currentOrder.id,
+                      "In Production",
+                      "You've marked the Order as In Production",
+                    ),
+                })
               }
               className="bg-yellow-500 hover:bg-yellow-600 text-white"
             >
@@ -2039,18 +2467,29 @@ export function OrderDetails({
             </Button>
             <Button
               onClick={() =>
-                handleUpdateStatusWithToast(
-                  currentOrder.id,
-                  "Stock Ready",
-                  "You've marked the Order as Ready Stock",
-                )
+                setPendingAction({
+                  label: "Mark Stock Ready",
+                  description: "Are you sure you want to mark this order as Stock Ready?",
+                  onConfirm: () =>
+                    handleUpdateStatusWithToast(
+                      currentOrder.id,
+                      "Stock Ready",
+                      "You've marked the Order as Ready Stock",
+                    ),
+                })
               }
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               Mark Stock Ready
             </Button>
             <Button
-              onClick={() => onUpdateOrder?.(currentOrder)}
+              onClick={() =>
+                setPendingAction({
+                  label: "Request Change",
+                  description: "Are you sure you want to request a change for this order?",
+                  onConfirm: () => onUpdateOrder?.(currentOrder),
+                })
+              }
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
               Request Change
@@ -2058,7 +2497,12 @@ export function OrderDetails({
             <Button
               variant="destructive"
               onClick={() =>
-                handleUpdateStatus(currentOrder.id, "Unable to Fulfill")
+                setPendingAction({
+                  label: "Unable to Fulfill",
+                  description: "Are you sure you are unable to fulfill this order? This action cannot be undone.",
+                  onConfirm: () =>
+                    handleUpdateStatus(currentOrder.id, "Unable to Fulfill"),
+                })
               }
             >
               Unable to Fulfill
@@ -2085,11 +2529,16 @@ export function OrderDetails({
         <div className="flex gap-2 flex-wrap justify-end mt-4">
           <Button
             onClick={() =>
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "In Production",
-                "You've marked the Order as In Production",
-              )
+              setPendingAction({
+                label: "Start Production",
+                description: "Are you sure you want to mark this order as In Production?",
+                onConfirm: () =>
+                  handleUpdateStatusWithToast(
+                    currentOrder.id,
+                    "In Production",
+                    "You've marked the Order as In Production",
+                  ),
+              })
             }
             className="bg-yellow-500 hover:bg-yellow-600 text-white"
           >
@@ -2097,18 +2546,29 @@ export function OrderDetails({
           </Button>
           <Button
             onClick={() =>
-              handleUpdateStatusWithToast(
-                currentOrder.id,
-                "Stock Ready",
-                "You've marked the Order as Ready Stock",
-              )
+              setPendingAction({
+                label: "Mark Stock Ready",
+                description: "Are you sure you want to mark this order as Stock Ready?",
+                onConfirm: () =>
+                  handleUpdateStatusWithToast(
+                    currentOrder.id,
+                    "Stock Ready",
+                    "You've marked the Order as Ready Stock",
+                  ),
+              })
             }
             className="bg-green-600 hover:bg-green-700 text-white"
           >
             Mark Stock Ready
           </Button>
           <Button
-            onClick={() => onUpdateOrder?.(currentOrder)}
+            onClick={() =>
+              setPendingAction({
+                label: "Request Change",
+                description: "Are you sure you want to request a change for this order?",
+                onConfirm: () => onUpdateOrder?.(currentOrder),
+              })
+            }
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             Request Change
@@ -2150,7 +2610,7 @@ export function OrderDetails({
               <DialogDescription>
                 {relatedRequest.requestNo && (
                   <span className="font-mono font-semibold">
-                    {relatedRequest.requestNo}
+                    PO Number: {relatedRequest.requestNo}
                   </span>
                 )}
               </DialogDescription>
@@ -2161,7 +2621,7 @@ export function OrderDetails({
                 <div className="space-y-2">
                   {relatedRequest.requestNo && (
                     <div>
-                      <span className="text-gray-500">Request No: </span>
+                      <span className="text-gray-500">PO Number: </span>
                       <span className="font-medium font-mono">
                         {relatedRequest.requestNo}
                       </span>
@@ -2357,7 +2817,7 @@ export function OrderDetails({
                     </tr>
                   </thead>
                   <tbody>
-                    {currentOrder.detailItems.map((item) => {
+                    {sortDetailItems(currentOrder.detailItems).map((item) => {
                       const ukuranDisplay = getUkuranDisplay(item.ukuran);
                       return (
                         <tr key={item.id} className="border-t">
@@ -2421,6 +2881,68 @@ export function OrderDetails({
         </DialogContent>
       </Dialog>
 
+      {/* Reject Revision Reason Dialog */}
+      <Dialog
+        open={showRejectReasonDialog}
+        onOpenChange={(open) => {
+          setShowRejectReasonDialog(open);
+          if (!open) {
+            setRejectReason("");
+            setRejectContext("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Supplier Revision</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2">
+                {rejectContext && (
+                  <p className="text-sm text-gray-700">
+                    <span className="font-semibold">Rejecting:</span>{" "}
+                    {rejectContext}
+                  </p>
+                )}
+                <p className="text-sm font-semibold text-red-600">
+                  ⚠️ Warning: clicking OK will permanently CANCEL this order.
+                </p>
+                <p className="text-sm text-gray-600">
+                  A rejection reason is mandatory for record keeping.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">Reason for Rejection *</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Enter the reason for rejecting this revision..."
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRejectReasonDialog(false);
+                setRejectReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmReject}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!rejectReason.trim()}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Cancel Order Dialog */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent>
@@ -2470,6 +2992,36 @@ export function OrderDetails({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Action Confirmation Dialog */}
+      <AlertDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingAction(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingAction?.label}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAction?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingAction(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                pendingAction?.onConfirm();
+                setPendingAction(null);
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

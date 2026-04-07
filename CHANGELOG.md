@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+### Added
+
+**Supplier Revision Review — Sales's Choice Column**
+
+- "Supplier's change" and "Sales's choice" are now two separate columns in the Item Changes table
+- Sales's choice column shows **✓ Approved** or **✕ Rejected** badge per row while reviewing and after submission
+- Sales can see their row-level decisions (green/red badges) even after submitting their review (status = "Pending JB Review")
+- JB sees both the full supplier proposal and Sales's decision for every row
+
+**Supplier Action Buttons — Confirmation Dialogs**
+
+- Clicking Start Production, Mark Stock Ready, Request Change, or Unable to Fulfill now opens a confirmation dialog before executing the action
+
+### Changed
+
+**Revision Review — Status Rename: "Viewed" → "Supplier Viewed"**
+
+- Order status `"Viewed"` renamed to `"Supplier Viewed"` across all components, mock data, and status color mappings
+- Updated: `order.ts`, `status-colors.ts`, `mock-data.ts`, `supplier-home.tsx`, `jb-inbound-search.tsx`, `unified-orders.tsx`, `order-details.tsx`
+
+**Revision Review — Sales-Rejected Rows Preserved for JB**
+
+- When Sales rejects a New or Updated row, the row is kept visible for JB with a red strikethrough instead of being silently removed
+- Sales-rejected rows show the supplier's proposed values with strikethrough; no accept/reject buttons shown to JB for those rows
+- `salesRowDecisions` field added to `OrderRevision` type; populated when Sales submits their revision review
+
 ### Changed
 
 **Unified Card Component — OrderCard replaces RequestCard**

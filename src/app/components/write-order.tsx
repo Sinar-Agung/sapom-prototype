@@ -722,7 +722,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
             </div>
             {request.requestNo && (
               <p className="text-sm text-gray-700 mb-1">
-                <span className="text-gray-500">Request No: </span>
+                <span className="text-gray-500">PO Number: </span>
                 <span className="font-mono">{request.requestNo}</span>
               </p>
             )}

@@ -27,9 +27,11 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
     "Fully Delivered",
     "Shipping",
     "New Order",
-    "Viewed",
+    "Supplier Viewed",
     "Order Revised",
     "Change Pending Approval",
+    "Pending Sales Review",
+    "Pending JB Review",
   ];
 
   const trimmed = search.trim().toLowerCase();
@@ -53,7 +55,9 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
           ref={inputRef}
           placeholder="Search by PO Number..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) =>
+            setSearch(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))
+          }
           className="pl-12 h-14 text-lg rounded-xl border-2 focus-visible:border-blue-500 shadow-sm"
           autoComplete="off"
         />

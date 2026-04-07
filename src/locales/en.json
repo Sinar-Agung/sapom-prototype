@@ -88,7 +88,7 @@
     "weight": "Weight",
     "pieces": "Pieces",
     "notes": "Notes",
-    "requestNo": "Request No",
+    "requestNo": "PO Number",
     "orderNo": "Order No",
     "poNumber": "PO Number",
     "sales": "Sales",
@@ -147,7 +147,7 @@
     "created": "Created Date",
     "eta": "ETA",
     "productName": "Product Name",
-    "requestNo": "Request No",
+    "requestNo": "PO Number",
     "sales": "Sales",
     "atasNama": "Customer Name",
     "pabrik": "Supplier"

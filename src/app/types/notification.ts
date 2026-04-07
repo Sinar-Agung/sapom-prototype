@@ -27,6 +27,7 @@ export type NotificationEventType =
   | "order_revised"
   | "order_status_changed"
   | "order_change_requested" // Supplier requested change on order
+  | "order_change_approved" // Sales or JB approved an order change revision
   | "order_viewed_by_supplier"
   | "order_arrival_recorded"
   | "order_closed";

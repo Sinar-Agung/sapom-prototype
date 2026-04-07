@@ -551,6 +551,23 @@ export const markNotificationAsRead = (
   saveNotifications(updated);
 };
 
+export const markNotificationAsUnread = (
+  notificationId: string,
+  username: string,
+) => {
+  const notifications = getAllNotifications();
+  const updated = notifications.map((n) => {
+    if (n.id === notificationId) {
+      return {
+        ...n,
+        readBy: n.readBy.filter((u) => u !== username),
+      };
+    }
+    return n;
+  });
+  saveNotifications(updated);
+};
+
 // Mark all notifications as read for a user
 export const markAllAsReadForUser = (
   username: string,
@@ -1249,8 +1266,8 @@ export const notifyOrderStatusChanged = (
   const supplierId =
     typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
-  // Special handling for "Change Pending Approval" status
-  if (changedByRole === "supplier" && newStatus === "Change Pending Approval") {
+  // Special handling for "Pending Sales Review" status
+  if (changedByRole === "supplier" && newStatus === "Pending Sales Review") {
     // Supplier should also receive their own change request notification
     targets.push("supplier");
     // Sales also needs to review the proposed changes
@@ -1315,6 +1332,60 @@ export const notifyOrderStatusChanged = (
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
+  );
+};
+
+// Helper: Create notification when Sales or JB approves an order change revision
+export const notifyOrderChangeApproved = (
+  order: Order,
+  approvedBy: string,
+  approvedByRole: "sales" | "jb",
+  bothApproved: boolean,
+) => {
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+  const approverName = getFullNameFromUsername(approvedBy);
+  const atasNama = order.atasNama || "Unknown Customer";
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+
+  const title = bothApproved
+    ? `Order change fully approved: <strong class="text-green-600">${productName}</strong>`
+    : `Order change approved by ${approvedByRole.toUpperCase()}: <strong class="text-blue-600">${productName}</strong>`;
+
+  const message = `Product: ${productName}\nCustomer: ${atasNama}\nSupplier: ${supplierName}\nApproved by: ${approverName}\nStatus: ${bothApproved ? "Fully Approved — Order Revised" : `Waiting for ${approvedByRole === "jb" ? "Sales" : "JB"} approval`}`;
+
+  // Notify the other party and the originating sales
+  const targets: NotificationTargetAudience[] = ["jb", "sales"];
+  const specific: string[] = [];
+  if (order.sales) specific.push(order.sales);
+  if (order.jbId) specific.push(order.jbId);
+
+  return createNotification(
+    "order_change_approved",
+    approvedBy,
+    approvedByRole,
+    "order",
+    order.id,
+    order.PONumber,
+    title,
+    message,
+    targets,
+    specific.length > 0 ? specific : undefined,
+    undefined,
+    { productName, atasNama, bothApproved },
+    atasNama,
+    order.sales,
     order.branchCode,
   );
 };

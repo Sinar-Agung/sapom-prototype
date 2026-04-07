@@ -24,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
-import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 import {
@@ -35,8 +34,10 @@ import {
   getLabelFromValue,
 } from "@/app/data/order-data";
 import { Order, OrderRevision } from "@/app/types/order";
+import { Request } from "@/app/types/request";
 import { storeImage } from "@/app/utils/image-storage";
 import {
+  notifyOrderChangeApproved,
   notifyOrderRevised,
   notifyOrderStatusChanged,
 } from "@/app/utils/notification-helper";
@@ -49,7 +50,7 @@ import kalungFlexi from "@/assets/images/kalung-flexi.png";
 import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
-import { ArrowLeft, Camera, ImagePlus, X } from "lucide-react";
+import { ArrowLeft, Camera, ImagePlus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { DetailBarangItem } from "./request-form/detail-items-display";
@@ -112,17 +113,48 @@ export function OrderEditForm({
   });
   // Convenience alias so the rest of the component can still use detailItems directly
   const detailItems = detailItemsState.items;
+
+  // Soft-delete state for product detail rows
+  const [markedForDeletion, setMarkedForDeletion] = useState<Set<string>>(
+    new Set(),
+  );
+  const handleToggleSoftDelete = (id: string) => {
+    setMarkedForDeletion((prev: Set<string>) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+  // Items that will actually be saved (excludes soft-deleted rows)
+  const finalDetailItems = detailItems.filter(
+    (item) => !markedForDeletion.has(item.id),
+  );
   const fileInputGalleryRef = useRef<HTMLInputElement>(null);
   const fileInputCameraRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [fileInputKey, setFileInputKey] = useState(0);
   const [showCameraPreview, setShowCameraPreview] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [showSubmitConfirmDialog, setShowSubmitConfirmDialog] = useState(false);
   const [revisionNotesError, setRevisionNotesError] = useState(false);
   const revisionNotesRef = useRef<HTMLTextAreaElement>(null);
+  const [relatedRequest, setRelatedRequest] = useState<Request | null>(null);
+
+  useEffect(() => {
+    if (order.requestId) {
+      const saved = localStorage.getItem("requests");
+      if (saved) {
+        const requests: Request[] = JSON.parse(saved);
+        const req = requests.find((r) => r.id === order.requestId);
+        if (req) setRelatedRequest(req);
+      }
+    }
+  }, [order.requestId]);
 
   // Detect if any values have changed from the original order
   const hasChanges = useMemo(() => {
@@ -180,16 +212,6 @@ export function OrderEditForm({
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleRemovePhoto = () => {
-    setFormData((prev) => ({
-      ...prev,
-      fotoBarang: null,
-      photoId: "",
-      currentImageData: "",
-    }));
-    setFileInputKey((prev) => prev + 1);
   };
 
   const startCamera = async () => {
@@ -279,7 +301,7 @@ export function OrderEditForm({
       return;
     }
 
-    if (detailItems.length === 0) {
+    if (finalDetailItems.length === 0) {
       toast.error("Please add at least one detail item");
       return;
     }
@@ -325,7 +347,7 @@ export function OrderEditForm({
         jenisProduk: formData.jenisProduk,
         namaProduk: formData.namaProduk,
         namaBasic: formData.namaBasic,
-        detailItems: detailItems,
+        detailItems: finalDetailItems,
         photoId: formData.photoId,
         waktuKirim: formData.waktuKirim?.toISOString() || order.waktuKirim,
       },
@@ -340,9 +362,9 @@ export function OrderEditForm({
       },
     };
 
-    // Supplier revisions go to Change Pending Approval; JB/Sales revisions are applied directly
+    // Supplier revisions go to Pending Sales Review; JB/Sales revisions are applied directly
     const newStatus =
-      userRole === "supplier" ? "Change Pending Approval" : "Order Revised";
+      userRole === "supplier" ? "Pending Sales Review" : "Order Revised";
 
     const updatedOrder: Order = {
       ...existingOrder,
@@ -350,7 +372,7 @@ export function OrderEditForm({
       jenisProduk: formData.jenisProduk,
       namaProduk: formData.namaProduk,
       namaBasic: formData.namaBasic,
-      detailItems: detailItems,
+      detailItems: finalDetailItems,
       photoId: formData.photoId,
       waktuKirim: formData.waktuKirim?.toISOString() || order.waktuKirim,
       revisionNotes: formData.revisionNotes,
@@ -370,7 +392,7 @@ export function OrderEditForm({
       notifyOrderStatusChanged(
         updatedOrder,
         existingOrder.status,
-        "Change Pending Approval",
+        "Pending Sales Review",
         currentUser,
         "supplier",
       );
@@ -404,10 +426,22 @@ export function OrderEditForm({
     // If both JB and Sales have approved, change status to Order Revised
     if (currentOrder.jbApproved && currentOrder.salesApproved) {
       currentOrder.status = "Order Revised";
+      notifyOrderChangeApproved(
+        currentOrder,
+        currentUser,
+        userRole as "sales" | "jb",
+        true,
+      );
       toast.success(
         "Order revision fully approved - Status changed to Order Revised",
       );
     } else {
+      notifyOrderChangeApproved(
+        currentOrder,
+        currentUser,
+        userRole as "sales" | "jb",
+        false,
+      );
       toast.success(
         `Order approved by ${userRole.toUpperCase()} - Waiting for ${userRole === "jb" ? "Sales" : "JB"} approval`,
       );
@@ -538,37 +572,6 @@ export function OrderEditForm({
                 </p>
               )}
             </div>
-            {(userRole === "supplier" || userRole === "jb") && (
-              <div className="md:col-span-2">
-                <Label
-                  htmlFor="revisionNotes"
-                  className="text-gray-600 font-bold text-base"
-                >
-                  Revision Notes <span className="text-red-500">*</span>{" "}
-                  <span className="text-sm text-gray-500">
-                    (Required - visible to JB and Sales)
-                  </span>
-                </Label>
-                <Textarea
-                  id="revisionNotes"
-                  ref={revisionNotesRef}
-                  value={formData.revisionNotes}
-                  onChange={(e) => {
-                    setFormData({ ...formData, revisionNotes: e.target.value });
-                    if (revisionNotesError) setRevisionNotesError(false);
-                  }}
-                  placeholder="Add notes about changes made to this order (required)..."
-                  rows={3}
-                  className={`mt-1${revisionNotesError ? " border-red-500 focus-visible:ring-red-500" : ""}`}
-                  required
-                />
-                {revisionNotesError && (
-                  <p className="text-red-500 text-xs mt-1">
-                    Revision notes are required before submitting.
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         </Card>
 
@@ -620,53 +623,66 @@ export function OrderEditForm({
               </>
             )}
 
+            {/* Sales Request Notes - Read Only */}
+            {relatedRequest?.notes && (
+              <>
+                <Label className="text-gray-600 font-bold text-base">
+                  Sales Notes
+                </Label>
+                <p className="font-medium mt-1 text-gray-700 whitespace-pre-wrap">
+                  {relatedRequest.notes}
+                </p>
+              </>
+            )}
+
             {/* Conditional: Product Photo - Show preview for Basic, show uploader+preview for Model */}
             {formData.kategoriBarang === "basic" && formData.namaBasic ? (
               <>
                 <Label className="text-gray-600 font-bold text-base">
                   Product Photo
                 </Label>
-                <div className="border rounded-md p-2 bg-gray-50 relative">
-                  <img
-                    src={
-                      formData.currentImageData ||
-                      NAMA_BASIC_IMAGES[formData.namaBasic]
-                    }
-                    alt={formData.namaBasic}
-                    className="w-full sm:w-48 h-48 object-cover rounded"
-                  />
-                  {userRole !== "sales" && (
-                    <div className="absolute top-3 right-3">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className="h-8 px-3 bg-white/90 hover:bg-white shadow-md"
-                          >
-                            <Camera className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">
-                              Change Image
-                            </span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => fileInputGalleryRef.current?.click()}
-                          >
-                            <ImagePlus className="w-4 h-4 mr-2" />
-                            Choose from Gallery
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleTakePhotoClick}>
-                            <Camera className="w-4 h-4 mr-2" />
-                            Take Photo
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-                </div>
+                {userRole !== "sales" ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div className="border rounded-md p-2 bg-gray-50 relative cursor-pointer group hover:bg-gray-100 transition-colors">
+                        <img
+                          src={
+                            formData.currentImageData ||
+                            NAMA_BASIC_IMAGES[formData.namaBasic]
+                          }
+                          alt={formData.namaBasic}
+                          className="w-full sm:w-48 h-48 object-cover rounded"
+                        />
+                        <div className="absolute inset-0 bg-black/30 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <Camera className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => fileInputGalleryRef.current?.click()}
+                      >
+                        <ImagePlus className="w-4 h-4 mr-2" />
+                        Choose from Gallery
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleTakePhotoClick}>
+                        <Camera className="w-4 h-4 mr-2" />
+                        Take Photo
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <div className="border rounded-md p-2 bg-gray-50">
+                    <img
+                      src={
+                        formData.currentImageData ||
+                        NAMA_BASIC_IMAGES[formData.namaBasic]
+                      }
+                      alt={formData.namaBasic}
+                      className="w-full sm:w-48 h-48 object-cover rounded"
+                    />
+                  </div>
+                )}
               </>
             ) : formData.kategoriBarang === "model" ? (
               <>
@@ -677,63 +693,69 @@ export function OrderEditForm({
                 <div className="space-y-2">
                   {formData.currentImageData ? (
                     <div className="relative inline-block">
-                      <img
-                        src={formData.currentImageData}
-                        alt="Preview"
-                        className="w-full sm:w-48 h-48 object-cover rounded border"
-                      />
-                      {userRole !== "sales" && (
-                        <div className="absolute bottom-2 right-2 flex gap-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                className="h-8 px-3 bg-white/90 hover:bg-white shadow-md"
-                              >
-                                <Camera className="w-4 h-4 sm:mr-1" />
-                                <span className="hidden sm:inline">
-                                  Change Image
-                                </span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  fileInputGalleryRef.current?.click()
-                                }
-                              >
-                                <ImagePlus className="w-4 h-4 mr-2" />
-                                Choose from Gallery
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={handleTakePhotoClick}>
-                                <Camera className="w-4 h-4 mr-2" />
-                                Take Photo
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="h-8 w-8 p-0 shadow-md"
-                            onClick={handleRemovePhoto}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
+                      {userRole !== "sales" ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <div className="cursor-pointer group relative">
+                              <img
+                                src={formData.currentImageData}
+                                alt="Preview"
+                                className="w-full sm:w-48 h-48 object-cover rounded border"
+                              />
+                              <div className="absolute inset-0 bg-black/30 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <Camera className="w-6 h-6 text-white" />
+                              </div>
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                fileInputGalleryRef.current?.click()
+                              }
+                            >
+                              <ImagePlus className="w-4 h-4 mr-2" />
+                              Choose from Gallery
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleTakePhotoClick}>
+                              <Camera className="w-4 h-4 mr-2" />
+                              Take Photo
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <img
+                          src={formData.currentImageData}
+                          alt="Preview"
+                          className="w-full sm:w-48 h-48 object-cover rounded border"
+                        />
                       )}
                     </div>
                   ) : userRole !== "sales" ? (
-                    <Input
-                      id="fotoBarang"
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="h-9 sm:h-8 text-sm"
-                      onChange={handlePhotoChange}
-                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-9 sm:h-8 text-sm"
+                        >
+                          <ImagePlus className="w-4 h-4 mr-2" />
+                          Choose Photo
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => fileInputGalleryRef.current?.click()}
+                        >
+                          <ImagePlus className="w-4 h-4 mr-2" />
+                          Choose from Gallery
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleTakePhotoClick}>
+                          <Camera className="w-4 h-4 mr-2" />
+                          Take Photo
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : null}
                 </div>
               </>
@@ -744,7 +766,7 @@ export function OrderEditForm({
               type="file"
               accept="image/*"
               className="hidden"
-              key={`gallery-${fileInputKey}`}
+              key="gallery-input"
               ref={fileInputGalleryRef}
               onChange={handlePhotoChange}
             />
@@ -753,7 +775,7 @@ export function OrderEditForm({
               accept="image/*"
               capture="environment"
               className="hidden"
-              key={`camera-${fileInputKey}`}
+              key="camera-input"
               ref={fileInputCameraRef}
               onChange={handlePhotoChange}
             />
@@ -768,8 +790,45 @@ export function OrderEditForm({
             kategoriBarang={formData.kategoriBarang}
             jenisProduk={formData.jenisProduk}
             showInput={userRole !== "sales"}
+            markedForDeletion={markedForDeletion}
+            onToggleDelete={
+              userRole !== "sales" ? handleToggleSoftDelete : undefined
+            }
           />
         </Card>
+
+        {/* Revision Notes */}
+        {(userRole === "supplier" || userRole === "jb") && (
+          <Card className="p-4">
+            <Label
+              htmlFor="revisionNotes"
+              className="text-gray-600 font-bold text-base"
+            >
+              Revision Notes <span className="text-red-500">*</span>{" "}
+              <span className="text-sm text-gray-500">
+                (Required - visible to JB and Sales)
+              </span>
+            </Label>
+            <Textarea
+              id="revisionNotes"
+              ref={revisionNotesRef}
+              value={formData.revisionNotes}
+              onChange={(e) => {
+                setFormData({ ...formData, revisionNotes: e.target.value });
+                if (revisionNotesError) setRevisionNotesError(false);
+              }}
+              placeholder="Add notes about changes made to this order (required)..."
+              rows={3}
+              className={`mt-1${revisionNotesError ? " border-red-500 focus-visible:ring-red-500" : ""}`}
+              required
+            />
+            {revisionNotesError && (
+              <p className="text-red-500 text-xs mt-1">
+                Revision notes are required before submitting.
+              </p>
+            )}
+          </Card>
+        )}
 
         {/* Revision Summary for Sales */}
         {userRole === "sales" &&
@@ -882,7 +941,13 @@ export function OrderEditForm({
             <Button variant="outline" onClick={onBack}>
               Cancel
             </Button>
-            <Button onClick={handleValidateAndConfirm} disabled={!hasChanges}>
+            <Button
+              onClick={handleValidateAndConfirm}
+              disabled={
+                !hasChanges ||
+                (formData.kategoriBarang === "model" && !formData.photoId)
+              }
+            >
               Submit Changes
             </Button>
           </div>
@@ -951,9 +1016,8 @@ export function OrderEditForm({
             <AlertDialogTitle>Submit Proposed Changes?</AlertDialogTitle>
             <AlertDialogDescription>
               Your proposed changes will be sent to Sales and JB for review. The
-              order status will be set to{" "}
-              <strong>Change Pending Approval</strong> until they approve or
-              reject your changes.
+              order status will be set to <strong>Pending Sales Review</strong>{" "}
+              until Sales has reviewed, reject your changes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

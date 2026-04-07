@@ -57,7 +57,7 @@ const REQUEST_SORT_OPTIONS: SortOption[] = [
   { value: "sales", label: "Sales" },
   { value: "atasNama", label: "Customer Name" },
   { value: "pabrik", label: "Supplier" },
-  { value: "requestNo", label: "Request No" },
+  { value: "requestNo", label: "PO Number" },
 ];
 
 export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
@@ -140,7 +140,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
-    
+
     // Mark request as viewed when showing items
     if (expandedOrderId !== orderId) {
       markRequestAsViewed(orderId);
@@ -370,7 +370,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
                 {filteredOrders.map((order) => {
                   const isExpanded = expandedOrderId === order.id;
                   const orderData = requestToOrder(order);
-                  
+
                   // Wrap onSeeDetail to mark as viewed
                   const handleSeeDetail = onSeeDetail
                     ? (_o: Order) => {
@@ -378,7 +378,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
                         onSeeDetail(order, activeTab);
                       }
                     : undefined;
-                  
+
                   return (
                     <OrderCard
                       key={order.id}

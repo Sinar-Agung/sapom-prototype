@@ -43,6 +43,19 @@ interface DetailItemInputProps {
   onToggleExpanded?: () => void;
 }
 
+/** Restricts a number input to at most one decimal place. */
+function handleUkuranKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  const val = e.currentTarget.value;
+  if (e.key === ".") {
+    if (val.includes(".")) e.preventDefault();
+  } else if (/^\d$/.test(e.key)) {
+    const decimalIdx = val.indexOf(".");
+    if (decimalIdx !== -1 && val.length - decimalIdx > 1) {
+      e.preventDefault();
+    }
+  }
+}
+
 export function DetailItemInput({
   detailInput,
   onDetailInputChange,
@@ -156,9 +169,10 @@ export function DetailItemInput({
               <InputWithCheck
                 id="ukuran"
                 type="number"
-                step="0.01"
+                step="0.1"
                 className="h-9 sm:h-8 text-sm w-full"
                 value={detailInput.ukuran}
+                onKeyDown={handleUkuranKeyDown}
                 onChange={(e) =>
                   onDetailInputChange({
                     ...detailInput,
@@ -198,9 +212,10 @@ export function DetailItemInput({
                 {detailInput.ukuran === "other" && (
                   <InputWithCheck
                     type="number"
-                    step="0.01"
+                    step="0.1"
                     className="h-9 sm:h-8 text-sm w-[100px]"
                     value={detailInput.ukuranCustom}
+                    onKeyDown={handleUkuranKeyDown}
                     onChange={(e) =>
                       onDetailInputChange({
                         ...detailInput,
@@ -225,9 +240,10 @@ export function DetailItemInput({
               <InputWithCheck
                 id="ukuran"
                 type="number"
-                step="0.01"
+                step="0.1"
                 className="h-9 sm:h-8 text-sm w-full"
                 value={detailInput.ukuran}
+                onKeyDown={handleUkuranKeyDown}
                 onChange={(e) =>
                   onDetailInputChange({
                     ...detailInput,
@@ -250,9 +266,10 @@ export function DetailItemInput({
               <InputWithCheck
                 id="ukuran"
                 type="number"
-                step="0.01"
+                step="0.1"
                 className="h-9 sm:h-8 text-sm w-full"
                 value={detailInput.ukuran}
+                onKeyDown={handleUkuranKeyDown}
                 onChange={(e) =>
                   onDetailInputChange({
                     ...detailInput,
