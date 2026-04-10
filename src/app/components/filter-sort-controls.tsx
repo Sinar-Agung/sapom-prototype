@@ -79,7 +79,7 @@ export function FilterSortControls({
       {/* Sort controls - wraps to next line on mobile if needed, grouped with filter on desktop */}
       <div className="flex items-center gap-1.5 sm:gap-2">
         <label className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
-          Sort by {sortDirection === "asc" ? "(Asc)" : "(Desc)"}:
+          Sort by:
         </label>
         <Select value={sortBy} onValueChange={onSortChange}>
           <SelectTrigger className="h-8 sm:h-9 w-36 sm:w-48 text-xs sm:text-sm">
@@ -97,14 +97,23 @@ export function FilterSortControls({
           onClick={() =>
             onSortDirectionChange(sortDirection === "asc" ? "desc" : "asc")
           }
-          className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center border rounded-md hover:bg-gray-100 transition-colors"
-          title={sortDirection === "asc" ? "Ascending" : "Descending"}
+          className={`h-8 sm:h-9 flex items-center justify-center gap-1 px-2 border rounded-md transition-colors text-xs sm:text-sm font-medium ${
+            sortDirection === "desc"
+              ? "bg-blue-50 text-blue-700 border-blue-400 hover:bg-blue-100"
+              : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
+          }`}
+          title={
+            sortDirection === "asc"
+              ? "Ascending — click to switch to Descending"
+              : "Descending — click to switch to Ascending"
+          }
         >
           {sortDirection === "asc" ? (
             <ArrowUpWideNarrow className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           ) : (
             <ArrowDownNarrowWide className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           )}
+          <span>{sortDirection === "asc" ? "Asc" : "Desc"}</span>
         </button>
       </div>
     </div>

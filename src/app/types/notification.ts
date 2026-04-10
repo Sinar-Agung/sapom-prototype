@@ -16,20 +16,29 @@ export type NotificationEventType =
   | "request_stock_unavailable" // Request changed to Stock Unavailable
   | "request_expired" // Request ETA has passed
   | "request_viewed_by_stockist"
+  | "request_viewed_by_jb" // JB views an Open request
   | "request_approved_by_stockist"
   | "request_rejected_by_stockist"
+  | "request_rejected" // JB rejects a request
   | "request_converted_to_order"
   | "request_eta_reminder" // ETA reminder for stockist
   | "request_expiring" // Request nearing ETA deadline
   // Order events
   | "order_created"
+  | "order_written" // JB writes/creates a new order
+  | "order_in_production" // Supplier starts production
+  | "order_stock_ready" // Supplier marks stock ready
   | "order_updated"
   | "order_revised"
   | "order_status_changed"
   | "order_change_requested" // Supplier requested change on order
   | "order_change_approved" // Sales or JB approved an order change revision
   | "order_viewed_by_supplier"
+  | "supplier_views_order" // Supplier views a New Order
   | "order_arrival_recorded"
+  | "order_shipment_created" // Supplier creates a shipment entry
+  | "order_shipment_edited" // Supplier edits a shipment entry
+  | "order_fully_delivered" // All items have been delivered
   | "order_closed";
 
 export type NotificationTargetAudience =

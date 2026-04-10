@@ -794,6 +794,7 @@ export function OrderEditForm({
             onToggleDelete={
               userRole !== "sales" ? handleToggleSoftDelete : undefined
             }
+            hideNotes={userRole === "supplier"}
           />
         </Card>
 

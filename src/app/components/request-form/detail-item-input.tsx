@@ -41,6 +41,7 @@ interface DetailItemInputProps {
   onCancel: () => void;
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
+  hideNotes?: boolean;
 }
 
 /** Restricts a number input to at most one decimal place. */
@@ -69,6 +70,7 @@ export function DetailItemInput({
   onCancel,
   isExpanded = true,
   onToggleExpanded,
+  hideNotes = false,
 }: DetailItemInputProps) {
   return (
     <div className="bg-white sticky top-0 z-10 pb-2 sm:pb-3 border-b mb-2 sm:mb-3">
@@ -301,15 +303,19 @@ export function DetailItemInput({
               value={detailInput.berat}
               onChange={(e) => {
                 const value = e.target.value;
-                // Only allow numbers, commas, dashes, and spaces (no decimal points)
-                if (value === "" || /^[0-9,\-\s]+$/.test(value)) {
-                  onDetailInputChange({
-                    ...detailInput,
-                    berat: value,
-                  });
+                if (editingDetailId) {
+                  // In edit mode: integers only
+                  if (value === "" || /^[0-9]+$/.test(value)) {
+                    onDetailInputChange({ ...detailInput, berat: value });
+                  }
+                } else {
+                  // In add mode: allow ranges like "2, 4, 7-9"
+                  if (value === "" || /^[0-9,\-\s]+$/.test(value)) {
+                    onDetailInputChange({ ...detailInput, berat: value });
+                  }
                 }
               }}
-              placeholder="2, 4, 7-9"
+              placeholder={editingDetailId ? "e.g. 4" : "2, 4, 7-9"}
               disabled={isDisabled}
             />
           </div>
@@ -349,30 +355,32 @@ export function DetailItemInput({
           </div>
 
           {/* Notes */}
-          <div className="w-[150px]">
-            <Label
-              htmlFor="notes"
-              className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-            >
-              <StickyNote className="h-3 w-3 text-yellow-600" />
-              Notes
-            </Label>
-            <InputWithCheck
-              id="notes"
-              type="text"
-              className="h-9 sm:h-8 text-sm w-full"
-              value={detailInput.notes}
-              maxLength={50}
-              onChange={(e) =>
-                onDetailInputChange({
-                  ...detailInput,
-                  notes: e.target.value,
-                })
-              }
-              placeholder="Optional notes..."
-              disabled={isDisabled}
-            />
-          </div>
+          {!hideNotes && (
+            <div className="w-[150px]">
+              <Label
+                htmlFor="notes"
+                className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
+              >
+                <StickyNote className="h-3 w-3 text-yellow-600" />
+                Notes
+              </Label>
+              <InputWithCheck
+                id="notes"
+                type="text"
+                className="h-9 sm:h-8 text-sm w-full"
+                value={detailInput.notes}
+                maxLength={50}
+                onChange={(e) =>
+                  onDetailInputChange({
+                    ...detailInput,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder="Optional notes..."
+                disabled={isDisabled}
+              />
+            </div>
+          )}
 
           {/* Add/Update and Cancel Buttons */}
           <div className="w-full sm:w-auto flex items-end gap-1.5 sm:gap-2">

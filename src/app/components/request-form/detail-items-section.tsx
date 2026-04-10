@@ -38,6 +38,8 @@ interface DetailItemsSectionProps {
   markedForDeletion?: Set<string>;
   /** Called when trash/undo button clicked in soft-delete mode. */
   onToggleDelete?: (id: string) => void;
+  /** When true, hides the Notes column and Notes input (e.g. for supplier role). */
+  hideNotes?: boolean;
 }
 
 /**
@@ -60,6 +62,7 @@ export function DetailItemsSection({
   onNotesClick,
   markedForDeletion,
   onToggleDelete,
+  hideNotes = false,
 }: DetailItemsSectionProps) {
   const {
     detailInput,
@@ -129,6 +132,7 @@ export function DetailItemsSection({
             onToggleExpanded={() =>
               setIsInputFormExpanded(!isInputFormExpanded)
             }
+            hideNotes={hideNotes}
           />
         </div>
       )}
@@ -157,6 +161,7 @@ export function DetailItemsSection({
         getWarnaLabel={getWarnaLabel}
         getUkuranDisplay={getUkuranDisplay}
         isInputFormExpanded={isInputFormExpanded}
+        hideNotes={hideNotes}
       />
     </div>
   );

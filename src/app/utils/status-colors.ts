@@ -174,6 +174,11 @@ export const STATUS_COLORS: Record<string, StatusConfig> = {
     text: "text-teal-800",
     label: "Completed",
   },
+  Closed: {
+    bg: "bg-gray-800",
+    text: "text-white",
+    label: "Closed",
+  },
   "Viewed by Supplier": {
     bg: "bg-purple-100",
     text: "text-purple-800",

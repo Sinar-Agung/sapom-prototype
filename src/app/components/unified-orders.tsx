@@ -149,7 +149,7 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     },
     {
       value: "shipping",
-      label: "Shipping",
+      label: "In Progress",
       orderStatuses: [
         "In Production",
         "Stock Ready",
@@ -194,7 +194,7 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     },
     {
       value: "shipping",
-      label: "Shipping",
+      label: "In Progress",
       orderStatuses: [
         "In Production",
         "Stock Ready",
@@ -226,7 +226,7 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
     },
     {
       value: "shipping",
-      label: "Shipping",
+      label: "In Progress",
       orderStatuses: [
         "In Production",
         "Stock Ready",
@@ -815,6 +815,7 @@ export function UnifiedOrders({
 
   const displayedItems = sortedAllItems.slice(0, displayedCount);
   const totalCount = sortedAllItems.length;
+  const rawTotalCount = requests.length + orders.length;
 
   // IntersectionObserver for lazy loading — fires when sentinel enters viewport
   // regardless of which ancestor element scrolls. Re-created on each batch load
@@ -907,7 +908,8 @@ export function UnifiedOrders({
 
           <FilterSortControls
             type={userRole === "personal" ? "request" : "order"}
-            totalCount={totalCount}
+            totalCount={rawTotalCount}
+            displayedCount={displayedItems.length}
             sortBy={sortBy}
             sortDirection={sortDirection}
             onSortChange={setSortBy}

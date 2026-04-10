@@ -26,7 +26,8 @@ export type OrderStatus =
   | "Unable to Fulfill" // Supplier cannot fulfill the order
   | "Completed" // Order fulfilled and delivered
   | "Confirmed by JB" // Order delivery confirmed by JB
-  | "Cancelled"; // Order was cancelled
+  | "Cancelled" // Order was cancelled
+  | "Closed"; // Order closed by JB after full delivery
 
 /**
  * Order Shipping Item - tracks dispatched quantities for a specific item
@@ -64,6 +65,16 @@ export interface OrderShipping {
 }
 
 /**
+ * A snapshot of an arrival's items at a point in time (for audit trail)
+ */
+export interface OrderArrivalEditHistory {
+  editedAt: number;
+  editedBy: string;
+  previousItems: OrderArrivalItem[];
+  newItems: OrderArrivalItem[];
+}
+
+/**
  * Order Arrival Item - tracks delivered quantities for a specific item
  */
 export interface OrderArrivalItem {
@@ -81,9 +92,11 @@ export interface OrderArrival {
   id: string;
   orderId: string;
   orderPONumber: string;
+  shippingId?: string; // Optional link to specific OrderShipping entry
   createdDate: number; // Arrival date
   createdBy: string; // JB user who recorded the arrival
   items: OrderArrivalItem[]; // Items delivered in this arrival
+  editHistory?: OrderArrivalEditHistory[];
 }
 
 /**

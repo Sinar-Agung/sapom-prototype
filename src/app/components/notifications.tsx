@@ -1,4 +1,5 @@
 import { Notification } from "@/app/types/notification";
+import { getImage } from "@/app/utils/image-storage";
 import {
   archiveNotificationForUser,
   getNotificationsForUser,
@@ -119,6 +120,9 @@ export function Notifications({
   onNavigateToUpdateOrder,
 }: NotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [entityPhotoMap, setEntityPhotoMap] = useState<Map<string, string>>(
+    new Map(),
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(40);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
@@ -195,13 +199,7 @@ export function Notifications({
   const [sortBy, setSortBy] = useState<string>(() => {
     return sessionStorage.getItem("notificationsSortBy") || "timestamp";
   });
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
-    return (
-      (sessionStorage.getItem("notificationsSortDirection") as
-        | "asc"
-        | "desc") || "desc"
-    );
-  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const currentUser =
     localStorage.getItem("username") ||
@@ -226,10 +224,6 @@ export function Notifications({
   useEffect(() => {
     sessionStorage.setItem("notificationsSortBy", sortBy);
   }, [sortBy]);
-
-  useEffect(() => {
-    sessionStorage.setItem("notificationsSortDirection", sortDirection);
-  }, [sortDirection]);
 
   useEffect(() => {
     loadNotifications();
@@ -305,6 +299,18 @@ export function Notifications({
       );
       onNavigateToRequest(notification.entityId);
     } else if (notification.entityType === "order") {
+      // Store scroll target in sessionStorage before navigating
+      if (
+        notification.eventType === "order_shipment_created" ||
+        notification.eventType === "order_shipment_edited"
+      ) {
+        const shippingId = notification.metadata?.shippingId;
+        if (shippingId) {
+          sessionStorage.setItem("order-details-scroll-shipment", shippingId);
+        }
+      } else if (notification.eventType === "order_arrival_recorded") {
+        sessionStorage.setItem("order-details-scroll-arrivals", "true");
+      }
       // Special handling for order_change_requested - navigate to update page
       if (
         notification.eventType === "order_change_requested" &&
@@ -390,7 +396,7 @@ export function Notifications({
 
     switch (sortBy) {
       case "timestamp":
-        comparison = b.timestamp - a.timestamp;
+        comparison = a.timestamp - b.timestamp;
         break;
       case "eventType":
         comparison = a.eventType.localeCompare(b.eventType);
@@ -482,6 +488,21 @@ export function Notifications({
     if (eventType === "order_change_approved")
       return "bg-green-50 border-green-300";
     if (eventType.includes("created")) return "bg-green-50 border-green-200";
+    if (eventType === "order_written") return "bg-green-50 border-green-200";
+    if (eventType === "supplier_views_order")
+      return "bg-cyan-50 border-cyan-200";
+    if (eventType === "order_in_production")
+      return "bg-indigo-50 border-indigo-200";
+    if (eventType === "order_stock_ready")
+      return "bg-emerald-50 border-emerald-200";
+    if (eventType === "order_shipment_created")
+      return "bg-violet-50 border-violet-200";
+    if (eventType === "order_shipment_edited")
+      return "bg-fuchsia-50 border-fuchsia-200";
+    if (eventType === "order_arrival_recorded")
+      return "bg-purple-50 border-purple-200";
+    if (eventType === "order_fully_delivered")
+      return "bg-teal-50 border-teal-200";
     if (eventType.includes("updated")) return "bg-amber-50 border-amber-200";
     if (eventType.includes("cancelled")) return "bg-rose-50 border-rose-200";
     if (eventType.includes("rejected")) return "bg-red-50 border-red-200";
@@ -495,6 +516,14 @@ export function Notifications({
   };
 
   const formatEventType = (eventType: string): string => {
+    if (eventType === "request_viewed_by_jb") return "Viewed by JB";
+    if (eventType === "order_in_production") return "Production Started";
+    if (eventType === "order_stock_ready") return "Stock Ready";
+    if (eventType === "supplier_views_order") return "Supplier Views Order";
+    if (eventType === "order_shipment_created") return "New Shipment";
+    if (eventType === "order_shipment_edited") return "Shipment Updated";
+    if (eventType === "order_arrival_recorded") return "Order Arrival";
+    if (eventType === "order_fully_delivered") return "Fully Delivered";
     return eventType
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -510,6 +539,21 @@ export function Notifications({
     if (eventType === "order_change_approved")
       return "bg-green-100 text-green-700";
     if (eventType.includes("created")) return "bg-green-100 text-green-700";
+    if (eventType === "order_written") return "bg-green-100 text-green-700";
+    if (eventType === "supplier_views_order")
+      return "bg-cyan-100 text-cyan-700";
+    if (eventType === "order_in_production")
+      return "bg-indigo-100 text-indigo-700";
+    if (eventType === "order_stock_ready")
+      return "bg-emerald-100 text-emerald-700";
+    if (eventType === "order_shipment_created")
+      return "bg-violet-100 text-violet-700";
+    if (eventType === "order_shipment_edited")
+      return "bg-fuchsia-100 text-fuchsia-700";
+    if (eventType === "order_arrival_recorded")
+      return "bg-purple-100 text-purple-700";
+    if (eventType === "order_fully_delivered")
+      return "bg-teal-100 text-teal-700";
     if (eventType.includes("updated")) return "bg-amber-100 text-amber-700";
     if (eventType.includes("cancelled")) return "bg-rose-100 text-rose-700";
     if (eventType.includes("rejected")) return "bg-red-100 text-red-700";
@@ -542,35 +586,58 @@ export function Notifications({
     });
   };
 
-  const getThumbnailImage = (notification: Notification): string | null => {
-    try {
-      if (notification.entityType === "request") {
-        const requestsJson = localStorage.getItem("requests");
-        if (requestsJson) {
-          const requests = JSON.parse(requestsJson);
-          const request = requests.find(
-            (r: any) => r.id === notification.entityId,
-          );
-          if (request?.fotoBarangBase64) return request.fotoBarangBase64;
-          if (request?.kategoriBarang === "basic" && request?.namaBasic) {
-            return NAMA_BASIC_IMAGES[request.namaBasic] || null;
+  // Async-load photoId images from IndexedDB whenever notifications change
+  useEffect(() => {
+    if (notifications.length === 0) return;
+    const newMap = new Map<string, string>();
+    const tasks: Promise<void>[] = [];
+    const allEntities: { id: string; storeKey: string }[] = [
+      ...notifications
+        .filter((n) => n.entityType === "request")
+        .map((n) => ({ id: n.entityId, storeKey: "requests" })),
+      ...notifications
+        .filter((n) => n.entityType === "order")
+        .map((n) => ({ id: n.entityId, storeKey: "orders" })),
+    ];
+    const seenIds = new Set<string>();
+    for (const { id, storeKey } of allEntities) {
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      tasks.push(
+        (async () => {
+          try {
+            const json = localStorage.getItem(storeKey);
+            if (!json) return;
+            const arr = JSON.parse(json);
+            const entity = arr.find((e: any) => e.id === id);
+            if (!entity) return;
+            if (entity.photoId) {
+              const data = await getImage(entity.photoId);
+              if (data) {
+                newMap.set(id, data);
+                return;
+              }
+            }
+            if (entity.fotoBarangBase64) {
+              newMap.set(id, entity.fotoBarangBase64);
+            } else if (
+              entity.kategoriBarang === "basic" &&
+              entity.namaBasic &&
+              NAMA_BASIC_IMAGES[entity.namaBasic]
+            ) {
+              newMap.set(id, NAMA_BASIC_IMAGES[entity.namaBasic]);
+            }
+          } catch {
+            /* ignore */
           }
-        }
-      } else if (notification.entityType === "order") {
-        const ordersJson = localStorage.getItem("orders");
-        if (ordersJson) {
-          const orders = JSON.parse(ordersJson);
-          const order = orders.find((o: any) => o.id === notification.entityId);
-          if (order?.fotoBarangBase64) return order.fotoBarangBase64;
-          if (order?.kategoriBarang === "basic" && order?.namaBasic) {
-            return NAMA_BASIC_IMAGES[order.namaBasic] || null;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error getting thumbnail image:", error);
+        })(),
+      );
     }
-    return null;
+    Promise.all(tasks).then(() => setEntityPhotoMap(new Map(newMap)));
+  }, [notifications]);
+
+  const getThumbnailImage = (notification: Notification): string | null => {
+    return entityPhotoMap.get(notification.entityId) ?? null;
   };
 
   const renderMessageFields = (
@@ -757,7 +824,12 @@ export function Notifications({
               </span>
               <h3
                 className={`font-semibold ${titleClass}`}
-                dangerouslySetInnerHTML={{ __html: notification.title }}
+                dangerouslySetInnerHTML={{
+                  __html:
+                    accountType === "supplier"
+                      ? notification.title.replace(/ for [^<&]*$/, "")
+                      : notification.title,
+                }}
               />
               {requestNotes && (
                 <button
@@ -904,7 +976,7 @@ export function Notifications({
           <div className="mb-3">
             <FilterSortControls
               type="notification"
-              totalCount={sortedNotifications.length}
+              totalCount={notifications.length}
               displayedCount={visibleNotifications.length}
               filterValue={filterText}
               onFilterChange={setFilterText}

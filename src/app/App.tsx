@@ -49,6 +49,7 @@ import {
   checkAndExpireRequests,
   checkAndNotifyExpiringRequests,
   notifyOrderStatusChanged,
+  notifyRequestRejectedByJB,
   sortExistingNotifications,
 } from "./utils/notification-helper";
 import {
@@ -278,6 +279,7 @@ export default function App() {
     setVerifyingOrder(updatedOrder);
 
     // For JB role in assigned tab, route to write-order
+    // (but not when coming from notifications via "assigned-detail")
     if (userRole === "jb" && currentTab === "assigned") {
       setCurrentPage("write-order");
     } else {
@@ -414,7 +416,7 @@ export default function App() {
     } else if (userRole === "jb") {
       // JB sees request details
       console.log("→ Opening request detail for JB");
-      handleSeeDetail(request, "assigned");
+      handleSeeDetail(request, "assigned-detail");
     } else if (userRole === "sales") {
       // Sales: if request is Open and belongs to them, go to edit page
       // Otherwise, go to detail page
@@ -468,6 +470,14 @@ export default function App() {
 
         // Add current user to viewedBy array if not already there
         if (!allOrders[orderIndex].viewedBy.includes(currentUser)) {
+          // When supplier first views a New Order, update status to Supplier Viewed
+          if (
+            userRole === "supplier" &&
+            allOrders[orderIndex].status === "New Order"
+          ) {
+            allOrders[orderIndex].status = "Supplier Viewed";
+            order.status = "Supplier Viewed";
+          }
           allOrders[orderIndex].viewedBy.push(currentUser);
           localStorage.setItem("orders", JSON.stringify(allOrders));
 
@@ -678,6 +688,7 @@ export default function App() {
         allRequests[idx].updatedDate = Date.now();
         allRequests[idx].updatedBy = currentUser;
         localStorage.setItem("requests", JSON.stringify(allRequests));
+        notifyRequestRejectedByJB(allRequests[idx], currentUser, reason);
         toast.success("Request rejected");
         handleBackFromVerify();
       }

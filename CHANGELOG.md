@@ -9,7 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-**Supplier Revision Review — Sales's Choice Column**
+**Shipment & Arrival IDs — Structured Format**
+
+- Shipment IDs now follow `<PONumber>S<Seq>` format (e.g. `SA2504A01S00`, `SA2504A01S01`)
+- Arrival IDs now follow `<PONumber>R<Seq>` format (e.g. `SA2504A01R00`), with an independent counter per order
+- Sequence is 2-character base-36 (`0–9A–Z`), supporting up to 1296 unique IDs per order
+- Arrival card header now displays the full structured ID directly
+- Updated: `order-details.tsx`, `jb-inbound-search.tsx`
+
+**Close Order Notification**
+
+- When JB closes an order, a notification is now sent to Sales, all JBs in the same branch, and the Supplier
+- Uses existing `notifyOrderClosed` helper; target audience expanded from `["supplier"]` to `["jb", "supplier", "sales"]`
+- Updated: `order-details.tsx`, `notification-helper.ts`
+
+**Order Items Table — Visual Status Indicators**
+
+- Shipped column: single green ✓ when Shipped ≥ Ordered
+- Received column: single green ✓ when Received ≥ Shipped; double green ✓✓ when Received ≥ Ordered
+- Row highlight: `bg-green-50` when Shipped ≥ Ordered; `bg-green-100` when Received ≥ Ordered
+- Applied to both the supplier view and the sales/JB view of the Order Items table
+- Updated: `order-details.tsx`
+
+### Changed
+
+**Fully Delivered Notification — Body Format Aligned**
+
+- Message body now matches the standard format used by all other order notifications: `Supplier / ETA / Sales / Items`
+- Previously was non-standard: `Supplier / Sales / "All items fully delivered"`
+- Updated: `notification-helper.ts`
+
+**Supplier Action Buttons — Request Change Hidden After Revision**
+
+- The "Request Change" button no longer appears once an order has any revision history
+- Prevents suppliers from requesting further changes on already-revised orders
+- Updated: `order-details.tsx`
+
 
 - "Supplier's change" and "Sales's choice" are now two separate columns in the Item Changes table
 - Sales's choice column shows **✓ Approved** or **✕ Rejected** badge per row while reviewing and after submission
