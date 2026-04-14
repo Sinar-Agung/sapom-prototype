@@ -1586,13 +1586,17 @@ export function OrderDetails({
                                                 New
                                               </span>
                                             )}
-                                            {!isDeleted && !isNew && hasChange && (
-                                              <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
-                                                Updated
-                                              </span>
-                                            )}
+                                            {!isDeleted &&
+                                              !isNew &&
+                                              hasChange && (
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
+                                                  Updated
+                                                </span>
+                                              )}
                                             {!hasChange && (
-                                              <span className="text-gray-400">—</span>
+                                              <span className="text-gray-400">
+                                                —
+                                              </span>
                                             )}
                                           </span>
                                           {prop?.supplierNotes ? (
@@ -1600,13 +1604,26 @@ export function OrderDetails({
                                               type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                                setShowingSupplierNoteTooltip((prev: typeof showingSupplierNoteTooltip) =>
-                                                  prev ? null : {
-                                                    notes: prop.supplierNotes!,
-                                                    x: rect.left + window.scrollX,
-                                                    y: rect.bottom + window.scrollY + 6,
-                                                  }
+                                                const rect = (
+                                                  e.currentTarget as HTMLElement
+                                                ).getBoundingClientRect();
+                                                setShowingSupplierNoteTooltip(
+                                                  (
+                                                    prev: typeof showingSupplierNoteTooltip,
+                                                  ) =>
+                                                    prev
+                                                      ? null
+                                                      : {
+                                                          notes:
+                                                            prop.supplierNotes!,
+                                                          x:
+                                                            rect.left +
+                                                            window.scrollX,
+                                                          y:
+                                                            rect.bottom +
+                                                            window.scrollY +
+                                                            6,
+                                                        },
                                                 );
                                               }}
                                               title="Supplier Notes"
@@ -1844,8 +1861,10 @@ export function OrderDetails({
                             variant="outline"
                             onClick={() => {
                               setRowDecisions({});
-                              if (typeof setEtaDecision === "function") setEtaDecision(null);
-                              if (typeof setPhotoDecision === "function") setPhotoDecision(null);
+                              if (typeof setEtaDecision === "function")
+                                setEtaDecision(null);
+                              if (typeof setPhotoDecision === "function")
+                                setPhotoDecision(null);
                             }}
                             className="border-gray-400 text-gray-700 hover:bg-gray-100"
                           >
@@ -2044,13 +2063,25 @@ export function OrderDetails({
                                         type="button"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                          setShowingSupplierNoteTooltip((prev: typeof showingSupplierNoteTooltip) =>
-                                            prev ? null : {
-                                              notes: prop.supplierNotes!,
-                                              x: rect.left + window.scrollX,
-                                              y: rect.bottom + window.scrollY + 6,
-                                            }
+                                          const rect = (
+                                            e.currentTarget as HTMLElement
+                                          ).getBoundingClientRect();
+                                          setShowingSupplierNoteTooltip(
+                                            (
+                                              prev: typeof showingSupplierNoteTooltip,
+                                            ) =>
+                                              prev
+                                                ? null
+                                                : {
+                                                    notes: prop.supplierNotes!,
+                                                    x:
+                                                      rect.left +
+                                                      window.scrollX,
+                                                    y:
+                                                      rect.bottom +
+                                                      window.scrollY +
+                                                      6,
+                                                  },
                                           );
                                         }}
                                         title="Supplier Notes"
@@ -4445,9 +4476,12 @@ export function OrderDetails({
                     </div>
                   )}
                   <div>
-                    <span className="text-gray-500">Created: </span>
-                    <span className="font-medium">
-                      {formatTimestamp(relatedRequest.timestamp)}
+                    <span className="text-gray-500">Created</span>
+                    <span className="col-span-3">
+                      <span>:</span>
+                      <span className="font-medium">
+                        {formatTimestamp(relatedRequest.timestamp)}
+                      </span>
                     </span>
                   </div>
                   {relatedRequest.createdBy && (

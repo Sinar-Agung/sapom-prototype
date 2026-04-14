@@ -699,22 +699,36 @@ export function UnifiedOrders({
 
     // Apply status + branch filters to search-filtered data for this tab
     const tabRequests = searchFiltered.requests.filter((req: Request) => {
-      if (tab.value !== "all" && !tab.requestStatuses?.includes(req.status)) return false;
-      if (tab.value === "all" && (userRole === "sales" || userRole === "jb") &&
-          req.status !== "Open" && req.status !== "JB Verifying") return false;
-      if (statusFilter.length > 0 && !statusFilter.includes(req.status)) return false;
+      if (tab.value !== "all" && !tab.requestStatuses?.includes(req.status))
+        return false;
+      if (
+        tab.value === "all" &&
+        (userRole === "sales" || userRole === "jb") &&
+        req.status !== "Open" &&
+        req.status !== "JB Verifying"
+      )
+        return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(req.status))
+        return false;
       return true;
     });
     const tabOrders = searchFiltered.orders.filter((order: Order) => {
-      if (tab.value !== "all" && !tab.orderStatuses?.includes(order.status)) return false;
-      if (statusFilter.length > 0 && !statusFilter.includes(order.status)) return false;
-      if (branchFilter.length > 0 && (!order.branchCode || !branchFilter.includes(order.branchCode))) return false;
+      if (tab.value !== "all" && !tab.orderStatuses?.includes(order.status))
+        return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(order.status))
+        return false;
+      if (
+        branchFilter.length > 0 &&
+        (!order.branchCode || !branchFilter.includes(order.branchCode))
+      )
+        return false;
       return true;
     });
 
     count = tabRequests.length + tabOrders.length;
     unseenCount =
-      tabRequests.filter((r: Request) => !r.viewedBy?.includes(currentUser)).length +
+      tabRequests.filter((r: Request) => !r.viewedBy?.includes(currentUser))
+        .length +
       tabOrders.filter((o: Order) => !o.viewedBy?.includes(currentUser)).length;
 
     return { tab: tab.value, count, unseenCount };
@@ -753,12 +767,15 @@ export function UnifiedOrders({
     ...searchFiltered.requests.map((r: Request) => r.status),
     ...searchFiltered.orders.map((o: Order) => o.status),
   ]);
-  const availableStatuses: { value: string; label: string; disabled?: boolean }[] =
-    ALL_STATUSES.map((s) => ({
-      value: s,
-      label: s,
-      disabled: !allTabStatusSet.has(s),
-    }));
+  const availableStatuses: {
+    value: string;
+    label: string;
+    disabled?: boolean;
+  }[] = ALL_STATUSES.map((s) => ({
+    value: s,
+    label: s,
+    disabled: !allTabStatusSet.has(s),
+  }));
 
   // Build branch options: all known branches shown; disabled when not present across all orders
   const ALL_BRANCHES: Array<{ code: string; label: string }> = [
@@ -767,9 +784,15 @@ export function UnifiedOrders({
     { code: "BDG", label: "Bandung" },
   ];
   const allTabBranchSet = new Set(
-    searchFiltered.orders.map((o: Order) => o.branchCode).filter(Boolean) as string[],
+    searchFiltered.orders
+      .map((o: Order) => o.branchCode)
+      .filter(Boolean) as string[],
   );
-  const availableBranches: { value: string; label: string; disabled?: boolean }[] =
+  const availableBranches: {
+    value: string;
+    label: string;
+    disabled?: boolean;
+  }[] =
     userRole === "supplier"
       ? ALL_BRANCHES.map(({ code, label }) => ({
           value: code,

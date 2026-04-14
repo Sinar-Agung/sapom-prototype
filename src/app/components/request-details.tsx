@@ -27,7 +27,6 @@ import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, CheckCircle, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ProductHeader } from "./ui/product-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +40,7 @@ import {
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { DetailItemsTable } from "./ui/detail-items-table";
+import { ProductHeader } from "./ui/product-header";
 import { RevisionHistoryPanel } from "./ui/revision-history-panel";
 
 // Image mapping for Nama Basic
@@ -502,7 +502,10 @@ export function RequestDetails({
           supplier={pabrikLabel}
           customerExpectation={
             request.customerExpectation
-              ? getLabelFromValue(CUSTOMER_EXPECTATION_OPTIONS, request.customerExpectation)
+              ? getLabelFromValue(
+                  CUSTOMER_EXPECTATION_OPTIONS,
+                  request.customerExpectation,
+                )
               : undefined
           }
           eta={request.waktuKirim}
