@@ -7,9 +7,174 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+### Added
+
+**Notifications Page — Filter-Aware Tab Counts & Displaying Label**
+
+- Tab badges (All, Unread, Expiring, Archived) now reflect the count after applying search text and type filter, matching the behaviour of the Orders page
+- "Displaying" label in the filter bar now shows the count of items in the current tab after all filters are applied (previously always showed the total unfiltered count)
+- Introduced `applySearchTypeFilter` helper to compute per-tab filtered counts without duplicating logic
+- Updated: `notifications.tsx`
+
+**Supplier Notes Info Icon in "Your Submitted Changes" Panel**
+
+- The "Change" column in the supplier's "Your Submitted Changes" table now shows a blue `Info` icon when a row has supplier notes attached
+- Clicking the icon opens the same tooltip overlay already used in the "Proposed Supplier Change" panel
+- Updated: `order-details.tsx`
+
+**Supplier Notes Column Hidden in Request Creation / Edit Form**
+
+- The "Supplier Notes" column is no longer shown in the detail items table when creating or editing a request (only suppliers should see it)
+- Added `hideSupplierNotes` prop to `DetailItemsDisplay`; `DetailItemsSection` passes `hideSupplierNotes={!isSupplier}`
+- Column header, table cells, `colSpan` adjustment, and mobile card field are all conditionally rendered
+- Updated: `detail-items-display.tsx`, `detail-items-section.tsx`
+
+### Changed
+
+**Orders Page — Status / Branch Filter Options Use "All" Tab Dataset**
+
+- Available statuses and branches offered in the filter dropdowns are now derived from the full post-search dataset (`searchFiltered`) rather than the currently active tab
+- Items are shown as disabled (not hidden) when not present in the user's data, ensuring consistent option visibility across tab switches
+- Updated: `unified-orders.tsx`
+
+**Orders Page — Supplier "Rejected" Tab Removed; Closed Tab Expanded**
+
+- Removed the "Rejected" tab from the supplier's Orders page
+- Supplier's "Closed" tab now includes orders with status Closed, Rejected, Cancelled, or Unable to Fulfill
+- JB's "Closed" tab now includes Cancelled orders
+- Updated: `unified-orders.tsx`
+
+- Shipment IDs now follow `<PONumber>S<Seq>` format (e.g. `SA2504A01S00`, `SA2504A01S01`)
+- Arrival IDs now follow `<PONumber>R<Seq>` format (e.g. `SA2504A01R00`), with an independent counter per order
+- Sequence is 2-character base-36 (`0–9A–Z`), supporting up to 1296 unique IDs per order
+- Arrival card header now displays the full structured ID directly
+- Updated: `order-details.tsx`, `jb-inbound-search.tsx`
+
+**Close Order Notification**
+
+- When JB closes an order, a notification is now sent to Sales, all JBs in the same branch, and the Supplier
+- Uses existing `notifyOrderClosed` helper; target audience expanded from `["supplier"]` to `["jb", "supplier", "sales"]`
+- Updated: `order-details.tsx`, `notification-helper.ts`
+
+**Order Items Table — Visual Status Indicators**
+
+- Shipped column: single green ✓ when Shipped ≥ Ordered
+- Received column: single green ✓ when Received ≥ Shipped; double green ✓✓ when Received ≥ Ordered
+- Row highlight: `bg-green-50` when Shipped ≥ Ordered; `bg-green-100` when Received ≥ Ordered
+- Applied to both the supplier view and the sales/JB view of the Order Items table
+- Updated: `order-details.tsx`
+
+### Changed
+
+**Fully Delivered Notification — Body Format Aligned**
+
+- Message body now matches the standard format used by all other order notifications: `Supplier / ETA / Sales / Items`
+- Previously was non-standard: `Supplier / Sales / "All items fully delivered"`
+- Updated: `notification-helper.ts`
+
+**Supplier Action Buttons — Request Change Hidden After Revision**
+
+The "Request Change" button no longer appears once an order has any revision history
+
+Prevents suppliers from requesting further changes on already-revised orders
+
+Updated: `order-details.tsx`
+
+"Supplier's change" and "Sales's choice" are now two separate columns in the Item Changes table
+
+Sales's choice column shows **✓ Approved** or **✕ Rejected** badge per row while reviewing and after submission
+
+Sales can see their row-level decisions (green/red badges) even after submitting their review (status = "Pending JB Review")
+
+JB sees both the full supplier proposal and Sales's decision for every row
+
+**Supplier Action Buttons — Confirmation Dialogs**
+
+- Clicking Start Production, Mark Stock Ready, Request Change, or Unable to Fulfill now opens a confirmation dialog before executing the action
+
+### Changed
+
+**Revision Review — Status Rename: "Viewed" → "Supplier Viewed"**
+
+- Order status `"Viewed"` renamed to `"Supplier Viewed"` across all components, mock data, and status color mappings
+- Updated: `order.ts`, `status-colors.ts`, `mock-data.ts`, `supplier-home.tsx`, `jb-inbound-search.tsx`, `unified-orders.tsx`, `order-details.tsx`
+
+**Revision Review — Sales-Rejected Rows Preserved for JB**
+
+- When Sales rejects a New or Updated row, the row is kept visible for JB with a red strikethrough instead of being silently removed
+- Sales-rejected rows show the supplier's proposed values with strikethrough; no accept/reject buttons shown to JB for those rows
+- `salesRowDecisions` field added to `OrderRevision` type; populated when Sales submits their revision review
+
+### Changed
+
+**Unified Card Component — OrderCard replaces RequestCard**
+
+- Migrated all views (unified-orders, my-orders, my-requests, jb-requests) to use `OrderCard` exclusively
+- `RequestCard` is no longer imported anywhere; `OrderCard` now handles both Request and Order display
+- Added `requestToOrder()` adapter function to convert Request data for OrderCard consumption
+- OrderCard now includes: Sales name field, Branch display, Rejection reason for rejected items
+- Cancel/Edit buttons are now purely status-based (not tab-dependent), ensuring consistent behavior
+- Duplicate button now available on all tabs (Internal, Closed) for Sales users
+- Added `rejectionReason` field to Order type
+- See Details button uses Eye icon; JB gets "Write Order" text variant
+
+### Added
+
+**ETA Calendar View for Sales & JB**
+
+- New `eta-calendar.tsx` component showing a monthly calendar with ETA/expiry date indicators
+- Each date cell shows request count (orange badge) and order count (blue badge)
+- Clicking a date reveals a detail panel listing all requests/orders with their product names and status
+- Sales sees own requests/orders; JB sees all
+- Added "Calendar" nav item (CalendarDays icon) to both JB and Sales navigation
+- Wired up `eta-calendar` route in `App.tsx`
+- Updated: `eta-calendar.tsx` (new), `navigation.tsx`, `App.tsx`
+
+### Changed
+
+**Tabs — Folder-Tab Styling**
+
+- Active tab now renders as a folder tab (white background, rounded top corners, bottom border hidden) instead of a simple underline
+- Inactive tabs show subtle hover background
+- Updated: `tabs.tsx`
+
+**Notification Cards — Simplified Layout**
+
+- Removed the entire "Changes" section (field diffs and "Days to ETA" countdown) from all notification cards
+- Renamed entity label from "Request:" / "Order:" to "PO Number:" for all notification types
+- Updated: `notifications.tsx`
+
+**Request Details — Layout Unified with Order Details**
+
+- Switched from 2-column (fields left, image right) to image-left, fields-right layout matching order-details
+- Info fields now use `grid-cols-5` colon-separated layout
+- Updated: `request-details.tsx`
+
+**Card Layouts — Unified Grid System**
+
+- All card and detail views now use `grid-cols-[minmax(160px,auto)_auto_1fr]` with colon in its own column
+- Applied consistently across `order-card.tsx`, `request-card.tsx`, `order-details.tsx`, `request-details.tsx`
+- Order cards now show "Updated" relative time above image
+
+**Request Form — UI Improvements**
+
+- Swapped Save/Cancel button order in save confirmation dialog
+- Detail item input: added Reset button, fixed textarea borders
+- Updated: `request-form.tsx`, `detail-item-input.tsx`, `detail-items-section.tsx`
+
+**Order Edit Form — Button Order Fix**
+
+- Swapped Save/Cancel button order to match other forms
+- Updated: `order-edit-form.tsx`
+
+**Theme — Input Border Fix**
+
+- Changed `--input` CSS variable from `transparent` to `#d1d5db` so form input borders are visible
+- Updated: `theme.css`
+
 ### Fixed
 
-**Notifications — `isRefreshing` ReferenceError**: Declared missing state variable
+**Notifications —** `**isRefreshing**` **ReferenceError**: Declared missing state variable
 
 - `isRefreshing` was used in JSX and a refresh handler but was never declared via `useState`
 - Added `const [isRefreshing, setIsRefreshing] = useState(false)` to the component

@@ -9,7 +9,7 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { AvailablePcsDemo } from "./components/available-pcs-demo";
+import { ETACalendar } from "./components/eta-calendar";
 import { JBHome } from "./components/jb-home";
 import { JBInboundSearch } from "./components/jb-inbound-search";
 
@@ -24,6 +24,7 @@ import { QuestionForm } from "./components/question-form";
 import { Register } from "./components/register";
 import { RequestDetails } from "./components/request-details";
 import { RequestForm } from "./components/request-form";
+import { SalesHome } from "./components/sales-home";
 import { SalesQuestions } from "./components/sales-questions";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
@@ -48,6 +49,7 @@ import {
   checkAndExpireRequests,
   checkAndNotifyExpiringRequests,
   notifyOrderStatusChanged,
+  notifyRequestRejectedByJB,
   sortExistingNotifications,
 } from "./utils/notification-helper";
 import {
@@ -96,11 +98,14 @@ export default function App() {
   });
   const [authPage, setAuthPage] = useState<"login" | "register">("login");
   const [currentPage, setCurrentPage] = useState(() => {
-    // Stockists, JB, and Suppliers should see home page by default, sales see form
+    // Stockists, JB, Suppliers, and Sales should see home page by default
     const role = (localStorage.getItem("userRole") ||
       sessionStorage.getItem("userRole") ||
       "sales") as "sales" | "stockist" | "jb" | "supplier";
-    return role === "stockist" || role === "jb" || role === "supplier"
+    return role === "stockist" ||
+      role === "jb" ||
+      role === "supplier" ||
+      role === "sales"
       ? "home"
       : "tambah-pesanan";
   });
@@ -121,6 +126,7 @@ export default function App() {
   const [justCreatedRequest, setJustCreatedRequest] = useState(false); // Flag to force Open tab after creating request
   const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("");
   const [previousPage, setPreviousPage] = useState<string>("");
+  const [preEditPreviousPage, setPreEditPreviousPage] = useState<string>("");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
   const [cameFromNotifications, setCameFromNotifications] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
@@ -277,6 +283,7 @@ export default function App() {
     setVerifyingOrder(updatedOrder);
 
     // For JB role in assigned tab, route to write-order
+    // (but not when coming from notifications via "assigned-detail")
     if (userRole === "jb" && currentTab === "assigned") {
       setCurrentPage("write-order");
     } else {
@@ -296,14 +303,19 @@ export default function App() {
       return;
     }
 
-    // Return to the page the user came from
+    // Return to the page the user came from — never go back to request-details
+    // with a null verifyingOrder (can happen when duplicate form goes back here first)
     const fallback =
       userRole === "jb"
         ? "jb-orders"
         : userRole === "sales"
           ? "sales-orders"
           : "my-orders";
-    setCurrentPage(previousPage || fallback);
+    const target =
+      previousPage && previousPage !== "request-details"
+        ? previousPage
+        : fallback;
+    setCurrentPage(target);
   };
 
   const handleBackFromWriteOrder = () => {
@@ -408,7 +420,7 @@ export default function App() {
     } else if (userRole === "jb") {
       // JB sees request details
       console.log("→ Opening request detail for JB");
-      handleSeeDetail(request, "assigned");
+      handleSeeDetail(request, "assigned-detail");
     } else if (userRole === "sales") {
       // Sales: if request is Open and belongs to them, go to edit page
       // Otherwise, go to detail page
@@ -429,6 +441,25 @@ export default function App() {
   };
 
   const handleSeeOrderDetail = (order: any, currentTab?: string) => {
+    // If status is Open or JB Verifying, show the original request detail page
+    if (order.status === "Open" || order.status === "JB Verifying") {
+      const requestId = order.requestId || order.id;
+      const savedRequests = localStorage.getItem("requests");
+      if (savedRequests) {
+        const allRequests = JSON.parse(savedRequests);
+        const request = allRequests.find((r: any) => r.id === requestId);
+        if (request) {
+          setMyOrdersTab(currentTab || "open");
+          setPreviousOrdersTab(currentTab || "open");
+          setPreviousPage(currentPage);
+          setVerifyingOrder(request);
+          setVerifyMode("detail");
+          setCurrentPage("request-details");
+          return;
+        }
+      }
+    }
+
     // Mark order as viewed by current user
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders && currentUser) {
@@ -443,6 +474,14 @@ export default function App() {
 
         // Add current user to viewedBy array if not already there
         if (!allOrders[orderIndex].viewedBy.includes(currentUser)) {
+          // When supplier first views a New Order, update status to Supplier Viewed
+          if (
+            userRole === "supplier" &&
+            allOrders[orderIndex].status === "New Order"
+          ) {
+            allOrders[orderIndex].status = "Supplier Viewed";
+            order.status = "Supplier Viewed";
+          }
           allOrders[orderIndex].viewedBy.push(currentUser);
           localStorage.setItem("orders", JSON.stringify(allOrders));
 
@@ -592,6 +631,7 @@ export default function App() {
     if (currentTab) {
       setPreviousOrdersTab(currentTab);
     }
+    setPreEditPreviousPage(previousPage);
     setPreviousPage(currentPage);
     setCurrentPage("order-edit");
   };
@@ -612,13 +652,18 @@ export default function App() {
       return;
     }
 
+    const destination = previousPage;
+    // If going back to order-details, restore previousPage so back from there works correctly
+    if (destination === "order-details") {
+      setPreviousPage(preEditPreviousPage);
+    }
     const fallback =
       userRole === "supplier"
         ? "supplier-orders"
         : userRole === "jb"
           ? "jb-orders"
           : "sales-orders";
-    setCurrentPage(previousPage || fallback);
+    setCurrentPage(destination || fallback);
   };
 
   const handleOrderEditSave = () => {
@@ -632,13 +677,18 @@ export default function App() {
       }
     }
     setEditingOrderForUpdate(null);
+    const destination = previousPage;
+    // If going back to order-details, restore previousPage so back from there works correctly
+    if (destination === "order-details") {
+      setPreviousPage(preEditPreviousPage);
+    }
     const fallback =
       userRole === "supplier"
         ? "supplier-orders"
         : userRole === "jb"
           ? "jb-orders"
           : "sales-orders";
-    setCurrentPage(previousPage || fallback);
+    setCurrentPage(destination || fallback);
   };
 
   const handleJBRejectRequest = (reason: string) => {
@@ -653,6 +703,7 @@ export default function App() {
         allRequests[idx].updatedDate = Date.now();
         allRequests[idx].updatedBy = currentUser;
         localStorage.setItem("requests", JSON.stringify(allRequests));
+        notifyRequestRejectedByJB(allRequests[idx], currentUser, reason);
         toast.success("Request rejected");
         handleBackFromVerify();
       }
@@ -777,7 +828,7 @@ export default function App() {
     checkAndNotifyExpiringRequests(username, role);
 
     // Set default page based on role
-    if (role === "stockist" || role === "jb") {
+    if (role === "stockist" || role === "jb" || role === "sales") {
       setCurrentPage("home");
     } else {
       setCurrentPage("tambah-pesanan");
@@ -952,9 +1003,36 @@ export default function App() {
             />
           );
         } else {
-          // Demo page for Available Pcs Input
-          return <AvailablePcsDemo />;
+          // Sales home page
+          return (
+            <SalesHome
+              onNavigateToOrders={(tab) => {
+                if (tab) setPreviousOrdersTab(tab);
+                setCurrentPage("sales-orders");
+              }}
+              onSeeOrderDetail={(order) => handleSeeOrderDetail(order)}
+            />
+          );
         }
+      case "eta-calendar":
+        return (
+          <ETACalendar
+            userRole={userRole as "sales" | "jb"}
+            currentUser={currentUser}
+            onSeeDetail={(order) => handleSeeOrderDetail(order)}
+            onUpdateOrder={(order) => {
+              setPreviousPage("eta-calendar");
+              handleSeeOrderDetail(order);
+            }}
+            onEditOrder={handleEditOrder}
+            onCancelOrder={(id) => {
+              const orders = JSON.parse(localStorage.getItem("orders") ?? "[]");
+              const order = orders.find((o: any) => o.id === id);
+              if (order) handleSeeOrderDetail(order);
+            }}
+            onDuplicateOrder={(order) => handleDuplicateOrder(order)}
+          />
+        );
       case "activities":
         return (
           <div className="h-full flex items-center justify-center">
@@ -1218,7 +1296,7 @@ export default function App() {
         </div>
 
         <div
-          className={`w-full max-w-7xl mx-auto ${["sales-orders", "jb-orders", "order", "supplier-orders"].includes(currentPage) ? "" : "pt-4"}`}
+          className={`w-full max-w-7xl mx-auto ${["sales-orders", "jb-orders", "order", "supplier-orders", "request-details", "order-details", "order-edit"].includes(currentPage) ? "" : "pt-4"}`}
         >
           {renderContent()}
         </div>

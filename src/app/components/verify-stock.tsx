@@ -518,7 +518,7 @@ export function VerifyStock({
           <div className="space-y-2 text-sm">
             {currentRequest.requestNo && (
               <div>
-                <span className="text-gray-500">Request No: </span>
+                <span className="text-gray-500">PO Number: </span>
                 <span className="font-medium font-mono">
                   {currentRequest.requestNo}
                 </span>

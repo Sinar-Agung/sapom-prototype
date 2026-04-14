@@ -551,6 +551,23 @@ export const markNotificationAsRead = (
   saveNotifications(updated);
 };
 
+export const markNotificationAsUnread = (
+  notificationId: string,
+  username: string,
+) => {
+  const notifications = getAllNotifications();
+  const updated = notifications.map((n) => {
+    if (n.id === notificationId) {
+      return {
+        ...n,
+        readBy: n.readBy.filter((u) => u !== username),
+      };
+    }
+    return n;
+  });
+  saveNotifications(updated);
+};
+
 // Mark all notifications as read for a user
 export const markAllAsReadForUser = (
   username: string,
@@ -996,6 +1013,115 @@ export const notifyRequestViewedByStockist = (
   );
 };
 
+// Helper: Create notification when JB views an Open request
+export const notifyRequestViewedByJB = (
+  request: Request,
+  jbUsername: string,
+) => {
+  const requestNo = request.requestNo || request.id;
+
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
+  const title = `<strong class="text-cyan-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
+
+  const pabrikLabel =
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+
+  const jbName = getFullNameFromUsername(jbUsername);
+  const salesName = getFullNameFromUsername(request.createdBy || "");
+  const message = `Viewed by: ${jbName}\nSales: ${salesName}\nSupplier: ${pabrikLabel}`;
+
+  return createNotification(
+    "request_viewed_by_jb",
+    jbUsername,
+    "jb",
+    "request",
+    request.id,
+    requestNo,
+    title,
+    message,
+    ["sales"],
+    request.createdBy ? [request.createdBy] : undefined,
+    undefined,
+    undefined,
+    undefined,
+    request.createdBy,
+    request.branchCode,
+  );
+};
+
+// Helper: Create notification when JB rejects a request
+export const notifyRequestRejectedByJB = (
+  request: Request,
+  jbUsername: string,
+  reason: string,
+) => {
+  const requestNo = request.requestNo || request.id;
+
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    request.jenisProduk,
+  );
+  const productNameLabel =
+    request.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  const atasNamaLabel =
+    typeof request.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
+      : request.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+
+  const title = `<strong class="text-red-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
+
+  const pabrikLabel =
+    typeof request.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
+      : request.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+
+  const jbName = getFullNameFromUsername(jbUsername);
+  const salesName = getFullNameFromUsername(request.createdBy || "");
+  const message = `Rejected by: ${jbName}\nReason: ${reason}\nSales: ${salesName}\nSupplier: ${pabrikLabel}`;
+
+  return createNotification(
+    "request_rejected",
+    jbUsername,
+    "jb",
+    "request",
+    request.id,
+    requestNo,
+    title,
+    message,
+    ["sales", "jb"],
+    request.createdBy ? [request.createdBy] : undefined,
+    [{ field: "status", oldValue: "JB Verifying", newValue: "Rejected" }],
+    undefined,
+    undefined,
+    request.createdBy,
+    request.branchCode,
+  );
+};
+
 // Helper: Create notification for request approval/rejection
 export const notifyRequestReviewed = (
   request: Request,
@@ -1059,6 +1185,68 @@ export const notifyRequestReviewed = (
   );
 };
 
+// Helper: Create notification when supplier views a New Order
+export const notifyOrderViewedBySupplier = (
+  order: Order,
+  supplierUsername: string,
+) => {
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
+
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+
+  const atasNama = order.atasNama || "";
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
+
+  const formatDate = (isoString: string) => {
+    if (!isoString) return "-";
+    return new Date(isoString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const salesName = getFullNameFromUsername(order.sales || "");
+  const etaFormatted = order.waktuKirim ? formatDate(order.waktuKirim) : "N/A";
+  const itemCount = order.detailItems?.length || 0;
+  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
+
+  return createNotification(
+    "supplier_views_order",
+    supplierUsername,
+    "supplier",
+    "order",
+    order.id,
+    order.PONumber,
+    title,
+    message,
+    ["jb", "sales"],
+    undefined,
+    [{ field: "status", oldValue: "New Order", newValue: "Supplier Viewed" }],
+    {
+      supplierId: supplierId,
+      supplierName: supplierName,
+      requestId: order.requestId,
+    },
+    supplierName,
+    undefined,
+    order.branchCode,
+  );
+};
+
 // Helper: Create notification for order creation
 export const notifyOrderCreated = (order: Order, createdBy: string) => {
   const supplierName =
@@ -1108,7 +1296,7 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
   });
 
   return createNotification(
-    "order_created",
+    "order_written",
     createdBy,
     "jb",
     "order",
@@ -1249,8 +1437,8 @@ export const notifyOrderStatusChanged = (
   const supplierId =
     typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
 
-  // Special handling for "Change Pending Approval" status
-  if (changedByRole === "supplier" && newStatus === "Change Pending Approval") {
+  // Special handling for "Pending Sales Review" status
+  if (changedByRole === "supplier" && newStatus === "Pending Sales Review") {
     // Supplier should also receive their own change request notification
     targets.push("supplier");
     // Sales also needs to review the proposed changes
@@ -1297,8 +1485,26 @@ export const notifyOrderStatusChanged = (
   const stdItems = order.detailItems?.length || 0;
   const message = `Supplier: ${supplierName}\nETA: ${stdEta}\nSales: ${stdSalesName}\nItems: ${stdItems}`;
 
+  let eventType: NotificationEventType = "order_status_changed";
+  let specificTargetsForEvent: string[] | undefined = undefined;
+  if (newStatus === "In Production") {
+    eventType = "order_in_production";
+    // Supplier also gets a record of their own action
+    if (!targets.includes("supplier")) targets.push("supplier");
+    // Sales who placed the order also gets notified
+    if (!targets.includes("sales")) targets.push("sales");
+    specificTargetsForEvent = order.sales ? [order.sales] : undefined;
+  } else if (newStatus === "Stock Ready") {
+    eventType = "order_stock_ready";
+    // Supplier also gets a record of their own action
+    if (!targets.includes("supplier")) targets.push("supplier");
+    // Sales who placed the order also gets notified
+    if (!targets.includes("sales")) targets.push("sales");
+    specificTargetsForEvent = order.sales ? [order.sales] : undefined;
+  }
+
   return createNotification(
-    "order_status_changed",
+    eventType,
     changedBy,
     changedByRole,
     "order",
@@ -1307,7 +1513,7 @@ export const notifyOrderStatusChanged = (
     title,
     message,
     targets,
-    undefined,
+    specificTargetsForEvent,
     [{ field: "status", oldValue: oldStatus, newValue: newStatus }],
     {
       supplierId: supplierId,
@@ -1315,6 +1521,60 @@ export const notifyOrderStatusChanged = (
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
+  );
+};
+
+// Helper: Create notification when Sales or JB approves an order change revision
+export const notifyOrderChangeApproved = (
+  order: Order,
+  approvedBy: string,
+  approvedByRole: "sales" | "jb",
+  bothApproved: boolean,
+) => {
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+  const approverName = getFullNameFromUsername(approvedBy);
+  const atasNama = order.atasNama || "Unknown Customer";
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+
+  const title = bothApproved
+    ? `Order change fully approved: <strong class="text-green-600">${productName}</strong>`
+    : `Order change approved by ${approvedByRole.toUpperCase()}: <strong class="text-blue-600">${productName}</strong>`;
+
+  const message = `Product: ${productName}\nCustomer: ${atasNama}\nSupplier: ${supplierName}\nApproved by: ${approverName}\nStatus: ${bothApproved ? "Fully Approved — Order Revised" : `Waiting for ${approvedByRole === "jb" ? "Sales" : "JB"} approval`}`;
+
+  // Notify the other party and the originating sales
+  const targets: NotificationTargetAudience[] = ["jb", "sales"];
+  const specific: string[] = [];
+  if (order.sales) specific.push(order.sales);
+  if (order.jbId) specific.push(order.jbId);
+
+  return createNotification(
+    "order_change_approved",
+    approvedBy,
+    approvedByRole,
+    "order",
+    order.id,
+    order.PONumber,
+    title,
+    message,
+    targets,
+    specific.length > 0 ? specific : undefined,
+    undefined,
+    { productName, atasNama, bothApproved },
+    atasNama,
+    order.sales,
     order.branchCode,
   );
 };
@@ -1359,7 +1619,7 @@ export const notifyOrderArrival = (
   const arrSalesName = getFullNameFromUsername(order.sales || "");
   const arrEta = formatDateArr(order.waktuKirim);
   const arrItems = order.detailItems?.length || 0;
-  const arrMessage = `Supplier: ${supplierName}\nETA: ${arrEta}\nSales: ${arrSalesName}\nItems: ${arrItems}\nPCS Delivered: ${pcsDelivered}`;
+  const arrMessage = `Supplier: ${supplierName}\nETA: ${arrEta}\nSales: ${arrSalesName}\nItems: ${arrItems}\nPcs Received: ${pcsDelivered}`;
 
   return createNotification(
     "order_arrival_recorded",
@@ -1370,8 +1630,8 @@ export const notifyOrderArrival = (
     order.PONumber,
     title,
     arrMessage,
-    ["supplier"],
-    undefined,
+    ["jb", "supplier", "sales"],
+    order.sales ? [order.sales] : undefined,
     undefined,
     {
       supplierId: supplierId,
@@ -1379,6 +1639,151 @@ export const notifyOrderArrival = (
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
+  );
+};
+
+// Helper: Create notification when supplier creates a new shipment entry
+export const notifyOrderShipmentCreated = (
+  order: Order,
+  createdBy: string,
+  shippingId: string,
+) => {
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
+
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+  const atasNama = order.atasNama || "Unknown Customer";
+
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
+  const salesName = getFullNameFromUsername(order.sales || "");
+  const message = `Supplier: ${supplierName}\nShipment ID: ${shippingId}\nSales: ${salesName}`;
+
+  return createNotification(
+    "order_shipment_created",
+    createdBy,
+    "supplier",
+    "order",
+    order.id,
+    order.PONumber,
+    title,
+    message,
+    ["jb", "supplier", "sales"],
+    order.sales ? [order.sales] : undefined,
+    undefined,
+    { supplierId, supplierName, shippingId },
+    supplierName,
+    undefined,
+    order.branchCode,
+  );
+};
+
+// Helper: Create notification when supplier edits a shipment entry
+export const notifyOrderShipmentEdited = (
+  order: Order,
+  editedBy: string,
+  shippingId: string,
+) => {
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
+
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+  const atasNama = order.atasNama || "Unknown Customer";
+
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
+  const salesName = getFullNameFromUsername(order.sales || "");
+  const message = `Supplier: ${supplierName}\nShipment ID: ${shippingId}\nSales: ${salesName}`;
+
+  return createNotification(
+    "order_shipment_edited",
+    editedBy,
+    "supplier",
+    "order",
+    order.id,
+    order.PONumber,
+    title,
+    message,
+    ["jb", "supplier", "sales"],
+    order.sales ? [order.sales] : undefined,
+    undefined,
+    { supplierId, supplierName, shippingId },
+    supplierName,
+    undefined,
+    order.branchCode,
+  );
+};
+
+// Helper: Create notification when all order items have been fully delivered
+export const notifyOrderFullyDelivered = (order: Order, recordedBy: string) => {
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
+
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+  const atasNama = order.atasNama || "Unknown Customer";
+
+  const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
+  const salesName = getFullNameFromUsername(order.sales || "");
+  const etaFormatted = order.waktuKirim
+    ? new Date(order.waktuKirim).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "-";
+  const itemCount = order.detailItems?.length || 0;
+  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItems: ${itemCount}`;
+
+  return createNotification(
+    "order_fully_delivered",
+    recordedBy,
+    "jb",
+    "order",
+    order.id,
+    order.PONumber,
+    title,
+    message,
+    ["jb", "supplier", "sales"],
+    order.sales ? [order.sales] : undefined,
+    undefined,
+    { supplierId, supplierName },
+    supplierName,
+    undefined,
     order.branchCode,
   );
 };
@@ -1430,7 +1835,7 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
     order.PONumber,
     title,
     clMessage,
-    ["supplier"],
+    ["jb", "supplier", "sales"],
     undefined,
     undefined,
     {

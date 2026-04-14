@@ -19,6 +19,17 @@ interface UseDetailItemsOptions {
   jenisProduk: string;
   /** Extra condition to block the Add button (e.g. photo not yet uploaded). */
   additionalDisabledForAdd?: boolean;
+  /**
+   * Called when the user tries to add an item with the same details as an
+   * existing row that came from the original order (sales-origin), AND they
+   * have entered a notes value. The caller should show a blocking dialog.
+   */
+  onDuplicateWithNotes?: () => void;
+  /**
+   * When true, notes entered by the user are routed to `supplierNotes` on the
+   * item instead of `notes`, preserving the original sales notes.
+   */
+  isSupplier?: boolean;
 }
 
 export interface DetailItemsHookReturn {
@@ -52,6 +63,8 @@ export function useDetailItems({
   kategoriBarang,
   jenisProduk,
   additionalDisabledForAdd = false,
+  onDuplicateWithNotes,
+  isSupplier = false,
 }: UseDetailItemsOptions): DetailItemsHookReturn {
   const [detailInput, setDetailInput] = useState<DetailInput>(EMPTY_INPUT);
   const [items, setItems] = useState<DetailBarangItem[]>(initialItems);
@@ -61,6 +74,11 @@ export function useDetailItems({
   const [relocatingIds, setRelocatingIds] = useState<Set<string>>(new Set());
   const [sortedItems, setSortedItems] = useState<DetailBarangItem[]>([]);
   const [isInputFormExpanded, setIsInputFormExpanded] = useState(true);
+
+  // Track IDs that were present when the hook first initialised (sales-origin rows)
+  const initialIdsRef = useRef<Set<string>>(
+    new Set(initialItems.map((i) => i.id)),
+  );
 
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -198,12 +216,8 @@ export function useDetailItems({
   }, [editingDetailId]);
 
   // ─── isAddButtonDisabled ───────────────────────────────────────────────────
-  const ukuranRequired = [
-    "gelang-rantai",
-    "kalung",
-    "gelang-kaku",
-    "cincin",
-  ].includes(jenisProduk);
+  // Ukuran is mandatory only for Basic Necklace (kalung)
+  const ukuranRequired = kategoriBarang === "basic" && jenisProduk === "kalung";
 
   const isAddButtonDisabled =
     additionalDisabledForAdd ||
@@ -211,8 +225,10 @@ export function useDetailItems({
     !detailInput.warna ||
     !detailInput.pcs ||
     (kategoriBarang === "basic" && !detailInput.berat) ||
-    (kategoriBarang === "basic" && ukuranRequired && !detailInput.ukuran) ||
-    (detailInput.ukuran === "other" && !detailInput.ukuranCustom);
+    (ukuranRequired && !detailInput.ukuran) ||
+    (ukuranRequired &&
+      detailInput.ukuran === "other" &&
+      !detailInput.ukuranCustom);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleAdd = () => {
@@ -230,22 +246,60 @@ export function useDetailItems({
         : detailInput.ukuran;
 
     if (editingDetailId) {
-      const updated = items.map((item) =>
-        item.id === editingDetailId
-          ? {
-              ...item,
-              kadar: detailInput.kadar,
-              warna: detailInput.warna,
-              ukuran: finalUkuran,
-              berat: detailInput.berat,
-              pcs: detailInput.pcs,
-              notes: detailInput.notes,
-            }
-          : item,
+      // Check if the edited values match another existing row (duplicate detection)
+      const duplicateIdx = items.findIndex(
+        (item) =>
+          item.id !== editingDetailId &&
+          item.kadar === detailInput.kadar &&
+          item.warna === detailInput.warna &&
+          item.ukuran === finalUkuran &&
+          item.berat === detailInput.berat,
       );
+
+      let updated: DetailBarangItem[];
+      let highlightId: string;
+
+      if (duplicateIdx !== -1) {
+        // Merge: sum pcs into the duplicate row, remove the row being edited
+        const target = items[duplicateIdx];
+        const mergedPcs = (
+          parseInt(target.pcs) + parseInt(detailInput.pcs)
+        ).toString();
+        const mergedNotes = isSupplier
+          ? [target.supplierNotes, detailInput.notes].filter(Boolean).join(", ")
+          : [target.notes, detailInput.notes].filter(Boolean).join(", ");
+        updated = items
+          .filter((item) => item.id !== editingDetailId)
+          .map((item) =>
+            item.id === target.id
+              ? isSupplier
+                ? { ...item, pcs: mergedPcs, supplierNotes: mergedNotes }
+                : { ...item, pcs: mergedPcs, notes: mergedNotes }
+              : item,
+          );
+        highlightId = target.id;
+      } else {
+        updated = items.map((item) =>
+          item.id === editingDetailId
+            ? {
+                ...item,
+                kadar: detailInput.kadar,
+                warna: detailInput.warna,
+                ukuran: finalUkuran,
+                berat: detailInput.berat,
+                pcs: detailInput.pcs,
+                ...(isSupplier
+                  ? { supplierNotes: detailInput.notes }
+                  : { notes: detailInput.notes }),
+              }
+            : item,
+        );
+        highlightId = editingDetailId;
+      }
+
       previousNewlyAddedIds.current = new Set();
       setItems(updated);
-      setNewlyAddedIds(new Set([editingDetailId]));
+      setNewlyAddedIds(new Set([highlightId]));
       setEditingDetailId(null);
     } else {
       const updatedItems = [...items];
@@ -262,15 +316,37 @@ export function useDetailItems({
 
         if (existingIdx !== -1) {
           const existing = updatedItems[existingIdx];
-          updatedItems[existingIdx] = {
-            ...existing,
-            pcs: (
-              parseInt(existing.pcs) + parseInt(detailInput.pcs)
-            ).toString(),
-            notes: [existing.notes, detailInput.notes]
-              .filter(Boolean)
-              .join(", "),
-          };
+          // If this row originates from the original order and notes are entered, block the action (non-supplier only)
+          if (
+            !isSupplier &&
+            detailInput.notes.trim() &&
+            initialIdsRef.current.has(existing.id) &&
+            onDuplicateWithNotes
+          ) {
+            onDuplicateWithNotes();
+            return;
+          }
+          if (isSupplier) {
+            updatedItems[existingIdx] = {
+              ...existing,
+              pcs: (
+                parseInt(existing.pcs) + parseInt(detailInput.pcs)
+              ).toString(),
+              supplierNotes: [existing.supplierNotes, detailInput.notes]
+                .filter(Boolean)
+                .join(", "),
+            };
+          } else {
+            updatedItems[existingIdx] = {
+              ...existing,
+              pcs: (
+                parseInt(existing.pcs) + parseInt(detailInput.pcs)
+              ).toString(),
+              notes: [existing.notes, detailInput.notes]
+                .filter(Boolean)
+                .join(", "),
+            };
+          }
           newIds.add(existing.id);
         } else {
           const newId = `${Date.now()}-${Math.random()}`;
@@ -281,7 +357,8 @@ export function useDetailItems({
             ukuran: finalUkuran,
             berat,
             pcs: detailInput.pcs,
-            notes: detailInput.notes,
+            notes: isSupplier ? undefined : detailInput.notes,
+            supplierNotes: isSupplier ? detailInput.notes : undefined,
           });
           newIds.add(newId);
         }
@@ -302,14 +379,23 @@ export function useDetailItems({
   };
 
   const handleEdit = (item: DetailBarangItem) => {
+    const kalungDropdownValues = new Set(["a", "n", "p", "t", "other", ""]);
+    const ukuranVal =
+      jenisProduk === "kalung" && !kalungDropdownValues.has(item.ukuran)
+        ? "other"
+        : item.ukuran;
+    const ukuranCustomVal =
+      jenisProduk === "kalung" && !kalungDropdownValues.has(item.ukuran)
+        ? item.ukuran
+        : "";
     setDetailInput({
       kadar: item.kadar,
       warna: item.warna,
-      ukuran: item.ukuran,
-      ukuranCustom: "",
+      ukuran: ukuranVal,
+      ukuranCustom: ukuranCustomVal,
       berat: item.berat,
       pcs: item.pcs,
-      notes: item.notes ?? "",
+      notes: isSupplier ? (item.supplierNotes ?? "") : (item.notes ?? ""),
     });
     setEditingDetailId(item.id);
     setIsInputFormExpanded(true);
@@ -327,11 +413,20 @@ export function useDetailItems({
   };
 
   const handleCopy = (item: DetailBarangItem) => {
+    const kalungDropdownValues = new Set(["a", "n", "p", "t", "other", ""]);
+    const ukuranVal =
+      jenisProduk === "kalung" && !kalungDropdownValues.has(item.ukuran)
+        ? "other"
+        : item.ukuran;
+    const ukuranCustomVal =
+      jenisProduk === "kalung" && !kalungDropdownValues.has(item.ukuran)
+        ? item.ukuran
+        : "";
     setDetailInput({
       kadar: item.kadar,
       warna: item.warna,
-      ukuran: item.ukuran,
-      ukuranCustom: "",
+      ukuran: ukuranVal,
+      ukuranCustom: ukuranCustomVal,
       berat: item.berat,
       pcs: item.pcs,
       notes: item.notes ?? "",

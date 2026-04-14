@@ -12,10 +12,12 @@ import { DetailBarangItem, EntityReference } from "./request";
  */
 export type OrderStatus =
   | "New Order" // Order created by JB, not yet viewed by supplier
-  | "Viewed" // Supplier has viewed the order details
+  | "Supplier Viewed" // Supplier has viewed the order details
   | "Order Revised" // Supplier proposed changes have been approved by Sales and JB
   | "Rejected" // Sales rejected the revision
-  | "Change Pending Approval" // Supplier has submitted proposed changes awaiting Sales/JB review
+  | "Pending Sales Review" // Supplier changes submitted, awaiting Sales review
+  | "Pending JB Review" // Sales reviewed, awaiting JB review
+  | "Change Pending Approval" // Legacy alias for Pending Sales Review
   | "In Production" // Supplier has started production
   | "Stock Ready" // Order is ready for pickup/delivery
   | "Partially Delivered" // Order has partial deliveries
@@ -24,7 +26,8 @@ export type OrderStatus =
   | "Unable to Fulfill" // Supplier cannot fulfill the order
   | "Completed" // Order fulfilled and delivered
   | "Confirmed by JB" // Order delivery confirmed by JB
-  | "Cancelled"; // Order was cancelled
+  | "Cancelled" // Order was cancelled
+  | "Closed"; // Order closed by JB after full delivery
 
 /**
  * Order Shipping Item - tracks dispatched quantities for a specific item
@@ -62,6 +65,16 @@ export interface OrderShipping {
 }
 
 /**
+ * A snapshot of an arrival's items at a point in time (for audit trail)
+ */
+export interface OrderArrivalEditHistory {
+  editedAt: number;
+  editedBy: string;
+  previousItems: OrderArrivalItem[];
+  newItems: OrderArrivalItem[];
+}
+
+/**
  * Order Arrival Item - tracks delivered quantities for a specific item
  */
 export interface OrderArrivalItem {
@@ -79,9 +92,11 @@ export interface OrderArrival {
   id: string;
   orderId: string;
   orderPONumber: string;
+  shippingId?: string; // Optional link to specific OrderShipping entry
   createdDate: number; // Arrival date
   createdBy: string; // JB user who recorded the arrival
   items: OrderArrivalItem[]; // Items delivered in this arrival
+  editHistory?: OrderArrivalEditHistory[];
 }
 
 /**
@@ -92,6 +107,7 @@ export interface OrderRevision {
   timestamp: number;
   updatedBy: string;
   revisionNotes?: string; // Notes from supplier/JB explaining the changes
+  salesRowDecisions?: Record<string, "accept" | "reject">; // Row-level decisions made by Sales
   changes: {
     kategoriBarang?: string;
     jenisProduk?: string;
@@ -175,6 +191,9 @@ export interface Order {
 
   // Revision notes from supplier/JB (latest revision)
   revisionNotes?: string;
+
+  // Rejection reason (from request)
+  rejectionReason?: string;
 
   // Dual approval tracking for revisions
   jbApproved?: boolean;

@@ -41,6 +41,60 @@ interface DetailItemInputProps {
   onCancel: () => void;
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
+  hideNotes?: boolean;
+  isSupplier?: boolean;
+}
+
+/** Restricts input to a non-negative number with at most one decimal digit. */
+function handleOneDecimalKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.ctrlKey || e.metaKey) return;
+  // Block anything that isn't a digit or dot
+  if (e.key.length === 1 && !/[\d.]/.test(e.key)) {
+    e.preventDefault();
+    return;
+  }
+  const val = e.currentTarget.value;
+  if (e.key === ".") {
+    if (val.includes(".")) e.preventDefault();
+  } else if (/^\d$/.test(e.key)) {
+    const decimalIdx = val.indexOf(".");
+    if (decimalIdx !== -1 && val.length - decimalIdx > 1) {
+      e.preventDefault();
+    }
+  }
+}
+
+const handleUkuranKeyDown = handleOneDecimalKeyDown;
+
+/**
+ * Returns true if `value` is a valid or still-being-typed berat add-mode string.
+ * Each comma-segment must be one of:
+ *   - A decimal/integer:  digits with an optional dot and at most 1 decimal digit (e.g. 4, 2.3)
+ *   - An integer range:   two integers joined by exactly one hyphen (e.g. 7-9); second part may
+ *                         be incomplete while typing (e.g. "7-")
+ * Rules enforced:
+ *   - No leading hyphen in any segment                      → "-2" blocked
+ *   - No decimal in a range segment                         → "3-4.5" blocked
+ *   - No more than one hyphen per segment                   → "4-6-7" blocked
+ *   - A segment can't start with hyphen                     → "1,2,-5" blocked
+ */
+function isBeratInProgress(value: string): boolean {
+  if (value === "") return true;
+  return value.split(",").every((seg) => {
+    const t = seg.trim();
+    if (t === "") return true;
+    // Decimal or plain integer — no hyphen allowed
+    if (/^\d+(\.\d?)?$/.test(t)) return true;
+    // Integer range — no decimal allowed; second integer may be empty while typing
+    if (/^\d+-\d*$/.test(t)) return true;
+    return false;
+  });
+}
+
+/** onKeyDown for berat add mode: block characters not in the allowed set. */
+function handleBeratAddKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.ctrlKey || e.metaKey) return;
+  if (e.key.length === 1 && !/^[\d.,\-\s]$/.test(e.key)) e.preventDefault();
 }
 
 export function DetailItemInput({
@@ -56,6 +110,8 @@ export function DetailItemInput({
   onCancel,
   isExpanded = true,
   onToggleExpanded,
+  hideNotes = false,
+  isSupplier = false,
 }: DetailItemInputProps) {
   return (
     <div className="bg-white sticky top-0 z-10 pb-2 sm:pb-3 border-b mb-2 sm:mb-3">
@@ -80,9 +136,9 @@ export function DetailItemInput({
       {/* Form Fields - Collapsible on Mobile */}
       <div className={`${isExpanded ? "block" : "hidden"} sm:block`}>
         {/* Compact Input Row - Allow wrapping */}
-        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 items-end">
           {/* Kadar */}
-          <div className="w-[110px]" id="kadar-field-container">
+          <div className="w-[132px]" id="kadar-field-container">
             <Label
               htmlFor="kadar"
               className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
@@ -114,7 +170,7 @@ export function DetailItemInput({
           </div>
 
           {/* Warna */}
-          <div className="w-[168px]">
+          <div className="w-[202px]">
             <Label
               htmlFor="warna"
               className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
@@ -145,154 +201,176 @@ export function DetailItemInput({
 
           {/* Conditional Ukuran based on Jenis Produk */}
           {jenisProduk === "gelang-rantai" ? (
-            <div className="w-[100px]">
+            <div className="w-[120px]">
               <Label
                 htmlFor="ukuran"
                 className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
               >
                 <Ruler className="h-3 w-3 text-blue-600" />
-                Ukuran (cm)
+                Ukuran (cm) <span className="text-gray-400">(opt)</span>
               </Label>
               <InputWithCheck
                 id="ukuran"
-                type="number"
-                step="0.01"
-                className="h-9 sm:h-8 text-sm w-full"
+                type="text"
+                inputMode="decimal"
+                className="h-9 sm:h-8 w-full"
                 value={detailInput.ukuran}
-                onChange={(e) =>
-                  onDetailInputChange({
-                    ...detailInput,
-                    ukuran: e.target.value,
-                  })
-                }
-                placeholder="0"
+                onKeyDown={handleUkuranKeyDown}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^\d*\.?\d?$/.test(v))
+                    onDetailInputChange({ ...detailInput, ukuran: v });
+                }}
+                placeholder="e.g. 18.5"
                 disabled={isDisabled}
               />
             </div>
           ) : jenisProduk === "kalung" ? (
-            <div className="flex-shrink-0">
-              <Label
-                htmlFor="ukuran"
-                className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-              >
-                <Ruler className="h-3 w-3 text-blue-600" />
-                Ukuran
-              </Label>
-              <div className="flex items-center gap-1">
+            <>
+              <div className="flex-shrink-0 w-[180px]">
+                <Label
+                  htmlFor="ukuran"
+                  className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
+                >
+                  <Ruler className="h-3 w-3 text-blue-600" />
+                  Ukuran{" "}
+                  {kategoriBarang === "basic" ? (
+                    <span className="text-red-500">*</span>
+                  ) : (
+                    <span className="text-gray-400">(opt)</span>
+                  )}
+                </Label>
                 <Combobox
                   value={detailInput.ukuran}
                   onValueChange={(value) =>
-                    onDetailInputChange({
-                      ...detailInput,
-                      ukuran: value,
-                    })
+                    onDetailInputChange({ ...detailInput, ukuran: value })
                   }
                   options={UKURAN_KALUNG_OPTIONS}
                   placeholder="Ukuran"
                   searchPlaceholder="Search size..."
                   emptyText="Size not found."
                   allowCustomValue={false}
-                  className="w-[150px]"
+                  className="w-full"
                   disabled={isDisabled}
                 />
-                {detailInput.ukuran === "other" && (
+              </div>
+              {detailInput.ukuran === "other" && (
+                <div className="w-[120px]">
+                  <Label className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1">
+                    <Ruler className="h-3 w-3 text-blue-600" />
+                    Ukuran (cm)
+                  </Label>
                   <InputWithCheck
-                    type="number"
-                    step="0.01"
-                    className="h-9 sm:h-8 text-sm w-[100px]"
+                    type="text"
+                    inputMode="decimal"
+                    className="h-9 sm:h-8 w-full"
                     value={detailInput.ukuranCustom}
-                    onChange={(e) =>
-                      onDetailInputChange({
-                        ...detailInput,
-                        ukuranCustom: e.target.value,
-                      })
-                    }
-                    placeholder="cm"
+                    onKeyDown={handleUkuranKeyDown}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "" || /^\d*\.?\d?$/.test(v))
+                        onDetailInputChange({
+                          ...detailInput,
+                          ukuranCustom: v,
+                        });
+                    }}
+                    placeholder="e.g. 45.5"
                     disabled={isDisabled}
                   />
-                )}
-              </div>
-            </div>
+                </div>
+              )}
+            </>
           ) : jenisProduk === "gelang-kaku" ? (
-            <div className="w-[100px]">
+            <div className="w-[120px]">
               <Label
                 htmlFor="ukuran"
                 className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
               >
                 <Ruler className="h-3 w-3 text-blue-600" />
-                Ukuran (cm)
+                Ukuran (cm) <span className="text-gray-400">(opt)</span>
               </Label>
               <InputWithCheck
                 id="ukuran"
-                type="number"
-                step="0.01"
-                className="h-9 sm:h-8 text-sm w-full"
+                type="text"
+                inputMode="decimal"
+                className="h-9 sm:h-8 w-full"
                 value={detailInput.ukuran}
-                onChange={(e) =>
-                  onDetailInputChange({
-                    ...detailInput,
-                    ukuran: e.target.value,
-                  })
-                }
-                placeholder="0"
+                onKeyDown={handleUkuranKeyDown}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^\d*\.?\d?$/.test(v))
+                    onDetailInputChange({ ...detailInput, ukuran: v });
+                }}
+                placeholder="e.g. 18.5"
                 disabled={isDisabled}
               />
             </div>
           ) : jenisProduk === "cincin" ? (
-            <div className="w-[200px]">
+            <div className="w-[240px]">
               <Label
                 htmlFor="ukuran"
                 className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
               >
                 <Ruler className="h-3 w-3 text-blue-600" />
-                Ukuran (cm)
+                Ukuran (cm) <span className="text-gray-400">(opt)</span>
               </Label>
               <InputWithCheck
                 id="ukuran"
-                type="number"
-                step="0.01"
-                className="h-9 sm:h-8 text-sm w-full"
+                type="text"
+                inputMode="decimal"
+                className="h-9 sm:h-8 w-full"
                 value={detailInput.ukuran}
-                onChange={(e) =>
-                  onDetailInputChange({
-                    ...detailInput,
-                    ukuran: e.target.value,
-                  })
-                }
-                placeholder="0"
+                onKeyDown={handleUkuranKeyDown}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || /^\d*\.?\d?$/.test(v))
+                    onDetailInputChange({ ...detailInput, ukuran: v });
+                }}
+                placeholder="e.g. 18.5"
                 disabled={isDisabled}
               />
             </div>
           ) : null}
 
           {/* Berat */}
-          <div className="w-[120px]">
+          <div className="w-[132px]">
             <Label
               htmlFor="berat"
               className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
             >
               <Weight className="h-3 w-3 text-slate-600" />
               Berat (gr){" "}
-              {kategoriBarang === "basic" && (
+              {kategoriBarang === "basic" ? (
                 <span className="text-red-500">*</span>
-              )}
+              ) : kategoriBarang === "model" ? (
+                <span className="text-gray-400">(opt)</span>
+              ) : null}
             </Label>
             <InputWithCheck
               id="berat"
               type="text"
-              className="h-9 sm:h-8 text-sm w-full"
+              className="h-9 sm:h-8 w-full"
               value={detailInput.berat}
+              onKeyDown={
+                editingDetailId
+                  ? handleOneDecimalKeyDown
+                  : handleBeratAddKeyDown
+              }
               onChange={(e) => {
                 const value = e.target.value;
-                // Only allow numbers, commas, dashes, and spaces (no decimal points)
-                if (value === "" || /^[0-9,\-\s]+$/.test(value)) {
-                  onDetailInputChange({
-                    ...detailInput,
-                    berat: value,
-                  });
+                if (editingDetailId) {
+                  // Edit mode: single value, integer or one decimal digit
+                  if (value === "" || /^\d*\.?\d?$/.test(value)) {
+                    onDetailInputChange({ ...detailInput, berat: value });
+                  }
+                } else {
+                  // Add mode: onKeyDown blocks invalid chars; onChange validates structure
+                  if (isBeratInProgress(value)) {
+                    onDetailInputChange({ ...detailInput, berat: value });
+                  }
                 }
               }}
-              placeholder="2, 4, 7-9"
+              placeholder={editingDetailId ? "e.g. 4.5" : "e.g. 2, 4.5, 7-9"}
               disabled={isDisabled}
             />
           </div>
@@ -314,7 +392,7 @@ export function DetailItemInput({
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              className="h-9 sm:h-8 text-sm w-full"
+              className="h-9 sm:h-8 w-full"
               value={detailInput.pcs}
               onChange={(e) => {
                 const value = e.target.value;
@@ -332,30 +410,36 @@ export function DetailItemInput({
           </div>
 
           {/* Notes */}
-          <div className="w-[150px]">
-            <Label
-              htmlFor="notes"
-              className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
-            >
-              <StickyNote className="h-3 w-3 text-yellow-600" />
-              Notes
-            </Label>
-            <InputWithCheck
-              id="notes"
-              type="text"
-              className="h-9 sm:h-8 text-sm w-full"
-              value={detailInput.notes}
-              maxLength={50}
-              onChange={(e) =>
-                onDetailInputChange({
-                  ...detailInput,
-                  notes: e.target.value,
-                })
-              }
-              placeholder="Optional notes..."
-              disabled={isDisabled}
-            />
-          </div>
+          {!hideNotes && (
+            <div className="w-[150px]">
+              <Label
+                htmlFor="notes"
+                className="text-[10px] text-gray-600 mb-0.5 flex items-center gap-1"
+              >
+                <StickyNote className="h-3 w-3 text-yellow-600" />
+                {isSupplier ? "Supplier Notes" : "Notes"}
+              </Label>
+              <InputWithCheck
+                id="notes"
+                type="text"
+                className="h-9 sm:h-8 w-full"
+                value={detailInput.notes}
+                maxLength={50}
+                onChange={(e) =>
+                  onDetailInputChange({
+                    ...detailInput,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder={
+                  isSupplier
+                    ? "Optional supplier notes..."
+                    : "Optional notes..."
+                }
+                disabled={isDisabled}
+              />
+            </div>
+          )}
 
           {/* Add/Update and Cancel Buttons */}
           <div className="w-full sm:w-auto flex items-end gap-1.5 sm:gap-2">
@@ -378,17 +462,23 @@ export function DetailItemInput({
             >
               {editingDetailId ? "Update" : "Add"}
             </Button>
-            {!editingDetailId && (detailInput.kadar || detailInput.warna || detailInput.ukuran || detailInput.berat || detailInput.pcs || detailInput.notes) && (
-              <Button
-                onClick={onReset}
-                size="sm"
-                variant="outline"
-                className="h-8 flex-1 sm:flex-initial sm:w-auto px-3 sm:px-4 text-xs sm:text-sm text-gray-600"
-                disabled={isDisabled}
-              >
-                Reset
-              </Button>
-            )}
+            {!editingDetailId &&
+              (detailInput.kadar ||
+                detailInput.warna ||
+                detailInput.ukuran ||
+                detailInput.berat ||
+                detailInput.pcs ||
+                detailInput.notes) && (
+                <Button
+                  onClick={onReset}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 flex-1 sm:flex-initial sm:w-auto px-3 sm:px-4 text-xs sm:text-sm text-gray-600"
+                  disabled={isDisabled}
+                >
+                  Reset
+                </Button>
+              )}
           </div>
         </div>
       </div>

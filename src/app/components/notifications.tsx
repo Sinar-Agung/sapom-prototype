@@ -1,10 +1,12 @@
 import { Notification } from "@/app/types/notification";
+import { getImage } from "@/app/utils/image-storage";
 import {
   archiveNotificationForUser,
   getNotificationsForUser,
   getUnreadCountForUser,
   markAllAsReadForUser,
   markNotificationAsRead,
+  markNotificationAsUnread,
   unarchiveNotificationForUser,
 } from "@/app/utils/notification-helper";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
@@ -19,16 +21,21 @@ import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
 import {
   AlertTriangle,
+  ArchiveX,
   Bell,
   CheckCheck,
+  CheckSquare,
+  ChevronDown,
   Clock,
   Edit,
   FileText,
+  MailOpen,
   Package,
   RefreshCw,
+  Square,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { NewBadge } from "./new-badge";
 import {
@@ -43,6 +50,7 @@ import {
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { Checkbox } from "./ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface NotificationsProps {
@@ -112,6 +120,13 @@ export function Notifications({
   onNavigateToUpdateOrder,
 }: NotificationsProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [entityPhotoMap, setEntityPhotoMap] = useState<Map<string, string>>(
+    new Map(),
+  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(40);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<
     "all" | "unread" | "expiring" | "archived"
   >(() => {
@@ -132,6 +147,43 @@ export function Notifications({
     setShowArchiveDialog(true);
   };
 
+  const handleBulkArchive = () => {
+    selectedIds.forEach((id) => archiveNotificationForUser(id, currentUser));
+    setSelectedIds(new Set());
+    loadNotifications();
+  };
+
+  const handleBulkUnarchive = () => {
+    selectedIds.forEach((id) => unarchiveNotificationForUser(id, currentUser));
+    setSelectedIds(new Set());
+    loadNotifications();
+  };
+
+  const handleBulkMarkAsRead = () => {
+    selectedIds.forEach((id) => markNotificationAsRead(id, currentUser));
+    setSelectedIds(new Set());
+    loadNotifications();
+  };
+
+  const handleBulkMarkAsUnread = () => {
+    selectedIds.forEach((id) => markNotificationAsUnread(id, currentUser));
+    setSelectedIds(new Set());
+    loadNotifications();
+  };
+
+  const toggleSelect = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () =>
+    setSelectedIds(new Set(visibleNotifications.map((n) => n.id)));
+  const clearSelection = () => setSelectedIds(new Set());
+
   const confirmArchive = () => {
     if (notificationToArchive) {
       archiveNotificationForUser(notificationToArchive, currentUser);
@@ -144,16 +196,14 @@ export function Notifications({
   const [filterText, setFilterText] = useState(() => {
     return sessionStorage.getItem("notificationsFilterText") || "";
   });
+  const [typeFilter, setTypeFilter] = useState<string[]>(() => {
+    const saved = sessionStorage.getItem("notificationsTypeFilter");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [sortBy, setSortBy] = useState<string>(() => {
     return sessionStorage.getItem("notificationsSortBy") || "timestamp";
   });
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
-    return (
-      (sessionStorage.getItem("notificationsSortDirection") as
-        | "asc"
-        | "desc") || "desc"
-    );
-  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const currentUser =
     localStorage.getItem("username") ||
@@ -166,6 +216,8 @@ export function Notifications({
   // Persist active tab to sessionStorage
   useEffect(() => {
     sessionStorage.setItem("notificationsActiveTab", activeTab);
+    setSelectedIds(new Set()); // Clear selection when switching tabs
+    setVisibleCount(40); // Reset lazy load on tab change
   }, [activeTab]);
 
   // Persist filter and sort states to sessionStorage
@@ -174,12 +226,15 @@ export function Notifications({
   }, [filterText]);
 
   useEffect(() => {
-    sessionStorage.setItem("notificationsSortBy", sortBy);
-  }, [sortBy]);
+    sessionStorage.setItem(
+      "notificationsTypeFilter",
+      JSON.stringify(typeFilter),
+    );
+  }, [typeFilter]);
 
   useEffect(() => {
-    sessionStorage.setItem("notificationsSortDirection", sortDirection);
-  }, [sortDirection]);
+    sessionStorage.setItem("notificationsSortBy", sortBy);
+  }, [sortBy]);
 
   useEffect(() => {
     loadNotifications();
@@ -255,17 +310,21 @@ export function Notifications({
       );
       onNavigateToRequest(notification.entityId);
     } else if (notification.entityType === "order") {
-      // Special handling for order_change_requested - navigate to update page
+      // Store scroll target in sessionStorage before navigating
       if (
-        notification.eventType === "order_change_requested" &&
-        onNavigateToUpdateOrder
+        notification.eventType === "order_shipment_created" ||
+        notification.eventType === "order_shipment_edited"
       ) {
-        console.log(
-          "   → Calling onNavigateToUpdateOrder with ID:",
-          notification.entityId,
-        );
-        onNavigateToUpdateOrder(notification.entityId);
-      } else if (onNavigateToOrder) {
+        const shippingId = notification.metadata?.shippingId;
+        if (shippingId) {
+          sessionStorage.setItem("order-details-scroll-shipment", shippingId);
+        }
+      } else if (notification.eventType === "order_arrival_recorded") {
+        sessionStorage.setItem("order-details-scroll-arrivals", "true");
+      }
+      // Special handling for order_change_requested — always go to Order Details
+      // (not the update page, since the order is already Pending Sales Review)
+      if (onNavigateToOrder) {
         console.log(
           "   → Calling onNavigateToOrder with ID:",
           notification.entityId,
@@ -291,8 +350,7 @@ export function Notifications({
   // Archived = manually archived by user OR older than 30 days
   const archivedNotifications = notifications.filter(
     (n) =>
-      n.archivedBy?.includes(currentUser) ||
-      now - n.timestamp > THIRTY_DAYS_MS,
+      n.archivedBy?.includes(currentUser) || now - n.timestamp > THIRTY_DAYS_MS,
   );
   const nonArchivedNotifications = notifications.filter(
     (n) =>
@@ -319,6 +377,8 @@ export function Notifications({
 
   // Apply text filter
   const filteredNotifications = tabFilteredNotifications.filter((n) => {
+    if (typeFilter.length > 0 && !typeFilter.includes(n.eventType))
+      return false;
     if (!filterText) return true;
     const searchText = filterText.toLowerCase();
     return (
@@ -341,7 +401,7 @@ export function Notifications({
 
     switch (sortBy) {
       case "timestamp":
-        comparison = b.timestamp - a.timestamp;
+        comparison = a.timestamp - b.timestamp;
         break;
       case "eventType":
         comparison = a.eventType.localeCompare(b.eventType);
@@ -359,6 +419,33 @@ export function Notifications({
     return sortDirection === "asc" ? comparison : -comparison;
   });
 
+  // Lazy-load: when sentinel comes into view, load next 20
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev: number) => prev + 20);
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedNotifications.length]);
+
+  const selectedNotifications = sortedNotifications.filter((n) =>
+    selectedIds.has(n.id),
+  );
+  const allSelectedRead =
+    selectedIds.size > 0 &&
+    selectedNotifications.every((n) => n.readBy.includes(currentUser));
+  const allSelectedUnread =
+    selectedIds.size > 0 &&
+    selectedNotifications.every((n) => !n.readBy.includes(currentUser));
+
   const unreadCount = nonArchivedNotifications.filter(
     (n) =>
       !n.readBy.includes(currentUser) && n.eventType !== "request_expiring",
@@ -366,11 +453,36 @@ export function Notifications({
 
   const unreadCountHeader = getUnreadCountForUser(currentUser, accountType);
 
-  const expiringCount = nonArchivedNotifications.filter(
-    (n) => n.eventType === "request_expiring",
-  ).length;
+  // expiringCount and archivedCount removed — tab badges use filtered* variants below
 
-  const archivedCount = archivedNotifications.length;
+  // Apply search + type filters to an arbitrary notification array
+  const applySearchTypeFilter = (notifs: Notification[]) =>
+    notifs.filter((n) => {
+      if (typeFilter.length > 0 && !typeFilter.includes(n.eventType))
+        return false;
+      if (!filterText) return true;
+      const searchText = filterText.toLowerCase();
+      return (
+        n.entityNumber?.toLowerCase().includes(searchText) ||
+        n.message.toLowerCase().includes(searchText) ||
+        n.triggeredBy.toLowerCase().includes(searchText)
+      );
+    });
+
+  // Per-tab filtered counts (reflect active search + type filter)
+  const filteredAllCount = applySearchTypeFilter(
+    nonArchivedNotifications.filter((n) => n.eventType !== "request_expiring"),
+  ).length;
+  const filteredUnreadCount = applySearchTypeFilter(
+    nonArchivedNotifications.filter(
+      (n) =>
+        !n.readBy.includes(currentUser) && n.eventType !== "request_expiring",
+    ),
+  ).length;
+  const filteredExpiringCount = applySearchTypeFilter(
+    nonArchivedNotifications.filter((n) => n.eventType === "request_expiring"),
+  ).length;
+  const filteredArchivedCount = applySearchTypeFilter(archivedNotifications).length;
 
   const getEventIcon = (eventType: string) => {
     if (eventType === "request_expiring") {
@@ -381,6 +493,9 @@ export function Notifications({
     }
     if (eventType === "order_change_requested") {
       return <Edit className="w-5 h-5 text-blue-600" />;
+    }
+    if (eventType === "order_change_approved") {
+      return <CheckCheck className="w-5 h-5 text-green-600" />;
     }
     if (eventType === "order_revised") {
       return <Edit className="w-5 h-5 text-amber-600" />;
@@ -398,7 +513,26 @@ export function Notifications({
     if (eventType === "request_expiring")
       return "bg-orange-50 border-orange-300";
     if (eventType === "request_expired") return "bg-red-50 border-red-300";
+    if (eventType === "order_change_requested")
+      return "bg-blue-50 border-blue-200";
+    if (eventType === "order_change_approved")
+      return "bg-green-50 border-green-300";
     if (eventType.includes("created")) return "bg-green-50 border-green-200";
+    if (eventType === "order_written") return "bg-green-50 border-green-200";
+    if (eventType === "supplier_views_order")
+      return "bg-cyan-50 border-cyan-200";
+    if (eventType === "order_in_production")
+      return "bg-indigo-50 border-indigo-200";
+    if (eventType === "order_stock_ready")
+      return "bg-emerald-50 border-emerald-200";
+    if (eventType === "order_shipment_created")
+      return "bg-violet-50 border-violet-200";
+    if (eventType === "order_shipment_edited")
+      return "bg-fuchsia-50 border-fuchsia-200";
+    if (eventType === "order_arrival_recorded")
+      return "bg-purple-50 border-purple-200";
+    if (eventType === "order_fully_delivered")
+      return "bg-teal-50 border-teal-200";
     if (eventType.includes("updated")) return "bg-amber-50 border-amber-200";
     if (eventType.includes("cancelled")) return "bg-rose-50 border-rose-200";
     if (eventType.includes("rejected")) return "bg-red-50 border-red-200";
@@ -412,11 +546,26 @@ export function Notifications({
   };
 
   const formatEventType = (eventType: string): string => {
+    if (eventType === "request_viewed_by_jb") return "Viewed by JB";
+    if (eventType === "order_in_production") return "Production Started";
+    if (eventType === "order_stock_ready") return "Stock Ready";
+    if (eventType === "supplier_views_order") return "Supplier Views Order";
+    if (eventType === "order_shipment_created") return "New Shipment";
+    if (eventType === "order_shipment_edited") return "Shipment Updated";
+    if (eventType === "order_arrival_recorded") return "Order Arrival";
+    if (eventType === "order_fully_delivered") return "Fully Delivered";
     return eventType
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   };
+
+  // Compute available event types from all non-archived notifications for the type filter dropdown
+  const eventTypeOptions = Array.from(
+    new Set(nonArchivedNotifications.map((n) => n.eventType)),
+  )
+    .sort()
+    .map((et) => ({ value: et, label: formatEventType(et) }));
 
   const getEventTypePillColor = (eventType: string): string => {
     if (eventType === "request_expiring")
@@ -424,7 +573,24 @@ export function Notifications({
     if (eventType === "request_expired") return "bg-red-100 text-red-700";
     if (eventType === "order_change_requested")
       return "bg-blue-100 text-blue-700";
+    if (eventType === "order_change_approved")
+      return "bg-green-100 text-green-700";
     if (eventType.includes("created")) return "bg-green-100 text-green-700";
+    if (eventType === "order_written") return "bg-green-100 text-green-700";
+    if (eventType === "supplier_views_order")
+      return "bg-cyan-100 text-cyan-700";
+    if (eventType === "order_in_production")
+      return "bg-indigo-100 text-indigo-700";
+    if (eventType === "order_stock_ready")
+      return "bg-emerald-100 text-emerald-700";
+    if (eventType === "order_shipment_created")
+      return "bg-violet-100 text-violet-700";
+    if (eventType === "order_shipment_edited")
+      return "bg-fuchsia-100 text-fuchsia-700";
+    if (eventType === "order_arrival_recorded")
+      return "bg-purple-100 text-purple-700";
+    if (eventType === "order_fully_delivered")
+      return "bg-teal-100 text-teal-700";
     if (eventType.includes("updated")) return "bg-amber-100 text-amber-700";
     if (eventType.includes("cancelled")) return "bg-rose-100 text-rose-700";
     if (eventType.includes("rejected")) return "bg-red-100 text-red-700";
@@ -457,35 +623,58 @@ export function Notifications({
     });
   };
 
-  const getThumbnailImage = (notification: Notification): string | null => {
-    try {
-      if (notification.entityType === "request") {
-        const requestsJson = localStorage.getItem("requests");
-        if (requestsJson) {
-          const requests = JSON.parse(requestsJson);
-          const request = requests.find(
-            (r: any) => r.id === notification.entityId,
-          );
-          if (request?.fotoBarangBase64) return request.fotoBarangBase64;
-          if (request?.kategoriBarang === "basic" && request?.namaBasic) {
-            return NAMA_BASIC_IMAGES[request.namaBasic] || null;
+  // Async-load photoId images from IndexedDB whenever notifications change
+  useEffect(() => {
+    if (notifications.length === 0) return;
+    const newMap = new Map<string, string>();
+    const tasks: Promise<void>[] = [];
+    const allEntities: { id: string; storeKey: string }[] = [
+      ...notifications
+        .filter((n) => n.entityType === "request")
+        .map((n) => ({ id: n.entityId, storeKey: "requests" })),
+      ...notifications
+        .filter((n) => n.entityType === "order")
+        .map((n) => ({ id: n.entityId, storeKey: "orders" })),
+    ];
+    const seenIds = new Set<string>();
+    for (const { id, storeKey } of allEntities) {
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      tasks.push(
+        (async () => {
+          try {
+            const json = localStorage.getItem(storeKey);
+            if (!json) return;
+            const arr = JSON.parse(json);
+            const entity = arr.find((e: any) => e.id === id);
+            if (!entity) return;
+            if (entity.photoId) {
+              const data = await getImage(entity.photoId);
+              if (data) {
+                newMap.set(id, data);
+                return;
+              }
+            }
+            if (entity.fotoBarangBase64) {
+              newMap.set(id, entity.fotoBarangBase64);
+            } else if (
+              entity.kategoriBarang === "basic" &&
+              entity.namaBasic &&
+              NAMA_BASIC_IMAGES[entity.namaBasic]
+            ) {
+              newMap.set(id, NAMA_BASIC_IMAGES[entity.namaBasic]);
+            }
+          } catch {
+            /* ignore */
           }
-        }
-      } else if (notification.entityType === "order") {
-        const ordersJson = localStorage.getItem("orders");
-        if (ordersJson) {
-          const orders = JSON.parse(ordersJson);
-          const order = orders.find((o: any) => o.id === notification.entityId);
-          if (order?.fotoBarangBase64) return order.fotoBarangBase64;
-          if (order?.kategoriBarang === "basic" && order?.namaBasic) {
-            return NAMA_BASIC_IMAGES[order.namaBasic] || null;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error getting thumbnail image:", error);
+        })(),
+      );
     }
-    return null;
+    Promise.all(tasks).then(() => setEntityPhotoMap(new Map(newMap)));
+  }, [notifications]);
+
+  const getThumbnailImage = (notification: Notification): string | null => {
+    return entityPhotoMap.get(notification.entityId) ?? null;
   };
 
   const renderMessageFields = (
@@ -603,6 +792,19 @@ export function Notifications({
     const displayMessage = notification.message;
     const thumbnailImage = getThumbnailImage(notification);
 
+    // Look up notes from the linked request
+    const requestNotes = (() => {
+      if (notification.entityType !== "request") return "";
+      try {
+        const reqs = JSON.parse(localStorage.getItem("orders") || "[]");
+        const req = reqs.find((r: any) => r.id === notification.entityId);
+        return req?.notes || "";
+      } catch {
+        return "";
+      }
+    })();
+    const isNotesExpanded = expandedNotes.has(notification.id);
+
     const cardClass = opts.isArchived
       ? "bg-gray-50 border-gray-300 opacity-75"
       : isExpiring
@@ -624,10 +826,22 @@ export function Notifications({
     return (
       <Card
         key={notification.id}
-        className={`p-3 transition-all cursor-pointer hover:shadow-md ${cardClass}`}
+        className={`p-3 transition-all cursor-pointer hover:shadow-md ${cardClass} ${selectedIds.has(notification.id) ? "ring-2 ring-blue-400" : ""}`}
         onClick={() => handleNotificationClick(notification)}
       >
         <div className="flex gap-3">
+          {/* Checkbox */}
+          <div
+            className="flex-shrink-0 mt-1"
+            onClick={(e) => toggleSelect(e, notification.id)}
+          >
+            <Checkbox
+              checked={selectedIds.has(notification.id)}
+              onCheckedChange={() => {}}
+              className="mt-0.5"
+            />
+          </div>
+
           {/* Icon */}
           <div className="flex-shrink-0 mt-1">
             {getEventIcon(notification.eventType)}
@@ -647,8 +861,33 @@ export function Notifications({
               </span>
               <h3
                 className={`font-semibold ${titleClass}`}
-                dangerouslySetInnerHTML={{ __html: notification.title }}
+                dangerouslySetInnerHTML={{
+                  __html:
+                    accountType === "supplier"
+                      ? notification.title.replace(/ for [^<&]*$/, "")
+                      : notification.title,
+                }}
               />
+              {requestNotes && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedNotes((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(notification.id))
+                        next.delete(notification.id);
+                      else next.add(notification.id);
+                      return next;
+                    });
+                  }}
+                  className="ml-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  title={isNotesExpanded ? "Hide notes" : "Show notes"}
+                >
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${isNotesExpanded ? "rotate-180" : ""}`}
+                  />
+                </button>
+              )}
             </div>
 
             {/* 5-column message grid */}
@@ -662,9 +901,7 @@ export function Notifications({
             {/* Entity info */}
             <div className="flex items-center gap-3 text-xs text-gray-500">
               <span className="flex items-center gap-1">
-                <span className="font-medium">
-                  {notification.entityType === "request" ? "Request" : "Order"}:
-                </span>
+                <span className="font-medium">PO Number:</span>
                 <span className="font-mono">{notification.entityNumber}</span>
               </span>
               <span>•</span>
@@ -673,43 +910,11 @@ export function Notifications({
               </span>
             </div>
 
-            {/* Changes */}
-            {notification.changes && notification.changes.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-gray-200">
-                {isExpiring ? (
-                  <>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                      Days to ETA:
-                    </p>
-                    {notification.changes.map((change, idx) => (
-                      <div
-                        key={idx}
-                        className={`text-xs font-semibold ${opts.isArchived ? "text-gray-600" : "text-orange-700"}`}
-                      >
-                        {change.newValue} day{change.newValue !== 1 ? "s" : ""}{" "}
-                        remaining
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">
-                      Changes:
-                    </p>
-                    {notification.changes.map((change, idx) => (
-                      <div key={idx} className="text-xs text-gray-600">
-                        <span className="font-medium">{change.field}:</span>{" "}
-                        <span className="line-through text-red-600">
-                          {change.oldValue || "N/A"}
-                        </span>{" "}
-                        →{" "}
-                        <span className="text-green-600">
-                          {change.newValue || "N/A"}
-                        </span>
-                      </div>
-                    ))}
-                  </>
-                )}
+            {/* Collapsible notes */}
+            {requestNotes && isNotesExpanded && (
+              <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-700">
+                <p className="font-semibold mb-0.5">Notes:</p>
+                <p className="whitespace-pre-wrap">{requestNotes}</p>
               </div>
             )}
           </div>
@@ -724,9 +929,7 @@ export function Notifications({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) =>
-                  handleUnarchiveNotification(e, notification.id)
-                }
+                onClick={(e) => handleUnarchiveNotification(e, notification.id)}
                 className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
               >
                 <UnarchiveBoxIcon className="w-3.5 h-3.5 mr-1" />
@@ -736,9 +939,7 @@ export function Notifications({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) =>
-                  handleArchiveNotification(e, notification.id)
-                }
+                onClick={(e) => handleArchiveNotification(e, notification.id)}
                 className="h-7 px-2 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-400"
               >
                 <ArchiveBoxIcon className="w-3.5 h-3.5 mr-1" />
@@ -751,207 +952,282 @@ export function Notifications({
     );
   };
 
+  const visibleNotifications = sortedNotifications.slice(0, visibleCount);
+
   return (
-    <div className="flex flex-col h-full overflow-hidden space-y-4">
-      <div className="flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <Bell className={`w-6 h-6 ${isRefreshing ? "animate-pulse" : ""}`} />
-          <h1 className="text-xl font-semibold">Notifications</h1>
-          {unreadCountHeader > 0 && (
-            <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-              {unreadCountHeader}
-            </span>
-          )}
-          {isRefreshing && (
-            <span className="text-xs text-gray-500 animate-pulse">
-              Checking for updates...
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleManualRefresh}
-            className="flex items-center gap-2"
-            title="Refresh notifications"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMarkAllAsRead}
-              className="flex items-center gap-2"
-            >
-              <CheckCheck className="w-4 h-4" />
-              Mark all as read
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Filter and Sort Controls */}
-      <div className="flex-shrink-0 mb-4">
-        <FilterSortControls
-          type="notification"
-          totalCount={filteredNotifications.length}
-          filterValue={filterText}
-          onFilterChange={setFilterText}
-          sortOptions={NOTIFICATION_SORT_OPTIONS}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          sortDirection={sortDirection}
-          onSortDirectionChange={setSortDirection}
-        />
-      </div>
-
+    <div className="space-y-0">
       <Tabs
         value={activeTab}
         onValueChange={(value) =>
           setActiveTab(value as "all" | "unread" | "expiring" | "archived")
         }
-        className="flex flex-col flex-1 min-h-0"
       >
-        <TabsList className="w-full flex-shrink-0 cursor-grab overflow-x-auto scrollbar-hide">
-          <TabsTrigger value="all">
-            All Notifications
-            {notifications.length > 0 && (
-              <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
-                {notifications.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="unread">
-            Unread
-            {unreadCount > 0 && (
-              <span className="ml-2 bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs">
-                {unreadCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="expiring">
-            Expiring Requests
-            {expiringCount > 0 && (
-              <span className="ml-2 bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full text-xs">
-                {expiringCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="archived">
-            Archived
-            {archivedCount > 0 && (
-              <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
-                {archivedCount}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent
-          value="all"
-          className="flex-1 min-h-0 m-0 data-[state=active]:flex data-[state=active]:flex-col"
-        >
-          <div className="h-full overflow-y-auto scrollbar-hide">
-            {filteredNotifications.length === 0 ? (
-              <Card className="p-8">
-                <div className="text-center text-gray-500">
-                  <Bell className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-lg font-medium">No notifications</p>
-                  <p className="text-sm mt-1">
-                    You're all caught up! Check back later for updates.
-                  </p>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {sortedNotifications.map((notification) =>
-                  renderNotificationCard(notification),
-                )}
-              </div>
-            )}
+        {/* Sticky top section: title + filter + tabs + options panel */}
+        <div className="sticky top-0 z-10 bg-gray-50 -mx-4 px-4 pt-4">
+          {/* Header row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <Bell
+                className={`w-6 h-6 ${isRefreshing ? "animate-pulse" : ""}`}
+              />
+              <h1 className="text-xl font-semibold">Notifications</h1>
+              {unreadCountHeader > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {unreadCountHeader}
+                </span>
+              )}
+              {isRefreshing && (
+                <span className="text-xs text-gray-500 animate-pulse">
+                  Checking for updates...
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleManualRefresh}
+                className="flex items-center gap-2"
+                title="Refresh notifications"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </Button>
+              {unreadCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkAllAsRead}
+                  className="flex items-center gap-2"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                  Mark all as read
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Filter and Sort Controls */}
+          <div className="mb-3">
+            <FilterSortControls
+              type="notification"
+              totalCount={sortedNotifications.length}
+              displayedCount={visibleNotifications.length}
+              filterValue={filterText}
+              onFilterChange={setFilterText}
+              sortOptions={NOTIFICATION_SORT_OPTIONS}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              sortDirection={sortDirection}
+              onSortDirectionChange={setSortDirection}
+              eventTypeFilter={typeFilter}
+              onEventTypeFilterChange={setTypeFilter}
+              eventTypeOptions={eventTypeOptions}
+            />
+          </div>
+
+          {/* Tabs bar */}
+          <TabsList className="w-full flex overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing mb-0">
+            <TabsTrigger value="all">
+              All Notifications
+              {filteredAllCount > 0 && (
+                <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
+                  {filteredAllCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="unread">
+              Unread
+              {filteredUnreadCount > 0 && (
+                <span className="ml-2 bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs">
+                  {filteredUnreadCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="expiring">
+              Expiring Requests
+              {filteredExpiringCount > 0 && (
+                <span className="ml-2 bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full text-xs">
+                  {filteredExpiringCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="archived">
+              Archived
+              {filteredArchivedCount > 0 && (
+                <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                  {filteredArchivedCount}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Notification Options Panel — always visible, sticky under tabs */}
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-b-lg mt-0">
+            <span className="text-sm font-medium text-blue-800 min-w-[80px]">
+              {selectedIds.size > 0
+                ? `${selectedIds.size} selected`
+                : "0 selected"}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkMarkAsRead}
+              disabled={selectedIds.size === 0 || allSelectedRead}
+              className="h-7 px-2 text-xs"
+            >
+              <CheckCheck className="w-3.5 h-3.5 mr-1" />
+              Mark as Read
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkMarkAsUnread}
+              disabled={selectedIds.size === 0 || allSelectedUnread}
+              className="h-7 px-2 text-xs"
+            >
+              <MailOpen className="w-3.5 h-3.5 mr-1" />
+              Mark as Unread
+            </Button>
+            {activeTab === "archived" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkUnarchive}
+                disabled={selectedIds.size === 0}
+                className="h-7 px-2 text-xs"
+              >
+                <UnarchiveBoxIcon className="w-3.5 h-3.5 mr-1" />
+                Unarchive
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkArchive}
+                disabled={selectedIds.size === 0}
+                className="h-7 px-2 text-xs"
+              >
+                <ArchiveX className="w-3.5 h-3.5 mr-1" />
+                Archive
+              </Button>
+            )}
+            <div className="flex items-center gap-1 ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={selectAll}
+                className="h-7 px-2 text-xs text-blue-700"
+              >
+                <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                Select All
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSelection}
+                className="h-7 px-2 text-xs text-gray-500"
+              >
+                <Square className="w-3.5 h-3.5 mr-1" />
+                Deselect All
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable content */}
+        <TabsContent value="all" className="mt-3">
+          {visibleNotifications.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <Bell className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-lg font-medium">No notifications</p>
+                <p className="text-sm mt-1">
+                  You're all caught up! Check back later for updates.
+                </p>
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {visibleNotifications.map((notification) =>
+                renderNotificationCard(notification),
+              )}
+              {visibleCount < sortedNotifications.length && (
+                <div ref={sentinelRef} className="h-8" />
+              )}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent
-          value="unread"
-          className="flex-1 min-h-0 m-0 data-[state=active]:flex data-[state=active]:flex-col"
-        >
-          <div className="h-full overflow-y-auto scrollbar-hide">
-            {filteredNotifications.length === 0 ? (
-              <Card className="p-8">
-                <div className="text-center text-gray-500">
-                  <CheckCheck className="w-12 h-12 mx-auto mb-3 text-green-400" />
-                  <p className="text-lg font-medium">All caught up!</p>
-                  <p className="text-sm mt-1">
-                    You have no unread notifications.
-                  </p>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {sortedNotifications.map((notification) =>
-                  renderNotificationCard(notification, { forceUnread: true }),
-                )}
+        <TabsContent value="unread" className="mt-3">
+          {visibleNotifications.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <CheckCheck className="w-12 h-12 mx-auto mb-3 text-green-400" />
+                <p className="text-lg font-medium">All caught up!</p>
+                <p className="text-sm mt-1">
+                  You have no unread notifications.
+                </p>
               </div>
-            )}
-          </div>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {visibleNotifications.map((notification) =>
+                renderNotificationCard(notification, { forceUnread: true }),
+              )}
+              {visibleCount < sortedNotifications.length && (
+                <div ref={sentinelRef} className="h-8" />
+              )}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent
-          value="expiring"
-          className="flex-1 min-h-0 m-0 data-[state=active]:flex data-[state=active]:flex-col"
-        >
-          <div className="h-full overflow-y-auto scrollbar-hide">
-            {filteredNotifications.length === 0 ? (
-              <Card className="p-8">
-                <div className="text-center text-gray-500">
-                  <CheckCheck className="w-12 h-12 mx-auto mb-3 text-green-400" />
-                  <p className="text-lg font-medium">No expiring requests</p>
-                  <p className="text-sm mt-1">
-                    All requests are within their ETA deadlines.
-                  </p>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {sortedNotifications.map((notification) =>
-                  renderNotificationCard(notification),
-                )}
+        <TabsContent value="expiring" className="mt-3">
+          {visibleNotifications.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <CheckCheck className="w-12 h-12 mx-auto mb-3 text-green-400" />
+                <p className="text-lg font-medium">No expiring requests</p>
+                <p className="text-sm mt-1">
+                  All requests are within their ETA deadlines.
+                </p>
               </div>
-            )}
-          </div>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {visibleNotifications.map((notification) =>
+                renderNotificationCard(notification),
+              )}
+              {visibleCount < sortedNotifications.length && (
+                <div ref={sentinelRef} className="h-8" />
+              )}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent
-          value="archived"
-          className="flex-1 min-h-0 m-0 data-[state=active]:flex data-[state=active]:flex-col"
-        >
-          <div className="h-full overflow-y-auto scrollbar-hide">
-            {filteredNotifications.length === 0 ? (
-              <Card className="p-8">
-                <div className="text-center text-gray-500">
-                  <ArchiveBoxIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-lg font-medium">
-                    No archived notifications
-                  </p>
-                  <p className="text-sm mt-1">
-                    Notifications older than 30 days will appear here.
-                  </p>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {sortedNotifications.map((notification) =>
-                  renderNotificationCard(notification, { isArchived: true }),
-                )}
+        <TabsContent value="archived" className="mt-3">
+          {visibleNotifications.length === 0 ? (
+            <Card className="p-8">
+              <div className="text-center text-gray-500">
+                <ArchiveBoxIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-lg font-medium">No archived notifications</p>
+                <p className="text-sm mt-1">
+                  Notifications older than 30 days will appear here.
+                </p>
               </div>
-            )}
-          </div>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {visibleNotifications.map((notification) =>
+                renderNotificationCard(notification, { isArchived: true }),
+              )}
+              {visibleCount < sortedNotifications.length && (
+                <div ref={sentinelRef} className="h-8" />
+              )}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -965,9 +1241,7 @@ export function Notifications({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setShowArchiveDialog(false)}
-            >
+            <AlertDialogCancel onClick={() => setShowArchiveDialog(false)}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction

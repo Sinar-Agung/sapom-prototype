@@ -8,10 +8,13 @@ import {
   notifyOrderStatusChanged,
   notifyRequestCancelled,
 } from "../utils/notification-helper";
-import { getBranchName, getFullNameFromUsername } from "../utils/user-data";
+import {
+  getBranchName,
+  getCurrentUserDetails,
+  getFullNameFromUsername,
+} from "../utils/user-data";
 import { FilterSortControls } from "./filter-sort-controls";
 import { OrderCard } from "./order-card";
-import { RequestCard } from "./request-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +62,7 @@ function requestToOrder(request: Request): Order {
     status: request.status as any,
     photoId: request.photoId,
     viewedBy: request.viewedBy || [],
+    rejectionReason: request.rejectionReason,
   };
 }
 
@@ -140,15 +144,23 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       label: "Negotiation",
       orderStatuses: [
         "New Order",
-        "Viewed",
+        "Supplier Viewed",
         "Change Pending Approval",
+        "Pending Sales Review",
+        "Pending JB Review",
         "Order Revised",
       ],
     },
     {
       value: "shipping",
-      label: "Shipping",
-      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
+      label: "In Progress",
+      orderStatuses: [
+        "In Production",
+        "Stock Ready",
+        "Shipping",
+        "Partially Delivered",
+        "Fully Delivered",
+      ],
     },
     {
       value: "closed",
@@ -175,20 +187,30 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       label: "In Negotiation",
       orderStatuses: [
         "New Order",
-        "Viewed",
+        "Supplier Viewed",
         "Change Pending Approval",
+        "Pending Sales Review",
+        "Pending JB Review",
+        "Pending Sales Review",
+        "Pending JB Review",
         "Order Revised",
       ],
     },
     {
       value: "shipping",
-      label: "Shipping",
-      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
+      label: "In Progress",
+      orderStatuses: [
+        "In Production",
+        "Stock Ready",
+        "Shipping",
+        "Partially Delivered",
+        "Fully Delivered",
+      ],
     },
     {
       value: "closed",
       label: "Closed",
-      orderStatuses: ["Closed", "Rejected", "Unable to Fulfill"],
+      orderStatuses: ["Closed", "Rejected", "Cancelled", "Unable to Fulfill"],
       requestStatuses: ["Rejected", "Cancelled", "Request Expired"],
     },
   ],
@@ -199,28 +221,52 @@ const TAB_CONFIGS: Record<UserRole, TabConfig[]> = {
       label: "Negotiation",
       orderStatuses: [
         "New Order",
-        "Viewed",
+        "Supplier Viewed",
         "Change Pending Approval",
+        "Pending Sales Review",
+        "Pending JB Review",
         "Order Revised",
       ],
     },
     {
       value: "shipping",
-      label: "Shipping",
-      orderStatuses: ["In Production", "Stock Ready", "Shipping", "Partially Delivered", "Fully Delivered"],
-    },
-    {
-      value: "rejected",
-      label: "Rejected",
-      orderStatuses: ["Rejected", "Cancelled"],
+      label: "In Progress",
+      orderStatuses: [
+        "In Production",
+        "Stock Ready",
+        "Shipping",
+        "Partially Delivered",
+        "Fully Delivered",
+      ],
     },
     {
       value: "closed",
       label: "Closed",
-      orderStatuses: ["Unable to Fulfill"],
+      orderStatuses: ["Closed", "Rejected", "Cancelled", "Unable to Fulfill"],
     },
   ],
 };
+
+/** All valid order/request statuses — used for the status filter dropdown. */
+const ALL_STATUSES = [
+  "Open",
+  "JB Verifying",
+  "New Order",
+  "Rejected",
+  "Cancelled",
+  "Change Pending Approval",
+  "Supplier Viewed",
+  "In Production",
+  "Stock Ready",
+  "Unable to Fulfill",
+  "Partially Delivered",
+  "Fully Delivered",
+  "Closed",
+  "Pending Sales Review",
+  "Pending JB Review",
+  "Order Revised",
+  "Shipping",
+];
 
 function useRequestSortOptions(role: UserRole) {
   const { t } = useTranslation();
@@ -237,6 +283,7 @@ function useRequestSortOptions(role: UserRole) {
   if (role === "supplier") {
     options.push({ value: "branch", label: "Branch" });
   }
+  options.push({ value: "status", label: "Status" });
   return options;
 }
 
@@ -291,6 +338,9 @@ export function UnifiedOrders({
   const [searchFilter, setSearchFilter] = useState<string>(() => {
     return sessionStorage.getItem(`${storagePrefix}Filter`) || "";
   });
+
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [branchFilter, setBranchFilter] = useState<string[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -367,7 +417,14 @@ export function UnifiedOrders({
   // Reset displayedCount when filters change
   useEffect(() => {
     setDisplayedCount(20);
-  }, [activeTab, sortBy, sortDirection, searchFilter]);
+  }, [
+    activeTab,
+    sortBy,
+    sortDirection,
+    searchFilter,
+    statusFilter,
+    branchFilter,
+  ]);
 
   const loadData = () => {
     // Load requests (for personal, sales, jb roles)
@@ -383,8 +440,26 @@ export function UnifiedOrders({
               req.createdBy?.toLowerCase() === currentUser.toLowerCase(),
           );
           setRequests(myRequests);
+        } else if (userRole === "sales") {
+          // Sales only see their own requests, scoped to their branch
+          const currentUserDetails = getCurrentUserDetails();
+          const myBranch = currentUserDetails?.branchCode;
+          const myRequests = allRequests.filter(
+            (req: Request) =>
+              req.createdBy?.toLowerCase() === currentUser.toLowerCase() &&
+              (!myBranch || !req.branchCode || req.branchCode === myBranch),
+          );
+          setRequests(myRequests);
+        } else if (userRole === "jb") {
+          // JB sees all requests scoped to their branch
+          const currentUserDetails = getCurrentUserDetails();
+          const myBranch = currentUserDetails?.branchCode;
+          const myRequests = allRequests.filter(
+            (req: Request) =>
+              !myBranch || !req.branchCode || req.branchCode === myBranch,
+          );
+          setRequests(myRequests);
         } else {
-          // Sales and JB see all requests
           setRequests(allRequests);
         }
       }
@@ -402,8 +477,26 @@ export function UnifiedOrders({
             (order) => order.pabrik?.id === supplierId,
           );
           setOrders(myOrders);
+        } else if (userRole === "sales") {
+          // Sales only see their own orders, scoped to their branch
+          const currentUserDetails = getCurrentUserDetails();
+          const myBranch = currentUserDetails?.branchCode;
+          const myOrders = allOrders.filter(
+            (order) =>
+              order.sales?.toLowerCase() === currentUser.toLowerCase() &&
+              (!myBranch || !order.branchCode || order.branchCode === myBranch),
+          );
+          setOrders(myOrders);
+        } else if (userRole === "jb") {
+          // JB sees all orders scoped to their branch
+          const currentUserDetails = getCurrentUserDetails();
+          const myBranch = currentUserDetails?.branchCode;
+          const myOrders = allOrders.filter(
+            (order) =>
+              !myBranch || !order.branchCode || order.branchCode === myBranch,
+          );
+          setOrders(myOrders);
         } else {
-          // Sales and JB see all orders
           setOrders(allOrders);
         }
       }
@@ -599,49 +692,50 @@ export function UnifiedOrders({
   // Get tab configs for current role
   const tabConfigs = TAB_CONFIGS[userRole];
 
-  // Calculate counts for each tab
+  // Calculate counts for each tab — after all filters (search + status + branch)
   const tabCounts = tabConfigs.map((tab) => {
     let count = 0;
     let unseenCount = 0;
 
-    if (tab.value === "all") {
-      count = searchFiltered.requests.length + searchFiltered.orders.length;
-      unseenCount =
-        searchFiltered.requests.filter(
-          (r: Request) => !r.viewedBy?.includes(currentUser),
-        ).length +
-        searchFiltered.orders.filter(
-          (o: Order) => !o.viewedBy?.includes(currentUser),
-        ).length;
-    } else {
-      // Count requests matching this tab
-      if (tab.requestStatuses) {
-        const matchingRequests = searchFiltered.requests.filter(
-          (req: Request) => tab.requestStatuses!.includes(req.status),
-        );
-        count += matchingRequests.length;
-        unseenCount += matchingRequests.filter(
-          (r: Request) => !r.viewedBy?.includes(currentUser),
-        ).length;
-      }
+    // Apply status + branch filters to search-filtered data for this tab
+    const tabRequests = searchFiltered.requests.filter((req: Request) => {
+      if (tab.value !== "all" && !tab.requestStatuses?.includes(req.status))
+        return false;
+      if (
+        tab.value === "all" &&
+        (userRole === "sales" || userRole === "jb") &&
+        req.status !== "Open" &&
+        req.status !== "JB Verifying"
+      )
+        return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(req.status))
+        return false;
+      return true;
+    });
+    const tabOrders = searchFiltered.orders.filter((order: Order) => {
+      if (tab.value !== "all" && !tab.orderStatuses?.includes(order.status))
+        return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(order.status))
+        return false;
+      if (
+        branchFilter.length > 0 &&
+        (!order.branchCode || !branchFilter.includes(order.branchCode))
+      )
+        return false;
+      return true;
+    });
 
-      // Count orders matching this tab
-      if (tab.orderStatuses) {
-        const matchingOrders = searchFiltered.orders.filter((order: Order) =>
-          tab.orderStatuses!.includes(order.status),
-        );
-        count += matchingOrders.length;
-        unseenCount += matchingOrders.filter(
-          (o: Order) => !o.viewedBy?.includes(currentUser),
-        ).length;
-      }
-    }
+    count = tabRequests.length + tabOrders.length;
+    unseenCount =
+      tabRequests.filter((r: Request) => !r.viewedBy?.includes(currentUser))
+        .length +
+      tabOrders.filter((o: Order) => !o.viewedBy?.includes(currentUser)).length;
 
     return { tab: tab.value, count, unseenCount };
   });
 
-  // Filter data by active tab
-  const filteredData = {
+  // Filter data by active tab, then by status filter
+  const tabFilteredData = {
     requests: searchFiltered.requests.filter((req: Request) => {
       const currentTabConfig = tabConfigs.find((t) => t.value === activeTab);
       if (!currentTabConfig) return false;
@@ -666,6 +760,70 @@ export function UnifiedOrders({
 
       return currentTabConfig.orderStatuses?.includes(order.status) || false;
     }),
+  };
+
+  // Build status options: all statuses shown; disabled when not present across all tabs ("All" tab view)
+  const allTabStatusSet = new Set([
+    ...searchFiltered.requests.map((r: Request) => r.status),
+    ...searchFiltered.orders.map((o: Order) => o.status),
+  ]);
+  const availableStatuses: {
+    value: string;
+    label: string;
+    disabled?: boolean;
+  }[] = ALL_STATUSES.map((s) => ({
+    value: s,
+    label: s,
+    disabled: !allTabStatusSet.has(s),
+  }));
+
+  // Build branch options: all known branches shown; disabled when not present across all orders
+  const ALL_BRANCHES: Array<{ code: string; label: string }> = [
+    { code: "SBY", label: "Surabaya" },
+    { code: "JKT", label: "Jakarta" },
+    { code: "BDG", label: "Bandung" },
+  ];
+  const allTabBranchSet = new Set(
+    searchFiltered.orders
+      .map((o: Order) => o.branchCode)
+      .filter(Boolean) as string[],
+  );
+  const availableBranches: {
+    value: string;
+    label: string;
+    disabled?: boolean;
+  }[] =
+    userRole === "supplier"
+      ? ALL_BRANCHES.map(({ code, label }) => ({
+          value: code,
+          label,
+          disabled: !allTabBranchSet.has(code),
+        }))
+      : [];
+
+  const statusFiltered = {
+    requests:
+      statusFilter.length > 0
+        ? tabFilteredData.requests.filter((r: Request) =>
+            statusFilter.includes(r.status),
+          )
+        : tabFilteredData.requests,
+    orders:
+      statusFilter.length > 0
+        ? tabFilteredData.orders.filter((o: Order) =>
+            statusFilter.includes(o.status),
+          )
+        : tabFilteredData.orders,
+  };
+
+  const filteredData = {
+    requests: statusFiltered.requests,
+    orders:
+      branchFilter.length > 0
+        ? statusFiltered.orders.filter(
+            (o: Order) => o.branchCode && branchFilter.includes(o.branchCode),
+          )
+        : statusFiltered.orders,
   };
 
   // Sort requests
@@ -712,6 +870,9 @@ export function UnifiedOrders({
         case "requestNo":
           comparison = (a.requestNo || "").localeCompare(b.requestNo || "");
           break;
+        case "status":
+          comparison = (a.status || "").localeCompare(b.status || "");
+          break;
         default:
           comparison = 0;
       }
@@ -752,9 +913,13 @@ export function UnifiedOrders({
         comparison = (a.requestNo || "").localeCompare(b.requestNo || "");
         break;
       case "branch":
-        const aBranch = a.branchCode ? getBranchName(a.branchCode) : "";
-        const bBranch = b.branchCode ? getBranchName(b.branchCode) : "";
-        comparison = aBranch.localeCompare(bBranch);
+        const BRANCH_RANK: Record<string, number> = { SBY: 0, JKT: 1, BDG: 2 };
+        const aRank = a.branchCode ? (BRANCH_RANK[a.branchCode] ?? 99) : 99;
+        const bRank = b.branchCode ? (BRANCH_RANK[b.branchCode] ?? 99) : 99;
+        comparison = aRank - bRank;
+        break;
+      case "status":
+        comparison = (a.status || "").localeCompare(b.status || "");
         break;
       default:
         comparison = 0;
@@ -882,6 +1047,7 @@ export function UnifiedOrders({
           <FilterSortControls
             type={userRole === "personal" ? "request" : "order"}
             totalCount={totalCount}
+            displayedCount={displayedItems.length}
             sortBy={sortBy}
             sortDirection={sortDirection}
             onSortChange={setSortBy}
@@ -890,6 +1056,14 @@ export function UnifiedOrders({
             filterValue={searchFilter}
             onFilterChange={setSearchFilter}
             searchInputRef={searchInputRef}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            statusOptions={availableStatuses}
+            branchFilter={branchFilter}
+            onBranchFilterChange={setBranchFilter}
+            branchOptions={
+              availableBranches.length > 0 ? availableBranches : undefined
+            }
           />
 
           <TabsList className="flex w-full overflow-x-auto scrollbar-hide mt-4 mb-2 cursor-grab active:cursor-grabbing">
@@ -945,146 +1119,41 @@ export function UnifiedOrders({
                 {displayedItems.map((item) => {
                   if (item.type === "request") {
                     const request = item.data as Request;
-
-                    // Use OrderCard for all requests in the "all" tab
-                    if (activeTab === "all" && userRole !== "supplier") {
-                      const orderData = requestToOrder(request);
-                      return (
-                        <OrderCard
-                          key={request.id}
-                          order={orderData}
-                          userRole={userRole === "personal" ? "sales" : userRole}
-                          activeTab={activeTab}
-                          isExpanded={expandedOrderId === request.id}
-                          onToggleExpand={() => {
-                            toggleExpand(request.id);
-                            markAsViewed(request.id, "request");
-                          }}
-                          onCancelOrder={handleCancelRequest}
-                          onEditOrder={
-                            onEditRequest
-                              ? (_o) => onEditRequest(request)
-                              : undefined
-                          }
-                          onSeeDetail={
-                            onViewRequestDetails
-                              ? (_o) => onViewRequestDetails(request, activeTab)
-                              : userRole === "jb"
-                                ? (_o) =>
-                                    handleVerifyRequest(request, activeTab)
-                                : undefined
-                          }
-                          currentUser={currentUser}
-                        />
-                      );
-                    }
-
-                    // Use OrderCard for Open/JB Verifying requests in internal tab
-                    if (
-                      (userRole === "sales" || userRole === "jb") &&
-                      activeTab === "internal" &&
-                      (request.status === "Open" ||
-                        request.status === "JB Verifying")
-                    ) {
-                      const orderData = requestToOrder(request);
-                      return (
-                        <OrderCard
-                          key={request.id}
-                          order={orderData}
-                          userRole={userRole}
-                          activeTab={activeTab}
-                          isExpanded={expandedOrderId === request.id}
-                          onToggleExpand={() => {
-                            toggleExpand(request.id);
-                            markAsViewed(request.id, "request");
-                          }}
-                          onCancelOrder={handleCancelRequest}
-                          onEditOrder={
-                            onEditRequest
-                              ? (_o) => onEditRequest(request)
-                              : undefined
-                          }
-                          onSeeDetail={
-                            onViewRequestDetails
-                              ? (_o) => onViewRequestDetails(request, activeTab)
-                              : userRole === "jb"
-                                ? (_o) =>
-                                    handleVerifyRequest(request, activeTab)
-                                : undefined
-                          }
-                          currentUser={currentUser}
-                        />
-                      );
-                    }
-
-                    // Use OrderCard for Rejected/Cancelled/Request Expired requests in closed tab
-                    if (
-                      (userRole === "sales" || userRole === "jb") &&
-                      activeTab === "closed" &&
-                      (request.status === "Rejected" ||
-                        request.status === "Cancelled" ||
-                        request.status === "Request Expired")
-                    ) {
-                      const orderData = requestToOrder(request);
-                      return (
-                        <OrderCard
-                          key={request.id}
-                          order={orderData}
-                          userRole={userRole}
-                          activeTab={activeTab}
-                          isExpanded={expandedOrderId === request.id}
-                          onToggleExpand={() => {
-                            toggleExpand(request.id);
-                            markAsViewed(request.id, "request");
-                          }}
-                          onSeeDetail={
-                            onViewRequestDetails
-                              ? (_o) => onViewRequestDetails(request, activeTab)
-                              : userRole === "jb"
-                                ? (_o) =>
-                                    handleVerifyRequest(request, activeTab)
-                                : undefined
-                          }
-                          currentUser={currentUser}
-                        />
-                      );
-                    }
+                    const orderData = requestToOrder(request);
+                    const effectiveRole =
+                      userRole === "personal"
+                        ? "sales"
+                        : userRole === "supplier"
+                          ? "jb"
+                          : userRole;
 
                     return (
-                      <RequestCard
+                      <OrderCard
                         key={request.id}
-                        order={request}
-                        userRole={
-                          userRole === "personal"
-                            ? "sales"
-                            : userRole === "supplier"
-                              ? "jb"
-                              : userRole
-                        }
+                        order={orderData}
+                        userRole={effectiveRole}
                         activeTab={activeTab}
                         isExpanded={expandedOrderId === request.id}
                         onToggleExpand={() => {
                           toggleExpand(request.id);
                           markAsViewed(request.id, "request");
                         }}
-                        onEditOrder={onEditRequest}
-                        onDuplicateOrder={
-                          onDuplicateRequest
-                            ? (req) => onDuplicateRequest(req, activeTab)
+                        onCancelOrder={handleCancelRequest}
+                        onEditOrder={
+                          onEditRequest
+                            ? (_o) => onEditRequest(request)
                             : undefined
                         }
-                        onCancelOrder={handleCancelRequest}
-                        onViewRequestDetails={
-                          onViewRequestDetails
-                            ? (req) => onViewRequestDetails(req, activeTab)
+                        onDuplicateOrder={
+                          onDuplicateRequest
+                            ? (_o) => onDuplicateRequest(request, activeTab)
                             : undefined
                         }
                         onSeeDetail={
                           onViewRequestDetails
-                            ? (req) => onViewRequestDetails(req, activeTab)
+                            ? (_o) => onViewRequestDetails(request, activeTab)
                             : userRole === "jb"
-                              ? (req: Request) =>
-                                  handleVerifyRequest(req, activeTab)
+                              ? (_o) => handleVerifyRequest(request, activeTab)
                               : undefined
                         }
                         currentUser={currentUser}
@@ -1109,7 +1178,7 @@ export function UnifiedOrders({
                                   userRole === "supplier" &&
                                   o.status === "New Order"
                                 ) {
-                                  handleUpdateStatus(o.id, "Viewed");
+                                  handleUpdateStatus(o.id, "Supplier Viewed");
                                 }
                                 onSeeDetail(o, activeTab);
                               }

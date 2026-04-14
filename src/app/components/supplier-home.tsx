@@ -151,7 +151,7 @@ export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
                     className={`text-xs px-2 py-1 rounded-full ${
                       order.status === "New"
                         ? "bg-blue-100 text-blue-800"
-                        : order.status === "Viewed"
+                        : order.status === "Supplier Viewed"
                           ? "bg-purple-100 text-purple-800"
                           : order.status === "Change Requested"
                             ? "bg-orange-100 text-orange-800"

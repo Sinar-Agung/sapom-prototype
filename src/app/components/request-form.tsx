@@ -56,6 +56,7 @@ export function RequestForm(props: RequestFormProps) {
     namaPelanggan: { id: "", name: "" },
     waktuKirim: undefined as Date | undefined,
     customerExpectation: "",
+    notes: "",
   });
 
   const detailItemsState = useDetailItems({
@@ -172,7 +173,7 @@ export function RequestForm(props: RequestFormProps) {
     formData.kategoriBarang &&
     (formData.kategoriBarang === "basic"
       ? formData.jenisProduk && formData.namaBasic // For Basic, jenisProduk and namaBasic are required
-      : true); // For Model, photo is not required to enable input (save button is disabled instead)
+      : formData.jenisProduk); // For Model, jenisProduk is required too
 
   // Check if Simpan Pesanan button should be disabled
   const isSimpanDisabled =
@@ -181,7 +182,8 @@ export function RequestForm(props: RequestFormProps) {
     !formData.kategoriBarang ||
     (formData.kategoriBarang === "basic"
       ? !formData.jenisProduk || !formData.namaBasic
-      : !formData.fotoBarang && !existingPhotoId) ||
+      : !formData.jenisProduk ||
+        (!formData.fotoBarang && !existingPhotoId && !formData.namaProduk)) ||
     detailItems.length === 0;
 
   // Reset entire form
@@ -305,6 +307,7 @@ export function RequestForm(props: RequestFormProps) {
             namaPelanggan: formData.namaPelanggan,
             waktuKirim: newWaktuKirim,
             customerExpectation: formData.customerExpectation,
+            notes: formData.notes,
             detailItems: detailItems,
             ...(photoId ? { photoId } : {}),
           },
@@ -317,6 +320,7 @@ export function RequestForm(props: RequestFormProps) {
             namaPelanggan: oldRequest.namaPelanggan,
             waktuKirim: oldRequest.waktuKirim,
             customerExpectation: oldRequest.customerExpectation,
+            notes: oldRequest.notes,
             detailItems: oldRequest.detailItems,
             ...(oldRequest.photoId ? { photoId: oldRequest.photoId } : {}),
           },
@@ -333,6 +337,7 @@ export function RequestForm(props: RequestFormProps) {
           namaPelanggan: formData.namaPelanggan,
           waktuKirim: newWaktuKirim,
           customerExpectation: formData.customerExpectation,
+          notes: formData.notes,
           detailItems: detailItems,
           photoId: photoId,
           fotoBarangBase64: undefined,
@@ -369,6 +374,7 @@ export function RequestForm(props: RequestFormProps) {
         namaPelanggan: formData.namaPelanggan,
         waktuKirim: formData.waktuKirim?.toISOString() || "",
         customerExpectation: formData.customerExpectation,
+        notes: formData.notes || undefined,
         detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
         photoId: photoId,
         status: "Open", // Default status for new orders
@@ -456,9 +462,14 @@ export function RequestForm(props: RequestFormProps) {
               ? new Date(initialData.waktuKirim)
               : undefined,
         customerExpectation: initialData.customerExpectation,
+        notes: initialData.notes || "",
       };
       setFormData(initialFormData);
-      detailItemsState.resetAll(initialData.detailItems);
+      detailItemsState.resetAll(
+        mode === "duplicate"
+          ? initialData.detailItems.map(({ supplierNotes: _, ...rest }) => rest)
+          : initialData.detailItems,
+      );
 
       // Restore existing photo ID for edit and duplicate modes so the photo can be displayed
       if ((mode === "edit" || mode === "duplicate") && initialData.photoId) {
@@ -667,12 +678,6 @@ export function RequestForm(props: RequestFormProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel
-              onClick={() => setShowSaveConfirmDialog(false)}
-              className="text-red-600 bg-white border-red-300 hover:bg-red-50 hover:text-red-700"
-            >
-              Cancel
-            </AlertDialogCancel>
             <Button
               className="bg-green-600 text-white hover:bg-green-700"
               onClick={() => {
@@ -682,6 +687,12 @@ export function RequestForm(props: RequestFormProps) {
             >
               Save
             </Button>
+            <AlertDialogCancel
+              onClick={() => setShowSaveConfirmDialog(false)}
+              className="text-red-600 bg-white border-red-300 hover:bg-red-50 hover:text-red-700"
+            >
+              Cancel
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

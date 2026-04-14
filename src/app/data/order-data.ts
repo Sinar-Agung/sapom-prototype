@@ -269,16 +269,16 @@ export const PABRIK_OPTIONS = [
 
 // Product Type options
 export const JENIS_PRODUK_OPTIONS = [
-  { value: "cincin", label: "Ring" },
-  { value: "kalung", label: "Necklace" },
-  { value: "gelang-rantai", label: "Chain Bracelet" },
-  { value: "gelang-kaku", label: "Bangle" },
-  { value: "anting", label: "Earring" },
-  { value: "giwang", label: "Hoop Earring" },
-  { value: "liontin", label: "Pendant" },
-  { value: "extention", label: "Extension" },
+  { value: "cincin", label: "Cincin" },
+  { value: "kalung", label: "Kalung" },
+  { value: "gelang-rantai", label: "Gelang Rantai" },
+  { value: "gelang-kaku", label: "Gelang Kaku" },
+  { value: "anting", label: "Anting" },
+  { value: "giwang", label: "Giwang" },
+  { value: "liontin", label: "Liontin" },
+  { value: "extention", label: "Extention" },
   { value: "stopper", label: "Stopper" },
-  { value: "mainan", label: "Toy/Charm" },
+  { value: "mainan", label: "Mainan" },
 ];
 
 // Gold Purity options
@@ -303,11 +303,11 @@ export const WARNA_OPTIONS = [
 
 // Necklace Size options
 export const UKURAN_KALUNG_OPTIONS = [
-  { value: "a", label: "A - Child" },
+  { value: "a", label: "A - Anak" },
   { value: "n", label: "N - Normal" },
-  { value: "p", label: "P - Long" },
-  { value: "t", label: "T - Medium" },
-  { value: "other", label: "Other" },
+  { value: "p", label: "P - Panjang" },
+  { value: "t", label: "T - Tanggung" },
+  { value: "other", label: "Lainnya" },
 ];
 
 // Customer Expectation options

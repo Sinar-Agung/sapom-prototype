@@ -34,6 +34,14 @@ interface DetailItemsSectionProps {
   showCopy?: boolean;
   /** Called when a row's notes icon is clicked. x/y are viewport coordinates. */
   onNotesClick?: (itemId: string, x: number, y: number) => void;
+  /** IDs of rows soft-marked for deletion (shown with strikethrough). */
+  markedForDeletion?: Set<string>;
+  /** Called when trash/undo button clicked in soft-delete mode. */
+  onToggleDelete?: (id: string) => void;
+  /** When true, hides the Notes column and Notes input (e.g. for supplier role). */
+  hideNotes?: boolean;
+  /** When true, renames the Notes input to Supplier Notes and routes to supplierNotes. */
+  isSupplier?: boolean;
 }
 
 /**
@@ -54,6 +62,10 @@ export function DetailItemsSection({
   isDisabled = false,
   showCopy = true,
   onNotesClick,
+  markedForDeletion,
+  onToggleDelete,
+  hideNotes = false,
+  isSupplier = false,
 }: DetailItemsSectionProps) {
   const {
     detailInput,
@@ -107,12 +119,24 @@ export function DetailItemsSection({
             isDisabled={effectiveDisabled}
             isAddButtonDisabled={isAddButtonDisabled}
             onAdd={handleAdd}
-            onReset={() => setDetailInput({ kadar: "", warna: "", ukuran: "", ukuranCustom: "", berat: "", pcs: "", notes: "" })}
+            onReset={() =>
+              setDetailInput({
+                kadar: "",
+                warna: "",
+                ukuran: "",
+                ukuranCustom: "",
+                berat: "",
+                pcs: "",
+                notes: "",
+              })
+            }
             onCancel={handleCancelEdit}
             isExpanded={isInputFormExpanded}
             onToggleExpanded={() =>
               setIsInputFormExpanded(!isInputFormExpanded)
             }
+            hideNotes={hideNotes && editingDetailId !== null}
+            isSupplier={isSupplier}
           />
         </div>
       )}
@@ -127,7 +151,11 @@ export function DetailItemsSection({
         onRowClick={handleRowClick}
         onEdit={showInput ? handleEdit : undefined}
         onCopy={showCopy ? handleCopy : undefined}
-        onDelete={showInput ? handleDelete : undefined}
+        onDelete={showInput && !onToggleDelete ? handleDelete : undefined}
+        onToggleDelete={
+          showInput && onToggleDelete ? onToggleDelete : undefined
+        }
+        markedForDeletion={markedForDeletion}
         onNotesClick={onNotesClick ?? (() => {})}
         rowRefs={rowRefs}
         cardRefs={cardRefs}
@@ -137,6 +165,8 @@ export function DetailItemsSection({
         getWarnaLabel={getWarnaLabel}
         getUkuranDisplay={getUkuranDisplay}
         isInputFormExpanded={isInputFormExpanded}
+        hideNotes={false}
+        hideSupplierNotes={!isSupplier}
       />
     </div>
   );

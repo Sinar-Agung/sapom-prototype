@@ -394,7 +394,9 @@ export const populateMockData = async (): Promise<{
     if (scenario.requestEnd === "ordered" && scenario.orderEnd) {
       const orderCreatedAt = createdAt + 8 * HR;
       const orderId = uid("order", tag, i);
-      const PONumber = request.requestNo ?? generatePONumber(branch, new Date(orderCreatedAt), []);
+      const PONumber =
+        request.requestNo ??
+        generatePONumber(branch, new Date(orderCreatedAt), []);
 
       const order: Order = {
         id: orderId,
@@ -452,14 +454,14 @@ export const populateMockData = async (): Promise<{
         scenario.orderEnd === "stock-ready"
       ) {
         // Supplier views the order
-        order.status = "Viewed";
+        order.status = "Supplier Viewed";
         order.viewedBy = [supplierUser];
         order.updatedDate = orderCreatedAt + 4 * HR;
         order.updatedBy = supplierUser;
         notifyOrderStatusChanged(
           order,
           "New Order",
-          "Viewed",
+          "Supplier Viewed",
           supplierUser,
           "supplier",
         );
@@ -471,7 +473,7 @@ export const populateMockData = async (): Promise<{
         scenario.orderEnd === "in-production" ||
         scenario.orderEnd === "stock-ready"
       ) {
-        // Supplier proposes changes → Change Pending Approval
+        // Supplier proposes changes → Pending Sales Review
         const revisedItems = [
           ...order.detailItems,
           makeItem(tag, i * 3 + 10, String(3 + (i % 5))),
@@ -501,7 +503,7 @@ export const populateMockData = async (): Promise<{
           },
         };
 
-        order.status = "Change Pending Approval";
+        order.status = "Pending Sales Review";
         order.revisionHistory = [revision];
         order.revisionNotes = revision.revisionNotes;
         order.detailItems = revisedItems;
@@ -509,8 +511,8 @@ export const populateMockData = async (): Promise<{
         order.updatedBy = supplierUser;
         notifyOrderStatusChanged(
           order,
-          "Viewed",
-          "Change Pending Approval",
+          "Supplier Viewed",
+          "Pending Sales Review",
           supplierUser,
           "supplier",
         );
@@ -530,7 +532,7 @@ export const populateMockData = async (): Promise<{
         notifyOrderRevised(order, jb);
         notifyOrderStatusChanged(
           order,
-          "Change Pending Approval",
+          "Pending Sales Review",
           "Order Revised",
           jb,
           "jb",

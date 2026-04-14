@@ -1,12 +1,13 @@
 "use client";
 
-import * as React from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Check, AlertCircle } from "lucide-react";
-import { cn } from "./utils";
+import { Calendar as CalendarIcon } from "lucide-react";
+import * as React from "react";
 import { Button } from "./button";
 import { Calendar } from "./calendar";
+import { TickIndicator } from "./input-with-check";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { cn } from "./utils";
 
 interface DatePickerProps {
   value?: Date;
@@ -35,32 +36,28 @@ export function DatePicker({
         <Button
           variant="outline"
           className={cn(
-            "justify-start text-left font-normal h-8 text-sm relative transition-all duration-200",
+            "justify-start text-left font-normal h-8 text-xs relative transition-all duration-200",
             !value && "text-slate-500 border-slate-300 bg-white pl-3",
-            value && (error 
-              ? "bg-red-50 border-red-500 hover:bg-red-50 text-slate-800 font-medium"
-              : "bg-emerald-50 border-emerald-500 hover:bg-emerald-50 text-slate-800 font-medium"),
-            className
+            value &&
+              (error
+                ? "bg-red-50 border-red-500 hover:bg-red-50 text-slate-800 font-medium"
+                : "bg-emerald-50 border-emerald-500 hover:bg-emerald-50 text-slate-800 font-medium"),
+            className,
           )}
-          style={value ? { paddingLeft: '48px' } : {}}
+          style={value ? { paddingLeft: "22px" } : {}}
           disabled={disabled}
         >
-          {value && (
-            <div className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full flex items-center justify-center pointer-events-none",
-              error ? "bg-red-600" : "bg-emerald-600"
-            )}>
-              {error ? (
-                <AlertCircle className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-              ) : (
-                <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-              )}
-            </div>
-          )}
-          <CalendarIcon className={cn(
-            "h-4 w-4 mr-2",
-            value ? (error ? "text-red-600" : "text-emerald-600") : "text-slate-400"
-          )} />
+          <TickIndicator show={!!value} error={error} />
+          <CalendarIcon
+            className={cn(
+              "h-4 w-4 mr-2",
+              value
+                ? error
+                  ? "text-red-600"
+                  : "text-emerald-600"
+                : "text-slate-400",
+            )}
+          />
           {value ? format(value, "PPP") : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
