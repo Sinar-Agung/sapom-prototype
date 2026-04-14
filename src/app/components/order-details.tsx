@@ -43,6 +43,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsRight,
+  Info,
   Pencil,
   X,
   XCircle,
@@ -120,6 +121,11 @@ export function OrderDetails({
   const [rowDecisions, setRowDecisions] = useState<
     Record<string, "accept" | "reject">
   >({});
+  const [showingSupplierNoteTooltip, setShowingSupplierNoteTooltip] = useState<{
+    notes: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [etaDecision, setEtaDecision] = useState<"accept" | null>(null);
   const [photoDecision, setPhotoDecision] = useState<"accept" | null>(null);
   const [showRejectReasonDialog, setShowRejectReasonDialog] = useState(false);
@@ -1158,17 +1164,6 @@ export function OrderDetails({
                   </div>
                 )}
 
-                {lastRevision.revisionNotes && (
-                  <div className="bg-white p-3 rounded border border-orange-200 mb-3">
-                    <p className="text-xs font-semibold text-gray-700 mb-1">
-                      Supplier Notes:
-                    </p>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                      {lastRevision.revisionNotes}
-                    </p>
-                  </div>
-                )}
-
                 {/* Photo before/after in comparison panel */}
                 {(lastRevision.previousValues.photoId ||
                   lastRevision.changes.photoId) &&
@@ -1198,17 +1193,17 @@ export function OrderDetails({
                               <img
                                 src={beforeImg}
                                 alt="Before"
-                                className="w-36 h-36 object-cover rounded border border-red-200"
+                                className="w-36 h-36 object-cover rounded border-2 border-red-500"
                               />
                             </div>
                             <div>
-                              <p className="text-xs text-green-700 font-medium mb-1">
+                              <p className="text-xs text-red-700 font-medium mb-1">
                                 After (proposed)
                               </p>
                               <img
                                 src={afterImg}
                                 alt="After"
-                                className="w-36 h-36 object-cover rounded border border-green-400"
+                                className="w-36 h-36 object-cover rounded border-2 border-red-500"
                               />
                             </div>
                           </div>
@@ -1251,6 +1246,17 @@ export function OrderDetails({
                       </div>
                     );
                   })()}
+
+                {lastRevision.revisionNotes && (
+                  <div className="bg-white p-3 rounded border border-orange-200 mb-3">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Supplier Notes:
+                    </p>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                      {lastRevision.revisionNotes}
+                    </p>
+                  </div>
+                )}
 
                 {lastRevision.previousValues.detailItems &&
                   (() => {
@@ -1330,6 +1336,10 @@ export function OrderDetails({
                                   const salesRejectedRow =
                                     salesDecisionMade &&
                                     effectiveSalesDecision === "reject";
+                                  // Only true when sales has SAVED their reject decision (after submission)
+                                  // Used for button visibility so buttons stay visible while sales is choosing
+                                  const salesSavedRejected =
+                                    salesDecisions[pairKey] === "reject";
                                   const isDeleted = !!orig && !prop;
                                   const isNew = !orig && !!prop;
                                   const kadarChanged =
@@ -1564,26 +1574,50 @@ export function OrderDetails({
 
                                       {/* Supplier's change */}
                                       <td className="border p-1 text-center whitespace-nowrap">
-                                        {isDeleted && (
-                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
-                                            Removed
+                                        <div className="flex items-center justify-between gap-1">
+                                          <span>
+                                            {isDeleted && (
+                                              <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
+                                                Removed
+                                              </span>
+                                            )}
+                                            {isNew && (
+                                              <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">
+                                                New
+                                              </span>
+                                            )}
+                                            {!isDeleted && !isNew && hasChange && (
+                                              <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
+                                                Updated
+                                              </span>
+                                            )}
+                                            {!hasChange && (
+                                              <span className="text-gray-400">—</span>
+                                            )}
                                           </span>
-                                        )}
-                                        {isNew && (
-                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">
-                                            New
-                                          </span>
-                                        )}
-                                        {!isDeleted && !isNew && hasChange && (
-                                          <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
-                                            Updated
-                                          </span>
-                                        )}
-                                        {!hasChange && (
-                                          <span className="text-gray-400">
-                                            —
-                                          </span>
-                                        )}
+                                          {prop?.supplierNotes ? (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                                setShowingSupplierNoteTooltip((prev: typeof showingSupplierNoteTooltip) =>
+                                                  prev ? null : {
+                                                    notes: prop.supplierNotes!,
+                                                    x: rect.left + window.scrollX,
+                                                    y: rect.bottom + window.scrollY + 6,
+                                                  }
+                                                );
+                                              }}
+                                              title="Supplier Notes"
+                                              className="flex-shrink-0 text-blue-500 hover:text-blue-700"
+                                            >
+                                              <Info className="w-3.5 h-3.5" />
+                                            </button>
+                                          ) : (
+                                            <span className="w-3.5" />
+                                          )}
+                                        </div>
                                       </td>
 
                                       {/* Sales's choice */}
@@ -1611,7 +1645,7 @@ export function OrderDetails({
                                       <td className="border p-1 text-center whitespace-nowrap">
                                         {hasChange &&
                                           canAct &&
-                                          !salesRejectedRow &&
+                                          !salesSavedRejected &&
                                           !(
                                             userRole === "jb" &&
                                             isDeleted &&
@@ -1758,16 +1792,76 @@ export function OrderDetails({
                     );
                   })()}
 
-                <div className="flex gap-3 justify-end">
-                  {canAct && (
-                    <Button
-                      onClick={handleApproveSupplierRevision}
-                      disabled={!allItemsDecided}
-                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Submit
-                    </Button>
-                  )}
+                <div className="flex gap-3 justify-end flex-wrap items-center">
+                  {canAct &&
+                    (() => {
+                      const actionableKeys = revisedPairs
+                        .filter(({ orig, prop, pairKey }) => {
+                          if (salesDecisionsOuter[pairKey] === "reject")
+                            return false;
+                          if (
+                            !!orig &&
+                            !prop &&
+                            salesDecisionsOuter[pairKey] === "accept"
+                          )
+                            return false;
+                          const del = !!orig && !prop;
+                          const nw = !orig && !!prop;
+                          return (
+                            nw ||
+                            del ||
+                            (!nw &&
+                              !del &&
+                              (orig!.kadar !== prop!.kadar ||
+                                orig!.warna !== prop!.warna ||
+                                orig!.ukuran !== prop!.ukuran ||
+                                (orig!.berat || "") !== (prop!.berat || "") ||
+                                orig!.pcs !== prop!.pcs))
+                          );
+                        })
+                        .map(({ pairKey }) => pairKey);
+                      return (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setRowDecisions((prev) => {
+                                const next = { ...prev };
+                                actionableKeys.forEach((k) => {
+                                  next[k] = "accept";
+                                });
+                                return next;
+                              });
+                              if (etaChanged) setEtaDecision("accept");
+                              if (photoChangedOuter) setPhotoDecision("accept");
+                            }}
+                            className="border-green-600 text-green-700 hover:bg-green-50"
+                          >
+                            Approve All
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setRowDecisions({});
+                              if (typeof setEtaDecision === "function") setEtaDecision(null);
+                              if (typeof setPhotoDecision === "function") setPhotoDecision(null);
+                            }}
+                            className="border-gray-400 text-gray-700 hover:bg-gray-100"
+                          >
+                            Clear Selection
+                          </Button>
+
+                          <Button
+                            onClick={handleApproveSupplierRevision}
+                            disabled={!allItemsDecided}
+                            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Submit
+                          </Button>
+                        </>
+                      );
+                    })()}
                   {!canAct && (
                     <span className="text-sm text-gray-500 italic self-center">
                       {currentOrder.status === "Pending Sales Review"
@@ -1782,16 +1876,216 @@ export function OrderDetails({
             );
           })()}
 
+        {/* Supplier's own submitted revision view — shown to supplier while awaiting review */}
+        {userRole === "supplier" &&
+          (currentOrder.status === "Pending Sales Review" ||
+            currentOrder.status === "Pending JB Review") &&
+          currentOrder.revisionHistory &&
+          currentOrder.revisionHistory.length > 0 &&
+          (() => {
+            const lastRevision =
+              currentOrder.revisionHistory[
+                currentOrder.revisionHistory.length - 1
+              ];
+            const origItems = lastRevision.previousValues.detailItems ?? [];
+            const propItems =
+              lastRevision.changes.detailItems ?? currentOrder.detailItems;
+            const pairs =
+              origItems.length > 0
+                ? buildSortedPairs(origItems, propItems)
+                : [];
+            const etaChanged =
+              lastRevision.previousValues.waktuKirim !== undefined &&
+              lastRevision.previousValues.waktuKirim !==
+                currentOrder.waktuKirim;
+
+            return (
+              <Card className="p-4 mb-4 border-blue-300 bg-blue-50">
+                <h3 className="font-semibold text-lg mb-1 text-blue-900">
+                  Your Submitted Changes
+                </h3>
+                <p className="text-sm text-blue-700 mb-3">
+                  ⏳{" "}
+                  {currentOrder.status === "Pending Sales Review"
+                    ? "Awaiting Sales review"
+                    : "Awaiting JB review"}
+                </p>
+
+                {lastRevision.revisionNotes && (
+                  <div className="bg-white p-3 rounded border border-blue-200 mb-3">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Your Notes:
+                    </p>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                      {lastRevision.revisionNotes}
+                    </p>
+                  </div>
+                )}
+
+                {etaChanged && (
+                  <div className="bg-white p-3 rounded border border-blue-200 mb-3">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Proposed ETA Change:
+                    </p>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-red-600 line-through">
+                        {lastRevision.previousValues.waktuKirim
+                          ? new Date(
+                              lastRevision.previousValues.waktuKirim,
+                            ).toLocaleDateString("id-ID")
+                          : "-"}
+                      </span>
+                      <span className="text-gray-500">→</span>
+                      <span className="text-green-600 font-semibold">
+                        {currentOrder.waktuKirim
+                          ? new Date(
+                              currentOrder.waktuKirim,
+                            ).toLocaleDateString("id-ID")
+                          : "-"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {pairs.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Item Changes:
+                    </p>
+                    <div className="overflow-auto max-h-[240px]">
+                      <table className="w-full border-collapse border text-xs">
+                        <thead className="bg-blue-100 sticky top-0">
+                          <tr>
+                            <th className="border p-1 w-6">#</th>
+                            <th className="border p-1">Kadar</th>
+                            <th className="border p-1">Warna</th>
+                            <th className="border p-1">Ukuran</th>
+                            <th className="border p-1">Berat</th>
+                            <th className="border p-1">Pcs</th>
+                            <th className="border p-1">Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pairs.map(({ orig, prop, pairKey }, idx) => {
+                            const isDeleted = !!orig && !prop;
+                            const isNew = !orig && !!prop;
+                            const display = prop ?? orig!;
+                            const ukuranD = getUkuranDisplay(display.ukuran);
+                            const hasChange =
+                              isNew ||
+                              isDeleted ||
+                              (!isNew &&
+                                !isDeleted &&
+                                (orig!.kadar !== prop!.kadar ||
+                                  orig!.warna !== prop!.warna ||
+                                  orig!.ukuran !== prop!.ukuran ||
+                                  (orig!.berat || "") !== (prop!.berat || "") ||
+                                  orig!.pcs !== prop!.pcs));
+                            let rowBg = "";
+                            if (isDeleted) rowBg = "bg-red-50";
+                            else if (isNew) rowBg = "bg-green-50";
+                            else if (hasChange) rowBg = "bg-orange-50";
+                            return (
+                              <tr key={pairKey} className={rowBg}>
+                                <td className="border p-1 text-center">
+                                  {idx + 1}
+                                </td>
+                                <td
+                                  className={`border p-1 font-medium ${isDeleted ? "line-through text-red-500" : ""}`}
+                                >
+                                  {display.kadar.toUpperCase()}
+                                </td>
+                                <td
+                                  className={`border p-1 ${isDeleted ? "line-through text-red-500" : ""}`}
+                                >
+                                  {getWarnaLabel(display.warna)}
+                                </td>
+                                <td
+                                  className={`border p-1 ${isDeleted ? "line-through text-red-500" : ""}`}
+                                >
+                                  {ukuranD.showUnit
+                                    ? `${ukuranD.value} cm`
+                                    : ukuranD.value}
+                                </td>
+                                <td
+                                  className={`border p-1 ${isDeleted ? "line-through text-red-500" : ""}`}
+                                >
+                                  {display.berat || "-"}
+                                </td>
+                                <td
+                                  className={`border p-1 ${isDeleted ? "line-through text-red-500" : ""}`}
+                                >
+                                  {display.pcs}
+                                </td>
+                                <td className="border p-1 text-center">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span>
+                                      {isDeleted && (
+                                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
+                                          Removed
+                                        </span>
+                                      )}
+                                      {isNew && (
+                                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">
+                                          New
+                                        </span>
+                                      )}
+                                      {!isDeleted && !isNew && hasChange && (
+                                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
+                                          Updated
+                                        </span>
+                                      )}
+                                      {!hasChange && (
+                                        <span className="text-gray-400">—</span>
+                                      )}
+                                    </span>
+                                    {prop?.supplierNotes ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                          setShowingSupplierNoteTooltip((prev: typeof showingSupplierNoteTooltip) =>
+                                            prev ? null : {
+                                              notes: prop.supplierNotes!,
+                                              x: rect.left + window.scrollX,
+                                              y: rect.bottom + window.scrollY + 6,
+                                            }
+                                          );
+                                        }}
+                                        title="Supplier Notes"
+                                        className="flex-shrink-0 text-blue-500 hover:text-blue-700"
+                                      >
+                                        <Info className="w-3.5 h-3.5" />
+                                      </button>
+                                    ) : (
+                                      <span className="w-3.5" />
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
+
         {/* Order Items */}
-        {currentOrder.status !== "Pending Sales Review" &&
+        {((currentOrder.status !== "Pending Sales Review" &&
           currentOrder.status !== "Pending JB Review" &&
-          currentOrder.status !== "Change Pending Approval" && (
-            <div className="border-t pt-4 mt-4">
-              {userRole === "supplier" &&
-              (currentOrder.status === "In Production" ||
-                currentOrder.status === "Stock Ready" ||
-                currentOrder.status === "Partially Delivered") ? (
-                (() => {
+          currentOrder.status !== "Change Pending Approval") ||
+          userRole === "supplier") && (
+          <div className="border-t pt-4 mt-4">
+            {userRole === "supplier" &&
+            (currentOrder.status === "In Production" ||
+              currentOrder.status === "Stock Ready" ||
+              currentOrder.status === "Partially Delivered")
+              ? (() => {
                   const getShippedPcs = (item: DetailBarangItem) =>
                     shipmentEntries.reduce((total, se) => {
                       const found = se.items.find(
@@ -1877,7 +2171,10 @@ export function OrderDetails({
                                   item.ukuran,
                                 );
                                 return (
-                                  <tr key={item.id} className={`border-t ${received >= ordered && ordered > 0 ? "bg-green-100" : shipped >= ordered && ordered > 0 ? "bg-green-50" : ""}`}>
+                                  <tr
+                                    key={item.id}
+                                    className={`border-t ${received >= ordered && ordered > 0 ? "bg-green-100" : shipped >= ordered && ordered > 0 ? "bg-green-50" : ""}`}
+                                  >
                                     <td
                                       className={`px-3 py-2 font-medium ${getKadarColor(item.kadar)}`}
                                     >
@@ -1912,7 +2209,8 @@ export function OrderDetails({
                                         {received}
                                         {received >= ordered && ordered > 0 ? (
                                           <CheckCheck className="w-4 h-4 text-green-600 shrink-0" />
-                                        ) : received >= shipped && shipped > 0 ? (
+                                        ) : received >= shipped &&
+                                          shipped > 0 ? (
                                           <Check className="w-4 h-4 text-green-600 shrink-0" />
                                         ) : null}
                                       </div>
@@ -1969,214 +2267,251 @@ export function OrderDetails({
                     </div>
                   );
                 })()
-              ) : userRole === "sales" || userRole === "jb" ? (
-                (() => {
-                  const getShippedPcsSJ = (item: DetailBarangItem) =>
-                    shipmentEntries.reduce((total, se) => {
-                      const found = se.items.find(
-                        (i) =>
-                          i.kadar === item.kadar &&
-                          i.warna === item.warna &&
-                          i.ukuran === item.ukuran &&
-                          i.berat === item.berat,
-                      );
-                      return total + (found?.pcs || 0);
-                    }, 0);
+              : userRole === "sales" || userRole === "jb"
+                ? (() => {
+                    const getShippedPcsSJ = (item: DetailBarangItem) =>
+                      shipmentEntries.reduce((total, se) => {
+                        const found = se.items.find(
+                          (i) =>
+                            i.kadar === item.kadar &&
+                            i.warna === item.warna &&
+                            i.ukuran === item.ukuran &&
+                            i.berat === item.berat,
+                        );
+                        return total + (found?.pcs || 0);
+                      }, 0);
 
-                  const getReceivedPcsSJ = (item: DetailBarangItem) =>
-                    shipmentArrivals.reduce((total, arrival) => {
-                      const found = arrival.items.find(
-                        (i) =>
-                          i.karat === item.kadar &&
-                          i.warna === item.warna &&
-                          i.size === item.ukuran &&
-                          i.berat === item.berat,
-                      );
-                      return total + (found?.pcs || 0);
-                    }, 0);
+                    const getReceivedPcsSJ = (item: DetailBarangItem) =>
+                      shipmentArrivals.reduce((total, arrival) => {
+                        const found = arrival.items.find(
+                          (i) =>
+                            i.karat === item.kadar &&
+                            i.warna === item.warna &&
+                            i.size === item.ukuran &&
+                            i.berat === item.berat,
+                        );
+                        return total + (found?.pcs || 0);
+                      }, 0);
 
-                  return (
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">
-                        Order Items
-                      </h3>
-                      <div className="border rounded-md overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="px-3 py-2 text-left">Kadar</th>
-                              <th className="px-3 py-2 text-left">Warna</th>
-                              <th className="px-3 py-2 text-left">Ukuran</th>
-                              <th className="px-3 py-2 text-right">Berat</th>
-                              <th className="px-3 py-2 text-right">Ordered</th>
-                              <th className="px-3 py-2 text-right">Shipped</th>
-                              <th className="px-3 py-2 text-right">Received</th>
-                              {userRole === "jb" && (
-                                <>
-                                  <th className="px-3 py-2 text-right">
-                                    <div className="flex items-center justify-end gap-1">
-                                      Arrival
-                                      <button
-                                        title="Match all remaining (Ordered − Received)"
-                                        className="p-1 hover:bg-gray-200 rounded text-blue-600"
-                                        onClick={() => {
-                                          const newPcs: Record<string, string> =
-                                            {};
-                                          sortDetailItems(
-                                            currentOrder.detailItems,
-                                          ).forEach((item) => {
-                                            const ordered =
-                                              parseInt(item.pcs) || 0;
-                                            const received =
-                                              getReceivedPcsSJ(item);
-                                            newPcs[item.id] = String(
-                                              Math.max(0, ordered - received),
-                                            );
-                                          });
-                                          setInlineArrivalPcs(newPcs);
-                                        }}
+                    return (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">
+                          Order Items
+                        </h3>
+                        <div className="border rounded-md overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-3 py-2 text-left">Kadar</th>
+                                <th className="px-3 py-2 text-left">Warna</th>
+                                <th className="px-3 py-2 text-left">Ukuran</th>
+                                <th className="px-3 py-2 text-right">Berat</th>
+                                <th className="px-3 py-2 text-right">
+                                  Ordered
+                                </th>
+                                <th className="px-3 py-2 text-right">
+                                  Shipped
+                                </th>
+                                <th className="px-3 py-2 text-right">
+                                  Received
+                                </th>
+                                {userRole === "jb" && (
+                                  <>
+                                    <th className="px-3 py-2 text-right">
+                                      <div className="flex items-center justify-end gap-1">
+                                        Arrival
+                                        <button
+                                          title="Match all remaining (Ordered − Received)"
+                                          className="p-1 hover:bg-gray-200 rounded text-blue-600"
+                                          onClick={() => {
+                                            const newPcs: Record<
+                                              string,
+                                              string
+                                            > = {};
+                                            sortDetailItems(
+                                              currentOrder.detailItems,
+                                            ).forEach((item) => {
+                                              const ordered =
+                                                parseInt(item.pcs) || 0;
+                                              const received =
+                                                getReceivedPcsSJ(item);
+                                              newPcs[item.id] = String(
+                                                Math.max(0, ordered - received),
+                                              );
+                                            });
+                                            setInlineArrivalPcs(newPcs);
+                                          }}
+                                        >
+                                          <CheckCheck className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </th>
+                                    <th className="px-3 py-2 w-8" />
+                                  </>
+                                )}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sortDetailItems(currentOrder.detailItems).map(
+                                (item) => {
+                                  const ordered = parseInt(item.pcs) || 0;
+                                  const shipped = getShippedPcsSJ(item);
+                                  const received = getReceivedPcsSJ(item);
+                                  const remaining = Math.max(
+                                    0,
+                                    ordered - received,
+                                  );
+                                  const ukuranDisplay = getUkuranDisplay(
+                                    item.ukuran,
+                                  );
+                                  return (
+                                    <tr
+                                      key={item.id}
+                                      className={`border-t ${received >= ordered && ordered > 0 ? "bg-green-100" : shipped >= ordered && ordered > 0 ? "bg-green-50" : ""}`}
+                                    >
+                                      <td
+                                        className={`px-3 py-2 font-medium ${getKadarColor(item.kadar)}`}
                                       >
-                                        <CheckCheck className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </th>
-                                  <th className="px-3 py-2 w-8" />
-                                </>
+                                        {item.kadar.toUpperCase()}
+                                      </td>
+                                      <td
+                                        className={`px-3 py-2 ${getWarnaColor(item.warna)}`}
+                                      >
+                                        {getWarnaLabel(item.warna)}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {ukuranDisplay.showUnit
+                                          ? `${ukuranDisplay.value} cm`
+                                          : ukuranDisplay.value}
+                                      </td>
+                                      <td className="px-3 py-2 text-right">
+                                        {item.berat || "-"}
+                                      </td>
+                                      <td className="px-3 py-2 text-right">
+                                        {ordered}
+                                      </td>
+                                      <td className="px-3 py-2 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          {shipped}
+                                          {shipped >= ordered &&
+                                            ordered > 0 && (
+                                              <Check className="w-4 h-4 text-green-600 shrink-0" />
+                                            )}
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          {received}
+                                          {received >= ordered &&
+                                          ordered > 0 ? (
+                                            <CheckCheck className="w-4 h-4 text-green-600 shrink-0" />
+                                          ) : received >= shipped &&
+                                            shipped > 0 ? (
+                                            <Check className="w-4 h-4 text-green-600 shrink-0" />
+                                          ) : null}
+                                        </div>
+                                      </td>
+                                      {userRole === "jb" && (
+                                        <>
+                                          <td className="px-3 py-2 text-right">
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              value={
+                                                inlineArrivalPcs[item.id] ?? ""
+                                              }
+                                              onChange={(e) =>
+                                                setInlineArrivalPcs((prev) => ({
+                                                  ...prev,
+                                                  [item.id]: e.target.value,
+                                                }))
+                                              }
+                                              className="w-20 text-right"
+                                              placeholder="0"
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            <button
+                                              title="Match remaining quantity"
+                                              className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
+                                              onClick={() =>
+                                                setInlineArrivalPcs((prev) => ({
+                                                  ...prev,
+                                                  [item.id]: String(remaining),
+                                                }))
+                                              }
+                                            >
+                                              <ChevronsRight className="w-4 h-4" />
+                                            </button>
+                                          </td>
+                                        </>
+                                      )}
+                                    </tr>
+                                  );
+                                },
                               )}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {sortDetailItems(currentOrder.detailItems).map(
-                              (item) => {
-                                const ordered = parseInt(item.pcs) || 0;
-                                const shipped = getShippedPcsSJ(item);
-                                const received = getReceivedPcsSJ(item);
-                                const remaining = Math.max(
-                                  0,
-                                  ordered - received,
-                                );
-                                const ukuranDisplay = getUkuranDisplay(
-                                  item.ukuran,
-                                );
-                                return (
-                                  <tr key={item.id} className={`border-t ${received >= ordered && ordered > 0 ? "bg-green-100" : shipped >= ordered && ordered > 0 ? "bg-green-50" : ""}`}>
-                                    <td
-                                      className={`px-3 py-2 font-medium ${getKadarColor(item.kadar)}`}
-                                    >
-                                      {item.kadar.toUpperCase()}
-                                    </td>
-                                    <td
-                                      className={`px-3 py-2 ${getWarnaColor(item.warna)}`}
-                                    >
-                                      {getWarnaLabel(item.warna)}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                      {ukuranDisplay.showUnit
-                                        ? `${ukuranDisplay.value} cm`
-                                        : ukuranDisplay.value}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                      {item.berat || "-"}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                      {ordered}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                      <div className="flex items-center justify-end gap-1">
-                                        {shipped}
-                                        {shipped >= ordered && ordered > 0 && (
-                                          <Check className="w-4 h-4 text-green-600 shrink-0" />
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                      <div className="flex items-center justify-end gap-1">
-                                        {received}
-                                        {received >= ordered && ordered > 0 ? (
-                                          <CheckCheck className="w-4 h-4 text-green-600 shrink-0" />
-                                        ) : received >= shipped && shipped > 0 ? (
-                                          <Check className="w-4 h-4 text-green-600 shrink-0" />
-                                        ) : null}
-                                      </div>
-                                    </td>
-                                    {userRole === "jb" && (
-                                      <>
-                                        <td className="px-3 py-2 text-right">
-                                          <Input
-                                            type="number"
-                                            min="0"
-                                            value={
-                                              inlineArrivalPcs[item.id] ?? ""
-                                            }
-                                            onChange={(e) =>
-                                              setInlineArrivalPcs((prev) => ({
-                                                ...prev,
-                                                [item.id]: e.target.value,
-                                              }))
-                                            }
-                                            className="w-20 text-right"
-                                            placeholder="0"
-                                          />
-                                        </td>
-                                        <td className="px-3 py-2">
-                                          <button
-                                            title="Match remaining quantity"
-                                            className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
-                                            onClick={() =>
-                                              setInlineArrivalPcs((prev) => ({
-                                                ...prev,
-                                                [item.id]: String(remaining),
-                                              }))
-                                            }
-                                          >
-                                            <ChevronsRight className="w-4 h-4" />
-                                          </button>
-                                        </td>
-                                      </>
-                                    )}
-                                  </tr>
-                                );
-                              },
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                      {userRole === "jb" && (
-                        <div className="flex justify-end mt-3">
-                          <Button
-                            onClick={handleSaveDirectArrivals}
-                            disabled={
-                              !Object.values(inlineArrivalPcs).some(
-                                (v) => parseInt(v) > 0,
-                              )
-                            }
-                            className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Record Arrivals
-                          </Button>
+                            </tbody>
+                          </table>
                         </div>
-                      )}
-                    </div>
-                  );
-                })()
-              ) : (
-                <DetailItemsTable
-                  items={sortDetailItems(order.detailItems)}
-                  mode="readonly"
-                  getKadarColor={getKadarColor}
-                  getWarnaColor={getWarnaColor}
-                  getWarnaLabel={getWarnaLabel}
-                  getUkuranLabel={(ukuran) => {
-                    const display = getUkuranDisplay(ukuran);
-                    return display.showUnit
-                      ? `${display.value} cm`
-                      : display.value;
-                  }}
-                  title="Order Items"
-                />
-              )}
-            </div>
-          )}
+                        {userRole === "jb" && (
+                          <div className="flex justify-end mt-3">
+                            <Button
+                              onClick={handleSaveDirectArrivals}
+                              disabled={
+                                !Object.values(inlineArrivalPcs).some(
+                                  (v) => parseInt(v) > 0,
+                                )
+                              }
+                              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Record Arrivals
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                : (() => {
+                    // For supplier in Pending states, show their proposed (latest revision) items
+                    const isPendingReview =
+                      userRole === "supplier" &&
+                      (currentOrder.status === "Pending Sales Review" ||
+                        currentOrder.status === "Pending JB Review");
+                    const lastRevision =
+                      currentOrder.revisionHistory?.[
+                        currentOrder.revisionHistory.length - 1
+                      ];
+                    const displayItems =
+                      isPendingReview && lastRevision?.changes?.detailItems
+                        ? lastRevision.changes.detailItems
+                        : sortDetailItems(order.detailItems);
+
+                    return (
+                      <div>
+                        {isPendingReview && (
+                          <p className="text-xs text-orange-600 mb-2 italic">
+                            Showing your proposed items — awaiting review
+                          </p>
+                        )}
+                        <DetailItemsTable
+                          items={sortDetailItems(displayItems)}
+                          mode="readonly"
+                          getKadarColor={getKadarColor}
+                          getWarnaColor={getWarnaColor}
+                          getWarnaLabel={getWarnaLabel}
+                          getUkuranLabel={(ukuran) => {
+                            const display = getUkuranDisplay(ukuran);
+                            return display.showUnit
+                              ? `${display.value} cm`
+                              : display.value;
+                          }}
+                          title="Order Items"
+                        />
+                      </div>
+                    );
+                  })()}
+          </div>
+        )}
 
         {/* Revision History - always visible for all users */}
         {(userRole !== "supplier" ||
@@ -2656,17 +2991,17 @@ export function OrderDetails({
                                               <img
                                                 src={beforeImg}
                                                 alt="Before"
-                                                className="w-full h-36 object-cover rounded border border-red-200"
+                                                className="w-full h-36 object-cover rounded border-2 border-red-500"
                                               />
                                             </div>
                                             <div className="w-36">
-                                              <p className="font-medium text-green-700 text-xs mb-1">
+                                              <p className="font-medium text-red-700 text-xs mb-1">
                                                 Photo — After
                                               </p>
                                               <img
                                                 src={afterImg}
                                                 alt="After"
-                                                className="w-full h-36 object-cover rounded border border-green-400"
+                                                className="w-full h-36 object-cover rounded border-2 border-red-500"
                                               />
                                             </div>
                                           </div>
@@ -3419,7 +3754,9 @@ export function OrderDetails({
                                     },
                                     0,
                                   );
-                                  newEdits[idx] = String(Math.max(0, item.pcs - receivedForItem));
+                                  newEdits[idx] = String(
+                                    Math.max(0, item.pcs - receivedForItem),
+                                  );
                                 });
                                 setArrivalEdits((prev) => ({
                                   ...prev,
@@ -3444,7 +3781,9 @@ export function OrderDetails({
                               <th className="px-3 py-2 text-right">Berat</th>
                               <th className="px-3 py-2 text-right">Shipped</th>
                               {userRole === "jb" && (
-                                <th className="px-3 py-2 text-right">Received</th>
+                                <th className="px-3 py-2 text-right">
+                                  Received
+                                </th>
                               )}
                               {isEditing && (
                                 <th className="px-3 py-2 text-right">
@@ -3481,7 +3820,10 @@ export function OrderDetails({
                                 0,
                               );
                               // Max additional pcs that can still be recorded
-                              const remaining = Math.max(0, item.pcs - receivedForItem);
+                              const remaining = Math.max(
+                                0,
+                                item.pcs - receivedForItem,
+                              );
                               return (
                                 <tr key={idx} className="border-t">
                                   <td
@@ -3506,13 +3848,15 @@ export function OrderDetails({
                                     {item.pcs}
                                   </td>
                                   {userRole === "jb" && (
-                                    <td className={`px-3 py-2 text-right font-medium ${
-                                      receivedForItem >= item.pcs
-                                        ? "text-green-600"
-                                        : receivedForItem > 0
-                                          ? "text-amber-600"
-                                          : "text-gray-400"
-                                    }`}>
+                                    <td
+                                      className={`px-3 py-2 text-right font-medium ${
+                                        receivedForItem >= item.pcs
+                                          ? "text-green-600"
+                                          : receivedForItem > 0
+                                            ? "text-amber-600"
+                                            : "text-gray-400"
+                                      }`}
+                                    >
                                       <span className="inline-flex items-center justify-end gap-1">
                                         {receivedForItem}
                                         {receivedForItem >= item.pcs && (
@@ -3686,7 +4030,10 @@ export function OrderDetails({
               onClick={() => setIsArrivalsOpen(!isArrivalsOpen)}
               className="w-full flex items-center justify-between hover:bg-gray-50 py-1 rounded-lg transition-colors"
             >
-              <h3 id="order-arrivals-section" className="font-semibold text-gray-900">
+              <h3
+                id="order-arrivals-section"
+                className="font-semibold text-gray-900"
+              >
                 Order Arrivals ({shipmentArrivals.length})
               </h3>
               {isArrivalsOpen ? (
@@ -3696,193 +4043,204 @@ export function OrderDetails({
               )}
             </button>
             {isArrivalsOpen && (
-            <div className="mt-3 space-y-4">
-              {shipmentArrivals.map((arrival) => {
-                const isEditing = editingArrivalId === arrival.id;
-                return (
-                  <div
-                    key={arrival.id}
-                    className="border rounded-lg overflow-hidden"
-                  >
-                    {/* Arrival header */}
-                    <div className="bg-gray-50 px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                        <span className="font-mono text-sm font-semibold text-purple-700">
-                          {arrival.id}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(arrival.createdDate).toLocaleDateString(
-                            "id-ID",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )}{" "}
-                          · {getFullNameFromUsername(arrival.createdBy)}
-                        </span>
-                        {arrival.shippingId && (
-                          <>
-                            <span>·</span>
-                            <span className="font-mono text-blue-600">
-                              {arrival.shippingId}
-                            </span>
-                          </>
-                        )}
+              <div className="mt-3 space-y-4">
+                {shipmentArrivals.map((arrival) => {
+                  const isEditing = editingArrivalId === arrival.id;
+                  return (
+                    <div
+                      key={arrival.id}
+                      className="border rounded-lg overflow-hidden"
+                    >
+                      {/* Arrival header */}
+                      <div className="bg-gray-50 px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                          <span className="font-mono text-sm font-semibold text-purple-700">
+                            {arrival.id}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(arrival.createdDate).toLocaleDateString(
+                              "id-ID",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}{" "}
+                            · {getFullNameFromUsername(arrival.createdBy)}
+                          </span>
+                          {arrival.shippingId && (
+                            <>
+                              <span>·</span>
+                              <span className="font-mono text-blue-600">
+                                {arrival.shippingId}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {userRole === "jb" &&
+                          !isEditing &&
+                          currentOrder.status !== "Closed" && (
+                            <button
+                              className="p-1 hover:bg-gray-200 rounded"
+                              onClick={() => {
+                                setEditingArrivalId(arrival.id);
+                                const init: Record<number, string> = {};
+                                arrival.items.forEach((item, idx) => {
+                                  init[idx] = String(item.pcs);
+                                });
+                                setEditingArrivalItems(init);
+                              }}
+                            >
+                              <Pencil className="w-4 h-4 text-gray-500" />
+                            </button>
+                          )}
                       </div>
-                      {userRole === "jb" &&
-                        !isEditing &&
-                        currentOrder.status !== "Closed" && (
-                          <button
-                            className="p-1 hover:bg-gray-200 rounded"
+                      {/* Items table */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-3 py-2 text-left">Kadar</th>
+                              <th className="px-3 py-2 text-left">Warna</th>
+                              <th className="px-3 py-2 text-left">Ukuran</th>
+                              <th className="px-3 py-2 text-right">Berat</th>
+                              <th className="px-3 py-2 text-right">
+                                Pcs Received
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {arrival.items.map((item, idx) => (
+                              <tr key={idx} className="border-t">
+                                <td className="px-3 py-2 font-medium">
+                                  {item.karat.toUpperCase()}
+                                </td>
+                                <td
+                                  className={`px-3 py-2 ${getWarnaColor(item.warna)}`}
+                                >
+                                  {getWarnaLabel(item.warna)}
+                                </td>
+                                <td className="px-3 py-2">{item.size}</td>
+                                <td className="px-3 py-2 text-right">
+                                  {item.berat || "-"}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  {isEditing ? (
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={
+                                        editingArrivalItems[idx] ??
+                                        String(item.pcs)
+                                      }
+                                      onChange={(e) =>
+                                        setEditingArrivalItems((prev) => ({
+                                          ...prev,
+                                          [idx]: e.target.value,
+                                        }))
+                                      }
+                                      className="w-20 text-right"
+                                    />
+                                  ) : (
+                                    item.pcs
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {isEditing && (
+                        <div className="px-3 py-2 flex gap-2 justify-end border-t bg-gray-50">
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => {
-                              setEditingArrivalId(arrival.id);
-                              const init: Record<number, string> = {};
-                              arrival.items.forEach((item, idx) => {
-                                init[idx] = String(item.pcs);
-                              });
-                              setEditingArrivalItems(init);
+                              setEditingArrivalId(null);
+                              setEditingArrivalItems({});
                             }}
                           >
-                            <Pencil className="w-4 h-4 text-gray-500" />
-                          </button>
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveArrivalEdit(arrival)}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      )}
+                      {arrival.editHistory &&
+                        arrival.editHistory.length > 0 && (
+                          <div className="border-t px-3 py-2 bg-amber-50">
+                            <p className="text-xs font-semibold text-amber-700 mb-1">
+                              Edit History ({arrival.editHistory.length})
+                            </p>
+                            <div className="space-y-2">
+                              {arrival.editHistory.map((h, hi) => (
+                                <div
+                                  key={hi}
+                                  className="text-xs bg-white border rounded p-2"
+                                >
+                                  <div className="flex items-center gap-2 text-gray-500 mb-1">
+                                    <span>
+                                      {new Date(h.editedAt).toLocaleDateString(
+                                        "id-ID",
+                                        {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                        },
+                                      )}{" "}
+                                      {new Date(h.editedAt).toLocaleTimeString(
+                                        "id-ID",
+                                        { hour: "2-digit", minute: "2-digit" },
+                                      )}
+                                    </span>
+                                    <span>·</span>
+                                    <span>
+                                      {getFullNameFromUsername(h.editedBy)}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="font-medium text-red-600 mb-1">
+                                        Before
+                                      </p>
+                                      {h.previousItems.map((pi, pii) => (
+                                        <div
+                                          key={pii}
+                                          className="text-gray-600"
+                                        >
+                                          {pi.karat.toUpperCase()} {pi.warna}{" "}
+                                          {pi.size} — {pi.pcs} pcs
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-green-600 mb-1">
+                                        After
+                                      </p>
+                                      {h.newItems.map((ni, nii) => (
+                                        <div
+                                          key={nii}
+                                          className="text-gray-600"
+                                        >
+                                          {ni.karat.toUpperCase()} {ni.warna}{" "}
+                                          {ni.size} — {ni.pcs} pcs
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                     </div>
-                    {/* Items table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-3 py-2 text-left">Kadar</th>
-                            <th className="px-3 py-2 text-left">Warna</th>
-                            <th className="px-3 py-2 text-left">Ukuran</th>
-                            <th className="px-3 py-2 text-right">Berat</th>
-                            <th className="px-3 py-2 text-right">Pcs Received</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {arrival.items.map((item, idx) => (
-                            <tr key={idx} className="border-t">
-                              <td className="px-3 py-2 font-medium">
-                                {item.karat.toUpperCase()}
-                              </td>
-                              <td className={`px-3 py-2 ${getWarnaColor(item.warna)}`}>
-                                {getWarnaLabel(item.warna)}
-                              </td>
-                              <td className="px-3 py-2">{item.size}</td>
-                              <td className="px-3 py-2 text-right">
-                                {item.berat || "-"}
-                              </td>
-                              <td className="px-3 py-2 text-right">
-                                {isEditing ? (
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={
-                                      editingArrivalItems[idx] ??
-                                      String(item.pcs)
-                                    }
-                                    onChange={(e) =>
-                                      setEditingArrivalItems((prev) => ({
-                                        ...prev,
-                                        [idx]: e.target.value,
-                                      }))
-                                    }
-                                    className="w-20 text-right"
-                                  />
-                                ) : (
-                                  item.pcs
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {isEditing && (
-                      <div className="px-3 py-2 flex gap-2 justify-end border-t bg-gray-50">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingArrivalId(null);
-                            setEditingArrivalItems({});
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveArrivalEdit(arrival)}
-                        >
-                          Save
-                        </Button>
-                      </div>
-                    )}
-                    {arrival.editHistory && arrival.editHistory.length > 0 && (
-                      <div className="border-t px-3 py-2 bg-amber-50">
-                        <p className="text-xs font-semibold text-amber-700 mb-1">
-                          Edit History ({arrival.editHistory.length})
-                        </p>
-                        <div className="space-y-2">
-                          {arrival.editHistory.map((h, hi) => (
-                            <div
-                              key={hi}
-                              className="text-xs bg-white border rounded p-2"
-                            >
-                              <div className="flex items-center gap-2 text-gray-500 mb-1">
-                                <span>
-                                  {new Date(h.editedAt).toLocaleDateString(
-                                    "id-ID",
-                                    {
-                                      day: "2-digit",
-                                      month: "short",
-                                      year: "numeric",
-                                    },
-                                  )}{" "}
-                                  {new Date(h.editedAt).toLocaleTimeString(
-                                    "id-ID",
-                                    { hour: "2-digit", minute: "2-digit" },
-                                  )}
-                                </span>
-                                <span>·</span>
-                                <span>
-                                  {getFullNameFromUsername(h.editedBy)}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <p className="font-medium text-red-600 mb-1">
-                                    Before
-                                  </p>
-                                  {h.previousItems.map((pi, pii) => (
-                                    <div key={pii} className="text-gray-600">
-                                      {pi.karat.toUpperCase()} {pi.warna}{" "}
-                                      {pi.size} — {pi.pcs} pcs
-                                    </div>
-                                  ))}
-                                </div>
-                                <div>
-                                  <p className="font-medium text-green-600 mb-1">
-                                    After
-                                  </p>
-                                  {h.newItems.map((ni, nii) => (
-                                    <div key={nii} className="text-gray-600">
-                                      {ni.karat.toUpperCase()} {ni.warna}{" "}
-                                      {ni.size} — {ni.pcs} pcs
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
@@ -3892,131 +4250,146 @@ export function OrderDetails({
       {userRole === "supplier" &&
         (currentOrder.status === "New Order" ||
           currentOrder.status === "Supplier Viewed") && (
-          <div className="flex gap-2 flex-wrap justify-end mt-4">
-            <Button
-              onClick={() =>
-                setPendingAction({
-                  label: "Start Production",
-                  description:
-                    "Are you sure you want to mark this order as In Production?",
-                  onConfirm: () =>
-                    handleUpdateStatusWithToast(
-                      currentOrder.id,
-                      "In Production",
-                      "You've marked the Order as In Production",
-                    ),
-                })
-              }
-              className="bg-yellow-500 hover:bg-yellow-600 text-white"
-            >
-              Start Production
-            </Button>
-            <Button
-              onClick={() =>
-                setPendingAction({
-                  label: "Mark Stock Ready",
-                  description:
-                    "Are you sure you want to mark this order as Stock Ready?",
-                  onConfirm: () =>
-                    handleUpdateStatusWithToast(
-                      currentOrder.id,
-                      "Stock Ready",
-                      "You've marked the Order as Ready Stock",
-                    ),
-                })
-              }
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              Mark Stock Ready
-            </Button>
-            {onUpdateOrder && !currentOrder.revisionHistory?.length && (
-              <Button
-                variant="outline"
-                onClick={() => onUpdateOrder(currentOrder)}
-              >
-                Request Change
-              </Button>
-            )}
-            <Button
-              variant="destructive"
-              onClick={() =>
-                setPendingAction({
-                  label: "Unable to Fulfill",
-                  description:
-                    "Are you sure you are unable to fulfill this order? This action cannot be undone.",
-                  onConfirm: () =>
-                    handleUpdateStatus(currentOrder.id, "Unable to Fulfill"),
-                })
-              }
-            >
-              Unable to Fulfill
-            </Button>
+          <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
+            <div className="bg-white/95 backdrop-blur-sm border-t shadow-lg p-4">
+              <div className="flex gap-3 flex-wrap justify-end max-w-7xl mx-auto">
+                <Button
+                  onClick={() =>
+                    setPendingAction({
+                      label: "Start Production",
+                      description:
+                        "Are you sure you want to mark this order as In Production?",
+                      onConfirm: () =>
+                        handleUpdateStatusWithToast(
+                          currentOrder.id,
+                          "In Production",
+                          "You've marked the Order as In Production",
+                        ),
+                    })
+                  }
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                >
+                  Start Production
+                </Button>
+                <Button
+                  onClick={() =>
+                    setPendingAction({
+                      label: "Mark Stock Ready",
+                      description:
+                        "Are you sure you want to mark this order as Stock Ready?",
+                      onConfirm: () =>
+                        handleUpdateStatusWithToast(
+                          currentOrder.id,
+                          "Stock Ready",
+                          "You've marked the Order as Ready Stock",
+                        ),
+                    })
+                  }
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Mark Stock Ready
+                </Button>
+                {onUpdateOrder && !currentOrder.revisionHistory?.length && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onUpdateOrder(currentOrder)}
+                  >
+                    Request Change
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  onClick={() =>
+                    setPendingAction({
+                      label: "Unable to Fulfill",
+                      description:
+                        "Are you sure you are unable to fulfill this order? This action cannot be undone.",
+                      onConfirm: () =>
+                        handleUpdateStatus(
+                          currentOrder.id,
+                          "Unable to Fulfill",
+                        ),
+                    })
+                  }
+                >
+                  Unable to Fulfill
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
       {/* Supplier Action Buttons - Order Revised */}
       {userRole === "supplier" && currentOrder.status === "Order Revised" && (
-        <div className="flex gap-2 flex-wrap justify-end mt-4">
-          <Button
-            onClick={() =>
-              setPendingAction({
-                label: "Start Production",
-                description:
-                  "Are you sure you want to mark this order as In Production?",
-                onConfirm: () =>
-                  handleUpdateStatusWithToast(
-                    currentOrder.id,
-                    "In Production",
-                    "You've marked the Order as In Production",
-                  ),
-              })
-            }
-            className="bg-yellow-500 hover:bg-yellow-600 text-white"
-          >
-            Start Production
-          </Button>
-          <Button
-            onClick={() =>
-              setPendingAction({
-                label: "Mark Stock Ready",
-                description:
-                  "Are you sure you want to mark this order as Stock Ready?",
-                onConfirm: () =>
-                  handleUpdateStatusWithToast(
-                    currentOrder.id,
-                    "Stock Ready",
-                    "You've marked the Order as Ready Stock",
-                  ),
-              })
-            }
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            Mark Stock Ready
-          </Button>
+        <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
+          <div className="bg-white/95 backdrop-blur-sm border-t shadow-lg p-4">
+            <div className="flex gap-3 flex-wrap justify-end max-w-7xl mx-auto">
+              <Button
+                onClick={() =>
+                  setPendingAction({
+                    label: "Start Production",
+                    description:
+                      "Are you sure you want to mark this order as In Production?",
+                    onConfirm: () =>
+                      handleUpdateStatusWithToast(
+                        currentOrder.id,
+                        "In Production",
+                        "You've marked the Order as In Production",
+                      ),
+                  })
+                }
+                className="bg-yellow-500 hover:bg-yellow-600 text-white"
+              >
+                Start Production
+              </Button>
+              <Button
+                onClick={() =>
+                  setPendingAction({
+                    label: "Mark Stock Ready",
+                    description:
+                      "Are you sure you want to mark this order as Stock Ready?",
+                    onConfirm: () =>
+                      handleUpdateStatusWithToast(
+                        currentOrder.id,
+                        "Stock Ready",
+                        "You've marked the Order as Ready Stock",
+                      ),
+                  })
+                }
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Mark Stock Ready
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* JB - Close Order */}
       {userRole === "jb" && currentOrder.status === "Fully Delivered" && (
-        <div className="flex gap-2 flex-wrap justify-end mt-4">
-          <Button
-            onClick={() =>
-              setPendingAction({
-                label: "Close Order",
-                description:
-                  "Are you sure you want to close this order? This marks the order as complete and no further changes can be made.",
-                onConfirm: () =>
-                  handleUpdateStatusWithToast(
-                    currentOrder.id,
-                    "Closed",
-                    "Order has been closed",
-                  ),
-              })
-            }
-            className="bg-gray-800 hover:bg-gray-900 text-white"
-          >
-            Close Order
-          </Button>
+        <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
+          <div className="bg-white/95 backdrop-blur-sm border-t shadow-lg p-4">
+            <div className="flex gap-3 flex-wrap justify-end max-w-7xl mx-auto">
+              <Button
+                onClick={() =>
+                  setPendingAction({
+                    label: "Close Order",
+                    description:
+                      "Are you sure you want to close this order? This marks the order as complete and no further changes can be made.",
+                    onConfirm: () =>
+                      handleUpdateStatusWithToast(
+                        currentOrder.id,
+                        "Closed",
+                        "Order has been closed",
+                      ),
+                  })
+                }
+                className="bg-gray-800 hover:bg-gray-900 text-white"
+              >
+                Close Order
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -4225,6 +4598,31 @@ export function OrderDetails({
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Supplier Note tooltip overlay */}
+      {showingSupplierNoteTooltip && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setShowingSupplierNoteTooltip(null)}
+          />
+          <div
+            className="fixed z-50 bg-white rounded-lg shadow-2xl border border-blue-200 p-3 max-w-xs"
+            style={{
+              left: `${showingSupplierNoteTooltip.x}px`,
+              top: `${showingSupplierNoteTooltip.y}px`,
+            }}
+          >
+            <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 mb-1">
+              <Info className="w-3.5 h-3.5" />
+              Supplier Notes
+            </div>
+            <div className="text-sm text-gray-900 whitespace-pre-wrap break-words">
+              {showingSupplierNoteTooltip.notes}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Reject Revision Reason Dialog */}

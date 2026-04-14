@@ -9,7 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-**Shipment & Arrival IDs — Structured Format**
+**Notifications Page — Filter-Aware Tab Counts & Displaying Label**
+
+- Tab badges (All, Unread, Expiring, Archived) now reflect the count after applying search text and type filter, matching the behaviour of the Orders page
+- "Displaying" label in the filter bar now shows the count of items in the current tab after all filters are applied (previously always showed the total unfiltered count)
+- Introduced `applySearchTypeFilter` helper to compute per-tab filtered counts without duplicating logic
+- Updated: `notifications.tsx`
+
+**Supplier Notes Info Icon in "Your Submitted Changes" Panel**
+
+- The "Change" column in the supplier's "Your Submitted Changes" table now shows a blue `Info` icon when a row has supplier notes attached
+- Clicking the icon opens the same tooltip overlay already used in the "Proposed Supplier Change" panel
+- Updated: `order-details.tsx`
+
+**Supplier Notes Column Hidden in Request Creation / Edit Form**
+
+- The "Supplier Notes" column is no longer shown in the detail items table when creating or editing a request (only suppliers should see it)
+- Added `hideSupplierNotes` prop to `DetailItemsDisplay`; `DetailItemsSection` passes `hideSupplierNotes={!isSupplier}`
+- Column header, table cells, `colSpan` adjustment, and mobile card field are all conditionally rendered
+- Updated: `detail-items-display.tsx`, `detail-items-section.tsx`
+
+### Changed
+
+**Orders Page — Status / Branch Filter Options Use "All" Tab Dataset**
+
+- Available statuses and branches offered in the filter dropdowns are now derived from the full post-search dataset (`searchFiltered`) rather than the currently active tab
+- Items are shown as disabled (not hidden) when not present in the user's data, ensuring consistent option visibility across tab switches
+- Updated: `unified-orders.tsx`
+
+**Orders Page — Supplier "Rejected" Tab Removed; Closed Tab Expanded**
+
+- Removed the "Rejected" tab from the supplier's Orders page
+- Supplier's "Closed" tab now includes orders with status Closed, Rejected, Cancelled, or Unable to Fulfill
+- JB's "Closed" tab now includes Cancelled orders
+- Updated: `unified-orders.tsx`
+
+
 
 - Shipment IDs now follow `<PONumber>S<Seq>` format (e.g. `SA2504A01S00`, `SA2504A01S01`)
 - Arrival IDs now follow `<PONumber>R<Seq>` format (e.g. `SA2504A01R00`), with an independent counter per order
@@ -41,15 +76,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Supplier Action Buttons — Request Change Hidden After Revision**
 
-- The "Request Change" button no longer appears once an order has any revision history
-- Prevents suppliers from requesting further changes on already-revised orders
-- Updated: `order-details.tsx`
+The "Request Change" button no longer appears once an order has any revision history
 
+Prevents suppliers from requesting further changes on already-revised orders
 
-- "Supplier's change" and "Sales's choice" are now two separate columns in the Item Changes table
-- Sales's choice column shows **✓ Approved** or **✕ Rejected** badge per row while reviewing and after submission
-- Sales can see their row-level decisions (green/red badges) even after submitting their review (status = "Pending JB Review")
-- JB sees both the full supplier proposal and Sales's decision for every row
+Updated: `order-details.tsx`
+
+"Supplier's change" and "Sales's choice" are now two separate columns in the Item Changes table
+
+Sales's choice column shows **✓ Approved** or **✕ Rejected** badge per row while reviewing and after submission
+
+Sales can see their row-level decisions (green/red badges) even after submitting their review (status = "Pending JB Review")
+
+JB sees both the full supplier proposal and Sales's decision for every row
 
 **Supplier Action Buttons — Confirmation Dialogs**
 
@@ -137,7 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-**Notifications — `isRefreshing` ReferenceError**: Declared missing state variable
+**Notifications —** `**isRefreshing**` **ReferenceError**: Declared missing state variable
 
 - `isRefreshing` was used in JSX and a refresh handler but was never declared via `useState`
 - Added `const [isRefreshing, setIsRefreshing] = useState(false)` to the component

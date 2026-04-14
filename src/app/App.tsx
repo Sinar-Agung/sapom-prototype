@@ -9,7 +9,6 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { AvailablePcsDemo } from "./components/available-pcs-demo";
 import { ETACalendar } from "./components/eta-calendar";
 import { JBHome } from "./components/jb-home";
 import { JBInboundSearch } from "./components/jb-inbound-search";
@@ -25,6 +24,7 @@ import { QuestionForm } from "./components/question-form";
 import { Register } from "./components/register";
 import { RequestDetails } from "./components/request-details";
 import { RequestForm } from "./components/request-form";
+import { SalesHome } from "./components/sales-home";
 import { SalesQuestions } from "./components/sales-questions";
 import { Settings } from "./components/settings";
 import { StockistHome } from "./components/stockist-home";
@@ -98,11 +98,14 @@ export default function App() {
   });
   const [authPage, setAuthPage] = useState<"login" | "register">("login");
   const [currentPage, setCurrentPage] = useState(() => {
-    // Stockists, JB, and Suppliers should see home page by default, sales see form
+    // Stockists, JB, Suppliers, and Sales should see home page by default
     const role = (localStorage.getItem("userRole") ||
       sessionStorage.getItem("userRole") ||
       "sales") as "sales" | "stockist" | "jb" | "supplier";
-    return role === "stockist" || role === "jb" || role === "supplier"
+    return role === "stockist" ||
+      role === "jb" ||
+      role === "supplier" ||
+      role === "sales"
       ? "home"
       : "tambah-pesanan";
   });
@@ -123,6 +126,7 @@ export default function App() {
   const [justCreatedRequest, setJustCreatedRequest] = useState(false); // Flag to force Open tab after creating request
   const [previousOrdersTab, setPreviousOrdersTab] = useState<string>("");
   const [previousPage, setPreviousPage] = useState<string>("");
+  const [preEditPreviousPage, setPreEditPreviousPage] = useState<string>("");
   const [jbRequestsTab, setJbRequestsTab] = useState<string>("assigned");
   const [cameFromNotifications, setCameFromNotifications] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
@@ -627,6 +631,7 @@ export default function App() {
     if (currentTab) {
       setPreviousOrdersTab(currentTab);
     }
+    setPreEditPreviousPage(previousPage);
     setPreviousPage(currentPage);
     setCurrentPage("order-edit");
   };
@@ -647,13 +652,18 @@ export default function App() {
       return;
     }
 
+    const destination = previousPage;
+    // If going back to order-details, restore previousPage so back from there works correctly
+    if (destination === "order-details") {
+      setPreviousPage(preEditPreviousPage);
+    }
     const fallback =
       userRole === "supplier"
         ? "supplier-orders"
         : userRole === "jb"
           ? "jb-orders"
           : "sales-orders";
-    setCurrentPage(previousPage || fallback);
+    setCurrentPage(destination || fallback);
   };
 
   const handleOrderEditSave = () => {
@@ -667,13 +677,18 @@ export default function App() {
       }
     }
     setEditingOrderForUpdate(null);
+    const destination = previousPage;
+    // If going back to order-details, restore previousPage so back from there works correctly
+    if (destination === "order-details") {
+      setPreviousPage(preEditPreviousPage);
+    }
     const fallback =
       userRole === "supplier"
         ? "supplier-orders"
         : userRole === "jb"
           ? "jb-orders"
           : "sales-orders";
-    setCurrentPage(previousPage || fallback);
+    setCurrentPage(destination || fallback);
   };
 
   const handleJBRejectRequest = (reason: string) => {
@@ -813,7 +828,7 @@ export default function App() {
     checkAndNotifyExpiringRequests(username, role);
 
     // Set default page based on role
-    if (role === "stockist" || role === "jb") {
+    if (role === "stockist" || role === "jb" || role === "sales") {
       setCurrentPage("home");
     } else {
       setCurrentPage("tambah-pesanan");
@@ -988,8 +1003,16 @@ export default function App() {
             />
           );
         } else {
-          // Demo page for Available Pcs Input
-          return <AvailablePcsDemo />;
+          // Sales home page
+          return (
+            <SalesHome
+              onNavigateToOrders={(tab) => {
+                if (tab) setPreviousOrdersTab(tab);
+                setCurrentPage("sales-orders");
+              }}
+              onSeeOrderDetail={(order) => handleSeeOrderDetail(order)}
+            />
+          );
         }
       case "eta-calendar":
         return (

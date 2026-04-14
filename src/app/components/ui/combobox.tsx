@@ -1,10 +1,18 @@
-import * as React from "react";
 import Fuse from "fuse.js";
-import { Check, ChevronsUpDown, X, AlertCircle } from "lucide-react";
-import { cn } from "./utils";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import * as React from "react";
 import { Button } from "./button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "./command";
+import { TickIndicator } from "./input-with-check";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { cn } from "./utils";
 
 interface ComboboxOption {
   value: string;
@@ -24,6 +32,7 @@ interface ComboboxProps {
   autoOpenOnFocus?: boolean;
   error?: boolean;
   disabled?: boolean;
+  maxLength?: number;
 }
 
 export function Combobox({
@@ -39,6 +48,7 @@ export function Combobox({
   autoOpenOnFocus = false,
   error = false,
   disabled = false,
+  maxLength,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState("");
@@ -62,14 +72,18 @@ export function Combobox({
   const matchesSubsequence = (text: string, search: string): boolean => {
     const textLower = text.toLowerCase();
     const searchLower = search.toLowerCase();
-    
+
     let searchIndex = 0;
-    for (let i = 0; i < textLower.length && searchIndex < searchLower.length; i++) {
+    for (
+      let i = 0;
+      i < textLower.length && searchIndex < searchLower.length;
+      i++
+    ) {
       if (textLower[i] === searchLower[searchIndex]) {
         searchIndex++;
       }
     }
-    
+
     return searchIndex === searchLower.length;
   };
 
@@ -77,19 +91,23 @@ export function Combobox({
   const calculateSubsequenceScore = (text: string, search: string): number => {
     const textLower = text.toLowerCase();
     const searchLower = search.toLowerCase();
-    
+
     let score = 0;
     let searchIndex = 0;
     let lastMatchIndex = -1;
     let consecutiveMatches = 0;
-    
-    for (let i = 0; i < textLower.length && searchIndex < searchLower.length; i++) {
+
+    for (
+      let i = 0;
+      i < textLower.length && searchIndex < searchLower.length;
+      i++
+    ) {
       if (textLower[i] === searchLower[searchIndex]) {
         // Bonus for matches at the start
         if (searchIndex === 0) {
           score -= 20;
         }
-        
+
         // Bonus for consecutive matches
         if (lastMatchIndex === i - 1) {
           consecutiveMatches++;
@@ -101,25 +119,25 @@ export function Combobox({
             score += (i - lastMatchIndex) * 2;
           }
         }
-        
+
         // Penalty for later matches
         score += i * 0.5;
-        
+
         lastMatchIndex = i;
         searchIndex++;
       }
     }
-    
+
     // Bonus for exact or starts-with matches
     if (textLower === searchLower) {
       score -= 100;
     } else if (textLower.startsWith(searchLower)) {
       score -= 50;
     }
-    
+
     // Bonus for shorter text (more specific match)
     score += text.length * 0.1;
-    
+
     return score;
   };
 
@@ -151,7 +169,11 @@ export function Combobox({
   // Update highlighted value when search changes or index changes
   React.useEffect(() => {
     const availableOptions = getAvailableItemsList();
-    if (availableOptions.length > 0 && highlightedIndex >= 0 && highlightedIndex < availableOptions.length) {
+    if (
+      availableOptions.length > 0 &&
+      highlightedIndex >= 0 &&
+      highlightedIndex < availableOptions.length
+    ) {
       const newHighlighted = availableOptions[highlightedIndex];
       setHighlightedValue(newHighlighted);
     }
@@ -161,19 +183,23 @@ export function Combobox({
   const getAvailableItemsList = () => {
     const items: string[] = [];
     const filteredOpts = getFilteredOptions();
-    
+
     // Add custom value option if applicable
-    if (allowCustomValue && searchValue && !options.find(
-      (option) =>
-        option.label.toLowerCase() === searchValue.toLowerCase() ||
-        option.value.toLowerCase() === searchValue.toLowerCase()
-    )) {
+    if (
+      allowCustomValue &&
+      searchValue &&
+      !options.find(
+        (option) =>
+          option.label.toLowerCase() === searchValue.toLowerCase() ||
+          option.value.toLowerCase() === searchValue.toLowerCase(),
+      )
+    ) {
       items.push(searchValue); // The custom value item
     }
-    
+
     // Add all filtered options
-    filteredOpts.forEach(opt => items.push(opt.value));
-    
+    filteredOpts.forEach((opt) => items.push(opt.value));
+
     return items;
   };
 
@@ -181,7 +207,9 @@ export function Combobox({
   const getDisplayLabel = () => {
     // If dropdown is open and there's a highlighted value, show that
     if (open && highlightedValue) {
-      const option = options.find((option) => option.value === highlightedValue);
+      const option = options.find(
+        (option) => option.value === highlightedValue,
+      );
       return option ? option.label : highlightedValue;
     }
     // Otherwise show the actual selected value
@@ -196,13 +224,13 @@ export function Combobox({
     }
 
     const searchLower = searchValue.toLowerCase();
-    const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0);
+    const searchWords = searchLower.split(/\s+/).filter((w) => w.length > 0);
 
     // Score each option based on how well it matches
     const scoredOptions = options.map((option) => {
       const labelLower = option.label.toLowerCase();
       const valueLower = option.value.toLowerCase();
-      
+
       let score = 0;
 
       // Check for exact match (highest priority)
@@ -210,18 +238,24 @@ export function Combobox({
         score += 10000;
       }
       // Check if label/value starts with search term (very high priority)
-      else if (labelLower.startsWith(searchLower) || valueLower.startsWith(searchLower)) {
+      else if (
+        labelLower.startsWith(searchLower) ||
+        valueLower.startsWith(searchLower)
+      ) {
         score += 5000;
       }
       // Check if label/value contains search term as whole phrase
-      else if (labelLower.includes(searchLower) || valueLower.includes(searchLower)) {
+      else if (
+        labelLower.includes(searchLower) ||
+        valueLower.includes(searchLower)
+      ) {
         score += 2000;
         // Bonus if it appears early in the string
         const labelIndex = labelLower.indexOf(searchLower);
         const valueIndex = valueLower.indexOf(searchLower);
         const earliestIndex = Math.min(
           labelIndex >= 0 ? labelIndex : Infinity,
-          valueIndex >= 0 ? valueIndex : Infinity
+          valueIndex >= 0 ? valueIndex : Infinity,
         );
         if (earliestIndex !== Infinity) {
           score += Math.max(0, 500 - earliestIndex * 10);
@@ -231,10 +265,10 @@ export function Combobox({
       else {
         const labelWords = labelLower.split(/\s+/);
         const valueWords = valueLower.split(/\s+/);
-        
+
         let wordMatchCount = 0;
         let wordStartMatchCount = 0;
-        
+
         for (const searchWord of searchWords) {
           // Check if any word in label starts with this search word
           for (const labelWord of labelWords) {
@@ -247,7 +281,7 @@ export function Combobox({
               break;
             }
           }
-          
+
           // Also check value words if not found in label
           if (wordMatchCount === 0) {
             for (const valueWord of valueWords) {
@@ -262,15 +296,18 @@ export function Combobox({
             }
           }
         }
-        
+
         // Score based on how many words matched
         if (wordMatchCount === searchWords.length) {
-          score += 1000 + (wordStartMatchCount * 200);
+          score += 1000 + wordStartMatchCount * 200;
         } else if (wordMatchCount > 0) {
           score += wordMatchCount * 300;
         }
         // Check subsequence matching as fallback
-        else if (matchesSubsequence(labelLower, searchLower) || matchesSubsequence(valueLower, searchLower)) {
+        else if (
+          matchesSubsequence(labelLower, searchLower) ||
+          matchesSubsequence(valueLower, searchLower)
+        ) {
           score += 100;
         }
       }
@@ -329,8 +366,8 @@ export function Combobox({
       if (triggerRef.current) {
         const focusableElements = Array.from(
           document.querySelectorAll<HTMLElement>(
-            'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-          )
+            'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
         );
 
         const currentIndex = focusableElements.indexOf(triggerRef.current);
@@ -348,13 +385,16 @@ export function Combobox({
   };
 
   // Handle selecting a value (called by both Enter key and clicking)
-  const handleSelectValue = React.useCallback((selectedValue: string) => {
-    onValueChange(selectedValue);
-    setOpen(false);
-    setSearchValue("");
-    setHighlightedValue("");
-    highlightedValueRef.current = "";
-  }, [onValueChange]);
+  const handleSelectValue = React.useCallback(
+    (selectedValue: string) => {
+      onValueChange(selectedValue);
+      setOpen(false);
+      setSearchValue("");
+      setHighlightedValue("");
+      highlightedValueRef.current = "";
+    },
+    [onValueChange],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -365,16 +405,16 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "justify-between h-8 text-sm pr-10 relative transition-all duration-200",
-            value 
+            "justify-between h-8 text-xs pr-10 relative transition-all duration-200",
+            value
               ? error
                 ? "bg-red-50 border-red-500 hover:bg-red-50 text-slate-800 font-medium"
                 : "bg-emerald-50 border-emerald-500 hover:bg-emerald-50 text-slate-800 font-medium"
               : "border-slate-300 bg-white text-slate-500 pl-3",
             value && "pl-3",
-            className
+            className,
           )}
-          style={value ? { paddingLeft: '48px' } : {}}
+          style={value ? { paddingLeft: "22px" } : {}}
           onFocus={() => {
             if (autoOpenOnFocus && !open) {
               setOpen(true);
@@ -383,18 +423,7 @@ export function Combobox({
           onKeyDown={handleTriggerKeyDown}
           disabled={disabled}
         >
-          {value && (
-            <div className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full flex items-center justify-center pointer-events-none",
-              error ? "bg-red-600" : "bg-emerald-600"
-            )}>
-              {error ? (
-                <AlertCircle className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-              ) : (
-                <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-              )}
-            </div>
-          )}
+          <TickIndicator show={!!value} error={!!error} />
           <span className="truncate">{getDisplayLabel()}</span>
           <div className="flex items-center absolute right-1 top-1/2 -translate-y-1/2 gap-1 shrink-0">
             {value && (
@@ -411,17 +440,23 @@ export function Combobox({
                 <X className="h-3 w-3" />
               </div>
             )}
-            <ChevronsUpDown className={cn(
-              "h-4 w-4 transition-colors duration-200",
-              value ? (error ? "text-red-600" : "text-emerald-600") : "text-slate-400"
-            )} />
+            <ChevronsUpDown
+              className={cn(
+                "h-4 w-4 transition-colors duration-200",
+                value
+                  ? error
+                    ? "text-red-600"
+                    : "text-emerald-600"
+                  : "text-slate-400",
+              )}
+            />
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn(
-        "w-[300px] p-0",
-        popoverContentClassName
-      )} align="start">
+      <PopoverContent
+        className={cn("w-[300px] p-0", popoverContentClassName)}
+        align="start"
+      >
         <Command
           shouldFilter={false}
           loop
@@ -437,20 +472,23 @@ export function Combobox({
               setHighlightedIndex((prev) => (prev + 1) % availableItems.length);
               return;
             }
-            
+
             if (e.key === "ArrowUp") {
               e.preventDefault();
               const availableItems = getAvailableItemsList();
-              setHighlightedIndex((prev) => (prev - 1 + availableItems.length) % availableItems.length);
+              setHighlightedIndex(
+                (prev) =>
+                  (prev - 1 + availableItems.length) % availableItems.length,
+              );
               return;
             }
-            
+
             if (e.key === "Enter") {
               e.preventDefault();
               e.stopPropagation();
               // Get the currently highlighted value
               const currentHighlighted = highlightedValueRef.current;
-              
+
               if (currentHighlighted) {
                 // Use the highlighted value
                 handleSelectValue(currentHighlighted);
@@ -459,9 +497,9 @@ export function Combobox({
                 const exactMatch = options.find(
                   (option) =>
                     option.label.toLowerCase() === searchValue.toLowerCase() ||
-                    option.value.toLowerCase() === searchValue.toLowerCase()
+                    option.value.toLowerCase() === searchValue.toLowerCase(),
                 );
-                
+
                 if (exactMatch) {
                   handleSelectValue(exactMatch.value);
                 } else if (allowCustomValue) {
@@ -481,9 +519,18 @@ export function Combobox({
             ref={inputRef}
             placeholder={searchPlaceholder}
             value={searchValue}
-            onValueChange={setSearchValue}
+            onValueChange={(v) =>
+              setSearchValue(maxLength ? v.slice(0, maxLength) : v)
+            }
             onKeyDown={handleKeyDown}
           />
+          {maxLength && allowCustomValue && searchValue && (
+            <div
+              className={`px-3 pb-1 text-right text-xs ${searchValue.length >= maxLength ? "text-red-500" : "text-gray-400"}`}
+            >
+              {searchValue.length}/{maxLength}
+            </div>
+          )}
           <CommandList>
             <CommandEmpty>
               {allowCustomValue ? (
@@ -500,49 +547,55 @@ export function Combobox({
                   </button>
                 </div>
               ) : (
-                <div className="px-2 py-3 text-center text-sm">{emptyMessage}</div>
+                <div className="px-2 py-3 text-center text-sm">
+                  {emptyMessage}
+                </div>
               )}
             </CommandEmpty>
             <CommandGroup>
-              {allowCustomValue && searchValue && !options.find(
-                (option) =>
-                  option.label.toLowerCase() === searchValue.toLowerCase() ||
-                  option.value.toLowerCase() === searchValue.toLowerCase()
-              ) && (
-                <CommandItem
-                  key="__custom__"
-                  value={searchValue}
-                  onSelect={() => {
-                    handleSelectValue(searchValue);
-                  }}
-                  onMouseEnter={() => setHighlightedValue(searchValue)}
-                  onMouseLeave={() => setHighlightedValue("")}
-                  className={cn(
-                    "bg-blue-50 border-b",
-                    highlightedValue === searchValue && "bg-primary/10"
-                  )}
-                >
-                  <Check className="mr-2 h-4 w-4 opacity-0" />
-                  Use "{searchValue}"
-                </CommandItem>
-              )}
+              {allowCustomValue &&
+                searchValue &&
+                !options.find(
+                  (option) =>
+                    option.label.toLowerCase() === searchValue.toLowerCase() ||
+                    option.value.toLowerCase() === searchValue.toLowerCase(),
+                ) && (
+                  <CommandItem
+                    key="__custom__"
+                    value={searchValue}
+                    onSelect={() => {
+                      handleSelectValue(searchValue);
+                    }}
+                    onMouseEnter={() => setHighlightedValue(searchValue)}
+                    onMouseLeave={() => setHighlightedValue("")}
+                    className={cn(
+                      "bg-blue-50 border-b",
+                      highlightedValue === searchValue && "bg-primary/10",
+                    )}
+                  >
+                    <Check className="mr-2 h-4 w-4 opacity-0" />
+                    Use "{searchValue}"
+                  </CommandItem>
+                )}
               {getFilteredOptions().map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
                   onSelect={(currentValue) => {
-                    handleSelectValue(currentValue === value ? "" : currentValue);
+                    handleSelectValue(
+                      currentValue === value ? "" : currentValue,
+                    );
                   }}
                   onMouseEnter={() => setHighlightedValue(option.value)}
                   onMouseLeave={() => setHighlightedValue("")}
                   className={cn(
-                    highlightedValue === option.value && "bg-primary/10"
+                    highlightedValue === option.value && "bg-primary/10",
                   )}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
+                      value === option.value ? "opacity-100" : "opacity-0",
                     )}
                   />
                   {option.label}

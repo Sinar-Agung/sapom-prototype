@@ -11,6 +11,7 @@ export interface DetailBarangItem {
   berat: string;
   pcs: string;
   notes?: string;
+  supplierNotes?: string;
 }
 
 interface DetailItemsDisplayProps {
@@ -35,6 +36,7 @@ interface DetailItemsDisplayProps {
   getUkuranDisplay: (ukuran: string) => { value: string; showUnit: boolean };
   isInputFormExpanded?: boolean;
   hideNotes?: boolean;
+  hideSupplierNotes?: boolean;
 }
 
 export function DetailItemsDisplay({
@@ -59,6 +61,7 @@ export function DetailItemsDisplay({
   getUkuranDisplay,
   isInputFormExpanded = true,
   hideNotes = false,
+  hideSupplierNotes = false,
 }: DetailItemsDisplayProps) {
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
@@ -202,13 +205,23 @@ export function DetailItemsDisplay({
                         <span className="font-medium text-gray-500">Pcs:</span>
                         <span className="ml-1">{item.pcs}</span>
                       </div>
-                      {!hideNotes && item.notes && (
+                      {item.notes && (
                         <div className="col-span-2">
                           <span className="font-medium text-gray-500">
                             Notes:
                           </span>
                           <span className="ml-1 break-words whitespace-pre-wrap">
                             {item.notes}
+                          </span>
+                        </div>
+                      )}
+                      {item.supplierNotes && !hideSupplierNotes && (
+                        <div className="col-span-2">
+                          <span className="font-medium text-gray-500">
+                            Supplier Notes:
+                          </span>
+                          <span className="ml-1 break-words whitespace-pre-wrap">
+                            {item.supplierNotes}
                           </span>
                         </div>
                       )}
@@ -290,9 +303,12 @@ export function DetailItemsDisplay({
               <th className="border p-2 text-left bg-gray-100">Ukuran</th>
               <th className="border p-2 text-left bg-gray-100">Berat</th>
               <th className="border p-2 text-left bg-gray-100">Pcs</th>
-              {!hideNotes && (
-                <th className="border p-2 text-left w-[200px] min-w-[200px] max-w-[200px] bg-gray-100">
-                  Notes
+              <th className="border p-2 text-left w-[160px] min-w-[160px] max-w-[160px] bg-gray-100">
+                Notes
+              </th>
+              {!hideSupplierNotes && (
+                <th className="border p-2 text-left w-[160px] min-w-[160px] max-w-[160px] bg-gray-100">
+                  Supplier Notes
                 </th>
               )}
               {hasActions && (
@@ -304,7 +320,7 @@ export function DetailItemsDisplay({
             {items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={hasActions ? (hideNotes ? 7 : 8) : hideNotes ? 6 : 7}
+                  colSpan={hasActions ? (hideSupplierNotes ? 8 : 9) : (hideSupplierNotes ? 7 : 8)}
                   className="border p-4 text-center text-gray-500"
                 >
                   No data yet. Please add product details.
@@ -387,24 +403,32 @@ export function DetailItemsDisplay({
                     <td className="border p-2" style={strikeStyle}>
                       {item.pcs}
                     </td>
-                    {!hideNotes && (
+                    <td
+                      className="border p-2 w-[160px] min-w-[160px] max-w-[160px]"
+                      style={strikeStyle}
+                    >
+                      <div
+                        className={`truncate ${item.notes ? "cursor-pointer hover:text-gray-700" : ""}`}
+                        onClick={(e) => {
+                          if (item.notes) {
+                            e.stopPropagation();
+                            const rect =
+                              e.currentTarget.getBoundingClientRect();
+                            onNotesClick(item.id, rect.left, rect.bottom + 5);
+                          }
+                        }}
+                        title={item.notes ? "Click to view full notes" : ""}
+                      >
+                        {item.notes || "-"}
+                      </div>
+                    </td>
+                    {!hideSupplierNotes && (
                       <td
-                        className="border p-2 w-[200px] min-w-[200px] max-w-[200px]"
+                        className="border p-2 w-[160px] min-w-[160px] max-w-[160px]"
                         style={strikeStyle}
                       >
-                        <div
-                          className={`truncate ${item.notes ? "cursor-pointer hover:text-gray-700" : ""}`}
-                          onClick={(e) => {
-                            if (item.notes) {
-                              e.stopPropagation();
-                              const rect =
-                                e.currentTarget.getBoundingClientRect();
-                              onNotesClick(item.id, rect.left, rect.bottom + 5);
-                            }
-                          }}
-                          title={item.notes ? "Click to view full notes" : ""}
-                        >
-                          {item.notes || "-"}
+                        <div className="truncate">
+                          {item.supplierNotes || "-"}
                         </div>
                       </td>
                     )}

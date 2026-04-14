@@ -110,6 +110,7 @@ export function OrderEditForm({
     initialItems: order.detailItems || [],
     kategoriBarang: formData.kategoriBarang,
     jenisProduk: formData.jenisProduk,
+    isSupplier: userRole === "supplier",
   });
   // Convenience alias so the rest of the component can still use detailItems directly
   const detailItems = detailItemsState.items;
@@ -794,7 +795,7 @@ export function OrderEditForm({
             onToggleDelete={
               userRole !== "sales" ? handleToggleSoftDelete : undefined
             }
-            hideNotes={userRole === "supplier"}
+            isSupplier={userRole === "supplier"}
           />
         </Card>
 

@@ -70,6 +70,9 @@ export function DetailItemsTable({
                     Available Pcs
                   </th>
                 )}
+                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
+                  Notes
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -120,6 +123,9 @@ export function DetailItemsTable({
                         </div>
                       </td>
                     )}
+                    <td className="px-3 py-2 border text-gray-500 text-xs">
+                      {item.notes || "-"}
+                    </td>
                   </tr>
                 );
               })}
@@ -202,6 +208,12 @@ export function DetailItemsTable({
                         }
                         requestedPcs={item.pcs}
                       />
+                    </div>
+                  )}
+                  {item.notes && (
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Notes:</span>
+                      <span className="ml-2 text-gray-700">{item.notes}</span>
                     </div>
                   )}
                 </div>

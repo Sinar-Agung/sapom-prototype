@@ -20,6 +20,7 @@ export interface DetailBarangItem {
   orderPcs?: string;
   verified?: boolean;
   notes?: string;
+  supplierNotes?: string;
 }
 
 /**

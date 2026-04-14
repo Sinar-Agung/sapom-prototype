@@ -1,3 +1,4 @@
+import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import { Button } from "@/app/components/ui/button";
 import { Combobox } from "@/app/components/ui/combobox";
 import { DatePicker } from "@/app/components/ui/date-picker";
@@ -25,7 +26,6 @@ import {
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
 import { useImage } from "@/app/utils/image-storage";
-import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
 import italyKaca from "@/assets/images/italy-kaca.png";
@@ -47,7 +47,7 @@ const NAMA_BASIC_IMAGES: Record<string, string> = {
   "hollow-fancy-nori": hollowFancyNori,
   milano: milano,
   tambang: tambang,
-  casteli: casteli,
+  // casteli intentionally omitted to simulate no predefined photo
 };
 
 export interface FormData {
@@ -279,7 +279,7 @@ export function RequestFormHeader({
                 className="h-3 w-3"
               />
               <Label htmlFor="basic-header" className="font-normal text-xs">
-                Basic Product
+                Barang Basic
               </Label>
             </div>
             <div className="flex items-center space-x-1">
@@ -289,17 +289,14 @@ export function RequestFormHeader({
                 className="h-3 w-3"
               />
               <Label htmlFor="model-header" className="font-normal text-xs">
-                Model Product
+                Barang Model
               </Label>
             </div>
           </RadioGroup>
 
           {/* Product Type */}
           <Label htmlFor="jenisProduk" className="text-xs md:pt-2">
-            Product Type{formData.kategoriBarang === "basic" ? " " : ""}
-            {formData.kategoriBarang === "basic" && (
-              <span className="text-red-500">*</span>
-            )}
+            Product Type <span className="text-red-500">*</span>
           </Label>
           <Combobox
             value={formData.jenisProduk}
@@ -309,6 +306,7 @@ export function RequestFormHeader({
             searchPlaceholder="Search product type..."
             emptyText="Type not found."
             allowCustomValue={false}
+            maxLength={15}
           />
 
           {/* Notes */}
@@ -363,6 +361,7 @@ export function RequestFormHeader({
                 placeholder="Select or type model name..."
                 searchPlaceholder="Search model..."
                 emptyText="Model not found."
+                maxLength={22}
               />
             </>
           )}
@@ -372,8 +371,8 @@ export function RequestFormHeader({
             <>
               <Label className="text-xs md:pt-2">Product Photo</Label>
               <div className="border rounded-md p-2 bg-gray-50">
-                <img
-                  src={NAMA_BASIC_IMAGES[formData.namaBasic]}
+                <ImageWithFallback
+                  src={NAMA_BASIC_IMAGES[formData.namaBasic] || ""}
                   alt={formData.namaBasic}
                   className="w-full sm:w-48 h-48 object-cover rounded"
                 />
@@ -382,7 +381,7 @@ export function RequestFormHeader({
           ) : formData.kategoriBarang === "model" ? (
             <>
               <Label htmlFor="fotoBarang" className="text-xs md:pt-2">
-                Product Photo <span className="text-red-500">*</span>
+                Product Photo
               </Label>
               <div className="space-y-2">
                 {/* Hidden gallery input */}
@@ -418,89 +417,92 @@ export function RequestFormHeader({
                     }
                   }}
                 />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full h-9 sm:h-8 text-sm"
-                    >
-                      <ImageIcon className="w-4 h-4 mr-2" />
-                      {formData.fotoBarang || existingPhotoId
-                        ? "Update Photo"
-                        : "Choose Photo"}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
-                    <DropdownMenuItem
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <ImageIcon className="w-4 h-4 mr-2" />
-                      Choose from Gallery
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={startCamera}>
-                      <Camera className="w-4 h-4 mr-2" />
-                      Take Photo
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {!formData.fotoBarang && !existingPhotoId && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div className="border rounded-md p-2 bg-gray-50 cursor-pointer group hover:bg-gray-100 transition-colors w-full sm:w-48">
+                        <div className="relative">
+                          <ImageWithFallback
+                            src=""
+                            alt="No image"
+                            className="w-full sm:w-44 h-48 object-cover rounded"
+                          />
+                          <div className="absolute inset-0 bg-black/20 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="w-6 h-6 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuItem
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <ImageIcon className="w-4 h-4 mr-2" />
+                        Choose from Gallery
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={startCamera}>
+                        <Camera className="w-4 h-4 mr-2" />
+                        Take Photo
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 {(formData.fotoBarang || existingPhotoId) &&
                   (() => {
                     const imgSrc = formData.fotoBarang
                       ? URL.createObjectURL(formData.fotoBarang)
                       : existingPhotoData;
                     return imgSrc ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <div className="border rounded-md p-2 bg-gray-50 relative cursor-pointer group hover:bg-gray-100 transition-colors">
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-1 right-1 h-7 px-2 rounded z-10 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onFormDataChange({
-                                  ...formData,
-                                  fotoBarang: null,
-                                });
-                                onFileInputKeyChange(fileInputKey + 1);
-                                if (
-                                  !formData.fotoBarang &&
-                                  onExistingPhotoClear
-                                ) {
-                                  onExistingPhotoClear();
-                                }
-                              }}
-                            >
-                              Remove
-                            </Button>
-                            <img
-                              src={imgSrc}
-                              alt="Preview"
-                              className="w-full sm:w-48 h-48 object-cover rounded"
-                            />
-                            <div className="absolute inset-0 bg-black/30 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <Camera className="w-6 h-6 text-white" />
+                      <div className="relative inline-block w-full sm:w-48">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <div className="border rounded-md p-2 bg-gray-50 cursor-pointer group hover:bg-gray-100 transition-colors">
+                              <img
+                                src={imgSrc}
+                                alt="Preview"
+                                className="w-full sm:w-44 h-48 object-cover rounded"
+                              />
+                              <div className="absolute inset-0 bg-black/30 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <Camera className="w-6 h-6 text-white" />
+                              </div>
                             </div>
-                          </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48">
-                          <DropdownMenuItem
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <ImageIcon className="w-4 h-4 mr-2" />
-                            Choose from Gallery
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={startCamera}>
-                            <Camera className="w-4 h-4 mr-2" />
-                            Take Photo
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-48">
+                            <DropdownMenuItem
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <ImageIcon className="w-4 h-4 mr-2" />
+                              Choose from Gallery
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={startCamera}>
+                              <Camera className="w-4 h-4 mr-2" />
+                              Take Photo
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-3 right-3 h-7 px-2 rounded z-20 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onFormDataChange({
+                              ...formData,
+                              fotoBarang: null,
+                            });
+                            onFileInputKeyChange(fileInputKey + 1);
+                            if (onExistingPhotoClear) {
+                              onExistingPhotoClear();
+                            }
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
                     ) : null;
                   })()}
+                {!formData.fotoBarang && !existingPhotoId && null}
               </div>
             </>
           ) : null}

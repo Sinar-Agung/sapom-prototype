@@ -1,6 +1,9 @@
 import { Order, OrderArrival, OrderShipping } from "@/app/types/order";
 import { DetailBarangItem } from "@/app/types/request";
-import { notifyOrderArrival, notifyOrderFullyDelivered } from "@/app/utils/notification-helper";
+import {
+  notifyOrderArrival,
+  notifyOrderFullyDelivered,
+} from "@/app/utils/notification-helper";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import {
@@ -193,7 +196,9 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
     const allArrivals: OrderArrival[] = JSON.parse(
       localStorage.getItem("orderArrivals") || "[]",
     );
-    const forOrderCount = allArrivals.filter((a) => a.orderId === orderId).length;
+    const forOrderCount = allArrivals.filter(
+      (a) => a.orderId === orderId,
+    ).length;
     const BASE36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const arrivalId = `${order.PONumber}R${BASE36[Math.floor(forOrderCount / 36)]}${BASE36[forOrderCount % 36]}`;
 
@@ -260,7 +265,10 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
     if (arrivalOrder) {
       const totalPcs = items.reduce((sum, i) => sum + i.pcs, 0);
       notifyOrderArrival(arrivalOrder, currentUser, totalPcs);
-      if (newStatus === "Fully Delivered" && order.status !== "Fully Delivered") {
+      if (
+        newStatus === "Fully Delivered" &&
+        order.status !== "Fully Delivered"
+      ) {
         notifyOrderFullyDelivered(arrivalOrder, currentUser);
       }
     }

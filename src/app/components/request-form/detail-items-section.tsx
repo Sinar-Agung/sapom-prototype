@@ -40,6 +40,8 @@ interface DetailItemsSectionProps {
   onToggleDelete?: (id: string) => void;
   /** When true, hides the Notes column and Notes input (e.g. for supplier role). */
   hideNotes?: boolean;
+  /** When true, renames the Notes input to Supplier Notes and routes to supplierNotes. */
+  isSupplier?: boolean;
 }
 
 /**
@@ -63,6 +65,7 @@ export function DetailItemsSection({
   markedForDeletion,
   onToggleDelete,
   hideNotes = false,
+  isSupplier = false,
 }: DetailItemsSectionProps) {
   const {
     detailInput,
@@ -132,7 +135,8 @@ export function DetailItemsSection({
             onToggleExpanded={() =>
               setIsInputFormExpanded(!isInputFormExpanded)
             }
-            hideNotes={hideNotes}
+            hideNotes={hideNotes && editingDetailId !== null}
+            isSupplier={isSupplier}
           />
         </div>
       )}
@@ -161,7 +165,8 @@ export function DetailItemsSection({
         getWarnaLabel={getWarnaLabel}
         getUkuranDisplay={getUkuranDisplay}
         isInputFormExpanded={isInputFormExpanded}
-        hideNotes={hideNotes}
+        hideNotes={false}
+        hideSupplierNotes={!isSupplier}
       />
     </div>
   );

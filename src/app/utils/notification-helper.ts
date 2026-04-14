@@ -1738,10 +1738,7 @@ export const notifyOrderShipmentEdited = (
 };
 
 // Helper: Create notification when all order items have been fully delivered
-export const notifyOrderFullyDelivered = (
-  order: Order,
-  recordedBy: string,
-) => {
+export const notifyOrderFullyDelivered = (order: Order, recordedBy: string) => {
   const supplierName =
     typeof order.pabrik === "string"
       ? order.pabrik
@@ -1790,7 +1787,6 @@ export const notifyOrderFullyDelivered = (
     order.branchCode,
   );
 };
-
 
 // Helper: Create notification for order closure
 export const notifyOrderClosed = (order: Order, closedBy: string) => {

@@ -196,6 +196,10 @@ export function Notifications({
   const [filterText, setFilterText] = useState(() => {
     return sessionStorage.getItem("notificationsFilterText") || "";
   });
+  const [typeFilter, setTypeFilter] = useState<string[]>(() => {
+    const saved = sessionStorage.getItem("notificationsTypeFilter");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [sortBy, setSortBy] = useState<string>(() => {
     return sessionStorage.getItem("notificationsSortBy") || "timestamp";
   });
@@ -220,6 +224,13 @@ export function Notifications({
   useEffect(() => {
     sessionStorage.setItem("notificationsFilterText", filterText);
   }, [filterText]);
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      "notificationsTypeFilter",
+      JSON.stringify(typeFilter),
+    );
+  }, [typeFilter]);
 
   useEffect(() => {
     sessionStorage.setItem("notificationsSortBy", sortBy);
@@ -311,17 +322,9 @@ export function Notifications({
       } else if (notification.eventType === "order_arrival_recorded") {
         sessionStorage.setItem("order-details-scroll-arrivals", "true");
       }
-      // Special handling for order_change_requested - navigate to update page
-      if (
-        notification.eventType === "order_change_requested" &&
-        onNavigateToUpdateOrder
-      ) {
-        console.log(
-          "   → Calling onNavigateToUpdateOrder with ID:",
-          notification.entityId,
-        );
-        onNavigateToUpdateOrder(notification.entityId);
-      } else if (onNavigateToOrder) {
+      // Special handling for order_change_requested — always go to Order Details
+      // (not the update page, since the order is already Pending Sales Review)
+      if (onNavigateToOrder) {
         console.log(
           "   → Calling onNavigateToOrder with ID:",
           notification.entityId,
@@ -374,6 +377,8 @@ export function Notifications({
 
   // Apply text filter
   const filteredNotifications = tabFilteredNotifications.filter((n) => {
+    if (typeFilter.length > 0 && !typeFilter.includes(n.eventType))
+      return false;
     if (!filterText) return true;
     const searchText = filterText.toLowerCase();
     return (
@@ -448,11 +453,36 @@ export function Notifications({
 
   const unreadCountHeader = getUnreadCountForUser(currentUser, accountType);
 
-  const expiringCount = nonArchivedNotifications.filter(
-    (n) => n.eventType === "request_expiring",
-  ).length;
+  // expiringCount and archivedCount removed — tab badges use filtered* variants below
 
-  const archivedCount = archivedNotifications.length;
+  // Apply search + type filters to an arbitrary notification array
+  const applySearchTypeFilter = (notifs: Notification[]) =>
+    notifs.filter((n) => {
+      if (typeFilter.length > 0 && !typeFilter.includes(n.eventType))
+        return false;
+      if (!filterText) return true;
+      const searchText = filterText.toLowerCase();
+      return (
+        n.entityNumber?.toLowerCase().includes(searchText) ||
+        n.message.toLowerCase().includes(searchText) ||
+        n.triggeredBy.toLowerCase().includes(searchText)
+      );
+    });
+
+  // Per-tab filtered counts (reflect active search + type filter)
+  const filteredAllCount = applySearchTypeFilter(
+    nonArchivedNotifications.filter((n) => n.eventType !== "request_expiring"),
+  ).length;
+  const filteredUnreadCount = applySearchTypeFilter(
+    nonArchivedNotifications.filter(
+      (n) =>
+        !n.readBy.includes(currentUser) && n.eventType !== "request_expiring",
+    ),
+  ).length;
+  const filteredExpiringCount = applySearchTypeFilter(
+    nonArchivedNotifications.filter((n) => n.eventType === "request_expiring"),
+  ).length;
+  const filteredArchivedCount = applySearchTypeFilter(archivedNotifications).length;
 
   const getEventIcon = (eventType: string) => {
     if (eventType === "request_expiring") {
@@ -529,6 +559,13 @@ export function Notifications({
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   };
+
+  // Compute available event types from all non-archived notifications for the type filter dropdown
+  const eventTypeOptions = Array.from(
+    new Set(nonArchivedNotifications.map((n) => n.eventType)),
+  )
+    .sort()
+    .map((et) => ({ value: et, label: formatEventType(et) }));
 
   const getEventTypePillColor = (eventType: string): string => {
     if (eventType === "request_expiring")
@@ -976,7 +1013,7 @@ export function Notifications({
           <div className="mb-3">
             <FilterSortControls
               type="notification"
-              totalCount={notifications.length}
+              totalCount={sortedNotifications.length}
               displayedCount={visibleNotifications.length}
               filterValue={filterText}
               onFilterChange={setFilterText}
@@ -985,6 +1022,9 @@ export function Notifications({
               onSortChange={setSortBy}
               sortDirection={sortDirection}
               onSortDirectionChange={setSortDirection}
+              eventTypeFilter={typeFilter}
+              onEventTypeFilterChange={setTypeFilter}
+              eventTypeOptions={eventTypeOptions}
             />
           </div>
 
@@ -992,33 +1032,33 @@ export function Notifications({
           <TabsList className="w-full flex overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing mb-0">
             <TabsTrigger value="all">
               All Notifications
-              {nonArchivedNotifications.length > 0 && (
+              {filteredAllCount > 0 && (
                 <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
-                  {nonArchivedNotifications.length}
+                  {filteredAllCount}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="unread">
               Unread
-              {unreadCount > 0 && (
+              {filteredUnreadCount > 0 && (
                 <span className="ml-2 bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs">
-                  {unreadCount}
+                  {filteredUnreadCount}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="expiring">
               Expiring Requests
-              {expiringCount > 0 && (
+              {filteredExpiringCount > 0 && (
                 <span className="ml-2 bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full text-xs">
-                  {expiringCount}
+                  {filteredExpiringCount}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="archived">
               Archived
-              {archivedCount > 0 && (
+              {filteredArchivedCount > 0 && (
                 <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
-                  {archivedCount}
+                  {filteredArchivedCount}
                 </span>
               )}
             </TabsTrigger>

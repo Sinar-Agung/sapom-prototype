@@ -57,7 +57,6 @@ export function RequestForm(props: RequestFormProps) {
     waktuKirim: undefined as Date | undefined,
     customerExpectation: "",
     notes: "",
-    notes: "",
   });
 
   const detailItemsState = useDetailItems({
@@ -174,7 +173,7 @@ export function RequestForm(props: RequestFormProps) {
     formData.kategoriBarang &&
     (formData.kategoriBarang === "basic"
       ? formData.jenisProduk && formData.namaBasic // For Basic, jenisProduk and namaBasic are required
-      : true); // For Model, photo is not required to enable input (save button is disabled instead)
+      : formData.jenisProduk); // For Model, jenisProduk is required too
 
   // Check if Simpan Pesanan button should be disabled
   const isSimpanDisabled =
@@ -183,7 +182,8 @@ export function RequestForm(props: RequestFormProps) {
     !formData.kategoriBarang ||
     (formData.kategoriBarang === "basic"
       ? !formData.jenisProduk || !formData.namaBasic
-      : !formData.fotoBarang && !existingPhotoId) ||
+      : !formData.jenisProduk ||
+        (!formData.fotoBarang && !existingPhotoId && !formData.namaProduk)) ||
     detailItems.length === 0;
 
   // Reset entire form
@@ -465,7 +465,11 @@ export function RequestForm(props: RequestFormProps) {
         notes: initialData.notes || "",
       };
       setFormData(initialFormData);
-      detailItemsState.resetAll(initialData.detailItems);
+      detailItemsState.resetAll(
+        mode === "duplicate"
+          ? initialData.detailItems.map(({ supplierNotes: _, ...rest }) => rest)
+          : initialData.detailItems,
+      );
 
       // Restore existing photo ID for edit and duplicate modes so the photo can be displayed
       if ((mode === "edit" || mode === "duplicate") && initialData.photoId) {
