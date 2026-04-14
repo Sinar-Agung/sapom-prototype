@@ -44,8 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JB's "Closed" tab now includes Cancelled orders
 - Updated: `unified-orders.tsx`
 
-
-
 - Shipment IDs now follow `<PONumber>S<Seq>` format (e.g. `SA2504A01S00`, `SA2504A01S01`)
 - Arrival IDs now follow `<PONumber>R<Seq>` format (e.g. `SA2504A01R00`), with an independent counter per order
 - Sequence is 2-character base-36 (`0–9A–Z`), supporting up to 1296 unique IDs per order
