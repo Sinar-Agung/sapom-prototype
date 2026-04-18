@@ -448,26 +448,26 @@ export const getNotificationsForUser = (
 
         // Sales-specific filtering for ALL request notifications
         if (userRole === "sales" && notification.entityType === "request") {
+          // Also allow if the sales user is the "atas nama" (assignedSalesUsername) for this request
+          const relatedRequest = requests.find(
+            (r: any) => r.id === notification.entityId,
+          );
+          const isAtasNama = relatedRequest?.assignedSalesUsername === username;
+
           // Sales users should only see notifications for their own requests
+          // OR requests where they are set as atas nama sales
           if (notification.originator) {
-            if (notification.originator !== username) {
-              console.log(
-                `Filtering request notification ${notification.id} for sales ${username}:`,
-                {
-                  notificationOriginator: notification.originator,
-                  username: username,
-                  matches: notification.originator === username,
-                },
-              );
-              return false; // Different sales user's request, don't show
+            if (notification.originator !== username && !isAtasNama) {
+              return false; // Different sales user's request and not atas nama, don't show
             }
           } else {
-            // No originator field - this shouldn't happen for request notifications
-            // For safety, don't show request notifications without proper originator
-            console.warn(
-              `Request notification ${notification.id} missing originator field`,
-            );
-            return false;
+            if (!isAtasNama) {
+              // No originator field - for safety, don't show unless user is atas nama
+              console.warn(
+                `Request notification ${notification.id} missing originator field`,
+              );
+              return false;
+            }
           }
         }
 
@@ -756,7 +756,7 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
     title,
     message,
     ["sales", "stockist", "jb"], // Include sales so they can see their own request creation
-    undefined,
+    request.assignedSalesUsername ? [request.assignedSalesUsername] : undefined, // also notify atas nama sales
     undefined,
     undefined,
     undefined,
@@ -809,6 +809,15 @@ export const notifyRequestStatusChanged = (
     specificTargets.push(request.createdBy);
   }
 
+  // Also notify the atas nama sales (assignedSalesUsername) if set and different from changedBy
+  if (
+    request.assignedSalesUsername &&
+    request.assignedSalesUsername !== changedBy &&
+    !specificTargets.includes(request.assignedSalesUsername)
+  ) {
+    specificTargets.push(request.assignedSalesUsername);
+  }
+
   // Notify stockists when status changes (always include stockists)
   targets.push("stockist");
 
@@ -839,6 +848,13 @@ export const notifyRequestStatusChanged = (
 
     // Only notify the sales user who created the request, and all JBs
     const salesTargets = request.createdBy ? [request.createdBy] : [];
+    // Also notify atas nama sales if set
+    if (
+      request.assignedSalesUsername &&
+      !salesTargets.includes(request.assignedSalesUsername)
+    ) {
+      salesTargets.push(request.assignedSalesUsername);
+    }
 
     const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 

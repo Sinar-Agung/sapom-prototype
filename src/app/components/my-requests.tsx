@@ -25,6 +25,8 @@ function requestToOrder(request: Request): Order {
       typeof request.namaPelanggan === "string"
         ? request.namaPelanggan
         : (request.namaPelanggan as EntityReference)?.name || "",
+    assignedSalesUsername: request.assignedSalesUsername,
+    notes: request.notes,
     createdDate: request.timestamp,
     createdBy: request.createdBy || "",
     updatedDate: request.updatedDate,
@@ -358,8 +360,12 @@ export function MyOrders({
       }
     }
 
-    // For sales role, only show orders created by them
-    if (userRole === "sales" && order.createdBy !== currentUser) {
+    // For sales role, only show orders created by them OR assigned to them as Atas Nama
+    if (
+      userRole === "sales" &&
+      order.createdBy !== currentUser &&
+      (order as any).assignedSalesUsername !== currentUser
+    ) {
       return false;
     }
 
@@ -460,9 +466,12 @@ export function MyOrders({
 
   // Total requests visible to current user
   const totalVisibleRequests = orders.filter((order: Request) => {
-    // For sales role, show only orders created by them
+    // For sales role, show orders created by them OR where they are atas nama
     if (userRole === "sales") {
-      return order.createdBy === currentUser;
+      return (
+        order.createdBy === currentUser ||
+        (order as any).assignedSalesUsername === currentUser
+      );
     }
 
     // For stockist role, show:
@@ -614,6 +623,11 @@ export function MyOrders({
     );
     const orderData = requestToOrder(order);
 
+    // Atas nama sales (assignedSalesUsername) can view but not edit/cancel/duplicate
+    const isAtasNama =
+      (order as any).assignedSalesUsername === currentUser &&
+      order.createdBy !== currentUser;
+
     // Wrap callbacks to mark as viewed
     const handleSeeDetail = onSeeDetail
       ? (_o: Order) => {
@@ -627,12 +641,13 @@ export function MyOrders({
           }
         : undefined;
 
-    const handleDuplicateOrder = onDuplicateOrder
-      ? (_o: Order) => {
-          markRequestAsViewed(order.id);
-          onDuplicateOrder(order);
-        }
-      : undefined;
+    const handleDuplicateOrder =
+      !isAtasNama && onDuplicateOrder
+        ? (_o: Order) => {
+            markRequestAsViewed(order.id);
+            onDuplicateOrder(order);
+          }
+        : undefined;
 
     return (
       <OrderCard
@@ -643,9 +658,11 @@ export function MyOrders({
         activeTab={activeTab}
         isExpanded={isExpanded}
         onToggleExpand={() => toggleExpand(order.id)}
-        onEditOrder={onEditOrder ? (_o) => onEditOrder(order) : undefined}
+        onEditOrder={
+          !isAtasNama && onEditOrder ? (_o) => onEditOrder(order) : undefined
+        }
         onDuplicateOrder={handleDuplicateOrder}
-        onCancelOrder={cancelOrder}
+        onCancelOrder={isAtasNama ? undefined : cancelOrder}
         onSeeDetail={handleSeeDetail}
         currentUser={currentUser}
       />
@@ -768,7 +785,7 @@ export function MyOrders({
             }
           >
             <span className="flex items-center gap-1.5">
-              Ordered ({orderedCount})
+              New Order ({orderedCount})
               {unseenOrderedCount > 0 && (
                 <span className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
                   {unseenOrderedCount}

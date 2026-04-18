@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Atas Nama Sales — Full Request Visibility & Read-Only Access**
+
+- Sales users set as `assignedSalesUsername` on a request can now see those requests across all statuses in My Requests, not just their own
+- `requestNoFiltered` already filtered correctly; `totalVisibleRequests` counter now also counts `assignedSalesUsername === currentUser` so the request badge is accurate
+- `renderOrderCard` detects `isAtasNama` and suppresses Edit, Cancel, and Duplicate buttons — atas nama sales can view only
+- Updated: `my-requests.tsx`
+
+**Atas Nama Sales — Full Notification Coverage**
+
+- `getNotificationsForUser` now lets atas nama sales through the sales notification filter by checking `relatedRequest?.assignedSalesUsername === username`, covering all notification types (`request_created`, `request_status_changed`, `request_rejected`, `request_cancelled`, `request_updated`, etc.)
+- `notifyRequestCreated`: `assignedSalesUsername` added to `specificTargets` so the atas nama user receives the creation notification
+- `notifyRequestStatusChanged`: `assignedSalesUsername` pushed into `specificTargets` for all status transitions, including the special "Ordered" branch which uses its own `salesTargets` array
+- Updated: `notification-helper.ts`
+
 **Notifications Page — Filter-Aware Tab Counts & Displaying Label**
 
 - Tab badges (All, Unread, Expiring, Archived) now reflect the count after applying search text and type filter, matching the behaviour of the Orders page
