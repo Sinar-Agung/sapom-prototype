@@ -63,6 +63,11 @@ export interface FormData {
   notes?: string;
 }
 
+interface AtasNamaOption {
+  username: string;
+  fullName: string;
+}
+
 interface RequestFormHeaderProps {
   formData: FormData;
   onFormDataChange: (formData: FormData) => void;
@@ -73,6 +78,12 @@ interface RequestFormHeaderProps {
   onFileInputKeyChange: (key: number) => void;
   existingPhotoId?: string | null;
   onExistingPhotoClear?: () => void;
+  /** Sales Internal only: list of sales in the same branch */
+  atasNamaOptions?: AtasNamaOption[];
+  /** Current value of the Atas Nama dropdown */
+  atasNamaValue?: string;
+  /** Called when the Atas Nama dropdown value changes */
+  onAtasNamaChange?: (value: string) => void;
 }
 
 export function RequestFormHeader({
@@ -85,6 +96,9 @@ export function RequestFormHeader({
   onFileInputKeyChange,
   existingPhotoId,
   onExistingPhotoClear,
+  atasNamaOptions,
+  atasNamaValue,
+  onAtasNamaChange,
 }: RequestFormHeaderProps) {
   const existingPhotoData = useImage(existingPhotoId);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +212,30 @@ export function RequestFormHeader({
             allowCustomValue={false}
           />
 
+          {/* Atas Nama — only shown for Sales Internal */}
+          {atasNamaOptions &&
+            atasNamaOptions.length > 0 &&
+            onAtasNamaChange && (
+              <>
+                <Label htmlFor="atasNama" className="text-xs md:pt-2">
+                  Atas Nama
+                </Label>
+                <select
+                  id="atasNama"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={atasNamaValue ?? ""}
+                  onChange={(e) => onAtasNamaChange(e.target.value)}
+                >
+                  <option value="">— Tidak ada / None —</option>
+                  {atasNamaOptions.map((s) => (
+                    <option key={s.username} value={s.username}>
+                      {s.fullName}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
           {/* Customer Name */}
           <Label htmlFor="namaPelanggan" className="text-xs md:pt-2">
             Customer Name
@@ -309,9 +347,9 @@ export function RequestFormHeader({
             maxLength={15}
           />
 
-          {/* Notes */}
+          {/* Product Notes */}
           <Label htmlFor="requestNotes" className="text-xs md:pt-2">
-            Notes
+            Product Notes
           </Label>
           <textarea
             id="requestNotes"

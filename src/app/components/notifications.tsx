@@ -1,4 +1,6 @@
 import { Notification } from "@/app/types/notification";
+import { Order } from "@/app/types/order";
+import { Request } from "@/app/types/request";
 import { getImage } from "@/app/utils/image-storage";
 import {
   archiveNotificationForUser,
@@ -9,7 +11,11 @@ import {
   markNotificationAsUnread,
   unarchiveNotificationForUser,
 } from "@/app/utils/notification-helper";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import {
+  getCurrentUserDetails,
+  getFullNameFromUsername,
+  SupplierUser,
+} from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -25,7 +31,6 @@ import {
   Bell,
   CheckCheck,
   CheckSquare,
-  ChevronDown,
   Clock,
   Edit,
   FileText,
@@ -35,7 +40,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { NewBadge } from "./new-badge";
 import {
@@ -125,7 +130,6 @@ export function Notifications({
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(40);
-  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<
     "all" | "unread" | "expiring" | "archived"
@@ -200,10 +204,74 @@ export function Notifications({
     const saved = sessionStorage.getItem("notificationsTypeFilter");
     return saved ? JSON.parse(saved) : [];
   });
+  const [kadarFilter, setKadarFilter] = useState<string[]>(() => {
+    const userDetails = getCurrentUserDetails();
+    if (userDetails?.accountType === "supplier") {
+      const su = userDetails as SupplierUser;
+      if (su.kadar && su.kadar.length > 0) return su.kadar;
+    }
+    return [];
+  });
+  const [branchFilterNotif, setBranchFilterNotif] = useState<string[]>(() => {
+    const userDetails = getCurrentUserDetails();
+    if (userDetails?.accountType === "supplier") {
+      const su = userDetails as SupplierUser;
+      if (su.branches && su.branches.length > 0) return su.branches;
+    }
+    return [];
+  });
+
+  // Build entityId → kadar[] map from localStorage orders + requests
+  const entityKadarMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    try {
+      const rawOrders = localStorage.getItem("orders");
+      if (rawOrders) {
+        (JSON.parse(rawOrders) as Order[]).forEach((o) => {
+          const kadarList = (o.detailItems || [])
+            .map((item) => item.kadar)
+            .filter(Boolean);
+          if (kadarList.length > 0) map.set(o.id, kadarList);
+        });
+      }
+    } catch (_) {}
+    try {
+      const rawRequests = localStorage.getItem("requests");
+      if (rawRequests) {
+        (JSON.parse(rawRequests) as Request[]).forEach((r) => {
+          const kadarList = ((r as any).detailItems || [])
+            .map((item: any) => item.kadar)
+            .filter(Boolean);
+          if (kadarList.length > 0) map.set(r.id, kadarList);
+        });
+      }
+    } catch (_) {}
+    return map;
+  }, [notifications]);
+
+  // Build entityId → branchCode map from localStorage orders
+  const entityBranchMap = useMemo(() => {
+    const map = new Map<string, string>();
+    try {
+      const rawOrders = localStorage.getItem("orders");
+      if (rawOrders) {
+        (JSON.parse(rawOrders) as Order[]).forEach((o) => {
+          if (o.branchCode) map.set(o.id, o.branchCode);
+        });
+      }
+    } catch (_) {}
+    return map;
+  }, [notifications]);
+
   const [sortBy, setSortBy] = useState<string>(() => {
     return sessionStorage.getItem("notificationsSortBy") || "timestamp";
   });
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(
+    () =>
+      (sessionStorage.getItem("notificationsSortDirection") as
+        | "asc"
+        | "desc") || "desc",
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const currentUser =
     localStorage.getItem("username") ||
@@ -235,6 +303,10 @@ export function Notifications({
   useEffect(() => {
     sessionStorage.setItem("notificationsSortBy", sortBy);
   }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem("notificationsSortDirection", sortDirection);
+  }, [sortDirection]);
 
   useEffect(() => {
     loadNotifications();
@@ -375,18 +447,69 @@ export function Notifications({
               (n) => n.eventType !== "request_expiring",
             ); // Exclude expiring from All tab
 
-  // Apply text filter
-  const filteredNotifications = tabFilteredNotifications.filter((n) => {
+  // Apply text + type filters (before kadar, so kadar options can show what's available)
+  const textTypeFilteredNotifications = tabFilteredNotifications.filter((n) => {
     if (typeFilter.length > 0 && !typeFilter.includes(n.eventType))
       return false;
-    if (!filterText) return true;
-    const searchText = filterText.toLowerCase();
+    if (!filterText.trim()) return true;
+    const searchText = filterText.trim().toLowerCase();
     return (
       n.entityNumber?.toLowerCase().includes(searchText) ||
       n.message.toLowerCase().includes(searchText) ||
       n.triggeredBy.toLowerCase().includes(searchText)
     );
   });
+
+  // Build kadar options from text+type-filtered notifications
+  const ALL_KADAR_NOTIF = ["6k", "8k", "9k", "16k", "17k", "24k"];
+  const presentKadarSet = new Set<string>(
+    textTypeFilteredNotifications.flatMap(
+      (n) => entityKadarMap.get(n.entityId) ?? [],
+    ),
+  );
+  const kadarOptions = ALL_KADAR_NOTIF.map((k) => ({
+    value: k,
+    label: k.toUpperCase(),
+    disabled: !presentKadarSet.has(k),
+  }));
+
+  // Build branch options from text+type-filtered notifications (supplier role only)
+  const ALL_BRANCHES_NOTIF = [
+    { code: "JKT", label: "Jakarta" },
+    { code: "BDG", label: "Bandung" },
+    { code: "SBY", label: "Surabaya" },
+  ];
+  const presentBranchSet = new Set<string>(
+    textTypeFilteredNotifications
+      .map((n) => entityBranchMap.get(n.entityId) ?? "")
+      .filter(Boolean),
+  );
+  const branchOptionsNotif =
+    accountType === "supplier"
+      ? ALL_BRANCHES_NOTIF.map(({ code, label }) => ({
+          value: code,
+          label,
+          disabled: !presentBranchSet.has(code),
+        }))
+      : [];
+
+  // Apply kadar + branch filters
+  const filteredNotifications = (() => {
+    let result = textTypeFilteredNotifications;
+    if (kadarFilter.length > 0) {
+      result = result.filter((n) => {
+        const kadarList = entityKadarMap.get(n.entityId) ?? [];
+        return kadarList.some((k) => kadarFilter.includes(k));
+      });
+    }
+    if (branchFilterNotif.length > 0) {
+      result = result.filter((n) => {
+        const branch = entityBranchMap.get(n.entityId);
+        return branch ? branchFilterNotif.includes(branch) : false;
+      });
+    }
+    return result;
+  })();
 
   // Sort notifications based on user preference
   const sortedNotifications = [...filteredNotifications].sort((a, b) => {
@@ -455,6 +578,31 @@ export function Notifications({
 
   // expiringCount and archivedCount removed — tab badges use filtered* variants below
 
+  // Apply all active filters (search, type, kadar, branch) to any notification array
+  const applyAllFilters = (notifs: Notification[]) => {
+    return notifs.filter((n) => {
+      if (typeFilter.length > 0 && !typeFilter.includes(n.eventType))
+        return false;
+      if (filterText.trim()) {
+        const searchText = filterText.trim().toLowerCase();
+        const matchesText =
+          n.entityNumber?.toLowerCase().includes(searchText) ||
+          n.message.toLowerCase().includes(searchText) ||
+          n.triggeredBy.toLowerCase().includes(searchText);
+        if (!matchesText) return false;
+      }
+      if (kadarFilter.length > 0) {
+        const kadarList = entityKadarMap.get(n.entityId) ?? [];
+        if (!kadarList.some((k) => kadarFilter.includes(k))) return false;
+      }
+      if (branchFilterNotif.length > 0) {
+        const branch = entityBranchMap.get(n.entityId);
+        if (!branch || !branchFilterNotif.includes(branch)) return false;
+      }
+      return true;
+    });
+  };
+
   // Apply search + type filters to an arbitrary notification array
   const applySearchTypeFilter = (notifs: Notification[]) =>
     notifs.filter((n) => {
@@ -469,20 +617,20 @@ export function Notifications({
       );
     });
 
-  // Per-tab filtered counts (reflect active search + type filter)
-  const filteredAllCount = applySearchTypeFilter(
+  // Per-tab filtered counts (reflect all active filters)
+  const filteredAllCount = applyAllFilters(
     nonArchivedNotifications.filter((n) => n.eventType !== "request_expiring"),
   ).length;
-  const filteredUnreadCount = applySearchTypeFilter(
+  const filteredUnreadCount = applyAllFilters(
     nonArchivedNotifications.filter(
       (n) =>
         !n.readBy.includes(currentUser) && n.eventType !== "request_expiring",
     ),
   ).length;
-  const filteredExpiringCount = applySearchTypeFilter(
+  const filteredExpiringCount = applyAllFilters(
     nonArchivedNotifications.filter((n) => n.eventType === "request_expiring"),
   ).length;
-  const filteredArchivedCount = applySearchTypeFilter(archivedNotifications).length;
+  const filteredArchivedCount = applyAllFilters(archivedNotifications).length;
 
   const getEventIcon = (eventType: string) => {
     if (eventType === "request_expiring") {
@@ -742,7 +890,19 @@ export function Notifications({
             style={{ gridRow: row, gridColumn: isLeft ? 2 : 4 }}
             className={`text-xs truncate ${valueStyle}`}
           >
-            {value || "—"}
+            {field === "Product Type" ? (
+              <>
+                <span className="sm:hidden">
+                  {(value || "—")
+                    .split(" ")
+                    .map((w: string) => w.charAt(0).toUpperCase())
+                    .join(" ")}
+                </span>
+                <span className="hidden sm:inline">{value || "—"}</span>
+              </>
+            ) : (
+              value || "—"
+            )}
           </span>,
         ];
       })
@@ -794,17 +954,26 @@ export function Notifications({
 
     // Look up notes from the linked request
     const requestNotes = (() => {
-      if (notification.entityType !== "request") return "";
       try {
-        const reqs = JSON.parse(localStorage.getItem("orders") || "[]");
-        const req = reqs.find((r: any) => r.id === notification.entityId);
-        return req?.notes || "";
+        if (notification.entityType === "request") {
+          const reqs = JSON.parse(localStorage.getItem("requests") || "[]");
+          const req = reqs.find((r: any) => r.id === notification.entityId);
+          return req?.notes || "";
+        } else if (notification.entityType === "order") {
+          const orders = JSON.parse(localStorage.getItem("orders") || "[]");
+          const ord = orders.find((o: any) => o.id === notification.entityId);
+          if (ord?.requestId) {
+            const reqs = JSON.parse(localStorage.getItem("requests") || "[]");
+            const req = reqs.find((r: any) => r.id === ord.requestId);
+            return req?.notes || ord?.notes || "";
+          }
+          return ord?.notes || "";
+        }
+        return "";
       } catch {
         return "";
       }
     })();
-    const isNotesExpanded = expandedNotes.has(notification.id);
-
     const cardClass = opts.isArchived
       ? "bg-gray-50 border-gray-300 opacity-75"
       : isExpiring
@@ -869,24 +1038,9 @@ export function Notifications({
                 }}
               />
               {requestNotes && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpandedNotes((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(notification.id))
-                        next.delete(notification.id);
-                      else next.add(notification.id);
-                      return next;
-                    });
-                  }}
-                  className="ml-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                  title={isNotesExpanded ? "Hide notes" : "Show notes"}
-                >
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform ${isNotesExpanded ? "rotate-180" : ""}`}
-                  />
-                </button>
+                <p className="mt-1 text-xs italic text-gray-500 leading-snug">
+                  {requestNotes}
+                </p>
               )}
             </div>
 
@@ -910,13 +1064,7 @@ export function Notifications({
               </span>
             </div>
 
-            {/* Collapsible notes */}
-            {requestNotes && isNotesExpanded && (
-              <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-700">
-                <p className="font-semibold mb-0.5">Notes:</p>
-                <p className="whitespace-pre-wrap">{requestNotes}</p>
-              </div>
-            )}
+            {/* Product Notes */}
           </div>
 
           {/* Right column: timestamp + archive/unarchive */}
@@ -1025,6 +1173,14 @@ export function Notifications({
               eventTypeFilter={typeFilter}
               onEventTypeFilterChange={setTypeFilter}
               eventTypeOptions={eventTypeOptions}
+              kadarFilter={kadarFilter}
+              onKadarFilterChange={setKadarFilter}
+              kadarOptions={kadarOptions.length > 0 ? kadarOptions : undefined}
+              branchFilter={branchFilterNotif}
+              onBranchFilterChange={setBranchFilterNotif}
+              branchOptions={
+                branchOptionsNotif.length > 0 ? branchOptionsNotif : undefined
+              }
             />
           </div>
 

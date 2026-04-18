@@ -7,7 +7,10 @@ import {
 import { Order } from "@/app/types/order";
 import { getImage } from "@/app/utils/image-storage";
 import { formatRelativeTime } from "@/app/utils/relative-time";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -28,6 +31,7 @@ import {
   Eye,
   ImageIcon,
   Trash2,
+  ZoomIn,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DetailItemsTable } from "./detail-items-table";
@@ -112,6 +116,9 @@ export function OrderCard({
 }: OrderCardProps) {
   // Check if current user has viewed this order
   const isUnviewed = currentUser && !order.viewedBy?.includes(currentUser);
+
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Async image loading
   const [resolvedImage, setResolvedImage] = useState<string | null>(null);
@@ -259,6 +266,11 @@ export function OrderCard({
     JENIS_PRODUK_OPTIONS,
     order.jenisProduk,
   );
+  // Abbreviate product type to initials for mobile (e.g. "Gelang Kaku" → "G K")
+  const jenisProdukInitials = jenisProdukLabel
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase())
+    .join(" ");
   const productNameLabel =
     order.kategoriBarang === "basic"
       ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
@@ -282,7 +294,7 @@ export function OrderCard({
           <span
             className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
           >
-            {order.status}
+            {getStatusLabel(order.status)}
           </span>
           {isUnviewed && (
             <NewBadge className="w-8 h-8 flex-shrink-0 animate-pulse-scale" />
@@ -319,6 +331,10 @@ export function OrderCard({
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center">
+                  <DropdownMenuItem onClick={() => setLightboxOpen(true)}>
+                    <ZoomIn className="w-4 h-4 mr-2" />
+                    View Full Image
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => fileInputGalleryRef.current?.click()}
                   >
@@ -332,12 +348,18 @@ export function OrderCard({
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="w-16 h-16 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-44 lg:h-44 border rounded-lg overflow-hidden bg-gray-50">
+              <div
+                className="w-16 h-16 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-44 lg:h-44 border rounded-lg overflow-hidden bg-gray-50 relative cursor-pointer group"
+                onClick={() => setLightboxOpen(true)}
+              >
                 <img
                   src={resolvedImage ?? getFallbackImage(order)}
                   alt={productNameLabel}
                   className="w-full h-full object-cover"
                 />
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ZoomIn className="w-6 h-6 text-white" />
+                </div>
               </div>
             )}
 
@@ -365,7 +387,11 @@ export function OrderCard({
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="font-bold text-xs sm:text-base leading-tight">
-                  {jenisProdukLabel} {productNameLabel}
+                  <span className="sm:hidden">{jenisProdukInitials}</span>
+                  <span className="hidden sm:inline">
+                    {jenisProdukLabel}
+                  </span>{" "}
+                  {productNameLabel}
                 </h3>
                 <span
                   className={`text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded shrink-0 ${
@@ -386,7 +412,7 @@ export function OrderCard({
                 <span
                   className={`sm:hidden text-[9px] px-1.5 py-0.5 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
                 >
-                  {order.status}
+                  {getStatusLabel(order.status)}
                 </span>
                 {/* New badge - Mobile only */}
                 {isUnviewed && (
@@ -394,6 +420,13 @@ export function OrderCard({
                 )}
               </div>
             </div>
+
+            {/* Product Notes */}
+            {order.notes && (
+              <p className="text-[10px] sm:text-xs italic text-gray-500 mb-1.5 sm:mb-2 leading-snug">
+                {order.notes}
+              </p>
+            )}
 
             {/* Order Information Grid - All fields in one consistent grid */}
             <div className="grid grid-cols-[minmax(160px,auto)_auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
@@ -413,7 +446,7 @@ export function OrderCard({
                 <>
                   <span className="text-gray-500">PO Number</span>
                   <span>:</span>
-                  <span className="font-mono text-gray-700">
+                  <span className="font-mono font-semibold text-blue-700">
                     {order.requestNo}
                   </span>
                 </>
@@ -454,15 +487,29 @@ export function OrderCard({
                 order.sales &&
                 (userRole === "jb" ||
                   userRole === "stockist" ||
-                  showSalesName) && (
+                  showSalesName ||
+                  !!order.assignedSalesUsername) && (
                   <>
-                    <span className="text-gray-500">Sales</span>
+                    <span className="text-gray-500">
+                      {order.assignedSalesUsername ? "Sales Internal" : "Sales"}
+                    </span>
                     <span>:</span>
                     <span className="text-gray-700">
                       {getFullNameFromUsername(order.sales)}
                     </span>
                   </>
                 )}
+
+              {/* Atas Nama Sales - when salesInternal created the request on behalf of a sales person */}
+              {userRole !== "supplier" && order.assignedSalesUsername && (
+                <>
+                  <span className="text-gray-500">Atas Nama Sales</span>
+                  <span>:</span>
+                  <span className="text-gray-700">
+                    {getFullNameFromUsername(order.assignedSalesUsername)}
+                  </span>
+                </>
+              )}
 
               {/* Customer Name - Hidden for suppliers */}
               {userRole !== "supplier" && order.atasNama && (
@@ -672,6 +719,27 @@ export function OrderCard({
           />
         )}
       </Card>
+
+      {/* Image Lightbox */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center cursor-pointer"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white text-3xl font-bold leading-none hover:text-gray-300"
+            onClick={() => setLightboxOpen(false)}
+          >
+            ×
+          </button>
+          <img
+            src={resolvedImage ?? getFallbackImage(order)}
+            alt={productNameLabel}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       <Dialog open={showCameraPreview} onOpenChange={stopCamera}>
         <DialogContent className="max-w-2xl">

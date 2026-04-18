@@ -69,7 +69,9 @@ export const parseBerat = (beratInput: string): string[] => {
         }
       }
     } else if (part) {
-      result.push(part);
+      // Strip a trailing dot so "11." is treated as "11"
+      const normalised = part.endsWith(".") ? part.slice(0, -1) : part;
+      result.push(normalised);
     }
   });
 

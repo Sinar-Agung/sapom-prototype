@@ -6,7 +6,10 @@ import {
 } from "@/app/data/order-data";
 import type { Order, OrderArrival } from "@/app/types/order";
 import type { Request } from "@/app/types/request";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import {
   getBranchName,
   getCurrentUserDetails,
@@ -260,7 +263,7 @@ export function SalesHome({
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusBadgeClasses(order.status)}`}
                         >
-                          {order.status}
+                          {getStatusLabel(order.status)}
                         </span>
                       </div>
                       <p className="text-sm font-medium text-gray-800 truncate">

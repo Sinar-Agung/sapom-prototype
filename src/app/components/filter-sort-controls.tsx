@@ -42,6 +42,9 @@ interface FilterSortControlsProps {
   eventTypeFilter?: string[];
   onEventTypeFilterChange?: (values: string[]) => void;
   eventTypeOptions?: SortOption[];
+  kadarFilter?: string[];
+  onKadarFilterChange?: (values: string[]) => void;
+  kadarOptions?: SortOption[];
 }
 
 export function FilterSortControls({
@@ -65,10 +68,14 @@ export function FilterSortControls({
   eventTypeFilter = [],
   onEventTypeFilterChange,
   eventTypeOptions,
+  kadarFilter = [],
+  onKadarFilterChange,
+  kadarOptions,
 }: FilterSortControlsProps) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
   const [eventTypeOpen, setEventTypeOpen] = useState(false);
+  const [kadarOpen, setKadarOpen] = useState(false);
   const itemName =
     type === "request"
       ? "requests"
@@ -326,6 +333,80 @@ export function FilterSortControls({
             )}
           </div>
         )}
+
+      {/* Kadar filter multi-select */}
+      {kadarOptions && kadarOptions.length > 0 && onKadarFilterChange && (
+        <div className="relative flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setKadarOpen((o) => !o)}
+            className={`h-8 sm:h-9 flex items-center gap-1.5 px-3 border rounded-md text-xs sm:text-sm bg-white transition-colors ${
+              kadarFilter.length > 0
+                ? "border-blue-400 bg-blue-50 text-blue-700"
+                : "border-input text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <span className="whitespace-nowrap">
+              {kadarFilter.length === 0
+                ? "All Kadar"
+                : kadarFilter.length === 1
+                  ? (kadarOptions.find((k) => k.value === kadarFilter[0])
+                      ?.label ?? kadarFilter[0])
+                  : `${kadarFilter.length} kadar`}
+            </span>
+            {kadarFilter.length > 0 ? (
+              <X
+                className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onKadarFilterChange([]);
+                }}
+              />
+            ) : (
+              <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+            )}
+          </button>
+          {kadarOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setKadarOpen(false)}
+              />
+              <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-md shadow-lg min-w-[140px] max-h-72 overflow-y-auto">
+                {kadarOptions.map((opt) => {
+                  const checked = kadarFilter.includes(opt.value);
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm ${
+                        opt.disabled
+                          ? "opacity-40 cursor-not-allowed"
+                          : "hover:bg-gray-50 cursor-pointer"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        disabled={opt.disabled}
+                        onCheckedChange={(c) => {
+                          if (opt.disabled) return;
+                          if (c) {
+                            onKadarFilterChange([...kadarFilter, opt.value]);
+                          } else {
+                            onKadarFilterChange(
+                              kadarFilter.filter((s) => s !== opt.value),
+                            );
+                          }
+                        }}
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Sort controls - wraps to next line on mobile if needed, grouped with filter on desktop */}
       <div className="flex items-center gap-1.5 sm:gap-2">

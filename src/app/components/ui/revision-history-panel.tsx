@@ -172,6 +172,34 @@ function DetailItemsRevisionTable({
               </tr>
             );
           })}
+          {/* Deleted items — present in prevItems but removed in this revision */}
+          {prevItems &&
+            prevItems.slice(items.length).map((deletedItem, i) => {
+              const ud = getUkuranDisplay(deletedItem.ukuran);
+              return (
+                <tr key={`deleted-${i}`} className="opacity-70 bg-red-50">
+                  <td
+                    className={`px-2 py-1 font-medium border line-through text-red-600 ${getKadarColor(deletedItem.kadar)}`}
+                  >
+                    {deletedItem.kadar}
+                  </td>
+                  <td
+                    className={`px-2 py-1 border line-through text-red-600 ${getWarnaColor(deletedItem.warna)}`}
+                  >
+                    {getWarnaLabel(deletedItem.warna)}
+                  </td>
+                  <td className="px-2 py-1 border line-through text-red-600">
+                    {ud.showUnit ? `${ud.value} cm` : ud.value}
+                  </td>
+                  <td className="px-2 py-1 text-right border line-through text-red-600">
+                    {deletedItem.berat}
+                  </td>
+                  <td className="px-2 py-1 text-right border line-through text-red-600">
+                    {deletedItem.pcs}
+                  </td>
+                </tr>
+              );
+            })}
         </tbody>
       </table>
     </div>

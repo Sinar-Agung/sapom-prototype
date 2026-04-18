@@ -56,7 +56,7 @@ export const STATUS_COLORS: Record<string, StatusConfig> = {
   Ordered: {
     bg: "bg-[#F59E0B]",
     text: "text-white",
-    label: "Ordered",
+    label: "New Order",
   },
   "Conveyed to Supplier": {
     bg: "bg-[#FB923C]",
@@ -211,4 +211,9 @@ export const getStatusConfig = (status: string): StatusConfig => {
 export const getStatusBadgeClasses = (status: string): string => {
   const config = getStatusConfig(status);
   return `${config.bg} ${config.text}`;
+};
+
+// Helper function to get the display label for a status
+export const getStatusLabel = (status: string): string => {
+  return getStatusConfig(status).label;
 };

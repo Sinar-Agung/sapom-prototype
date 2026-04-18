@@ -12,7 +12,10 @@ import {
   notifyOrderCreated,
   notifyRequestStatusChanged,
 } from "@/app/utils/notification-helper";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -717,7 +720,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
               <span
                 className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeClasses(request.status)}`}
               >
-                {request.status}
+                {getStatusLabel(request.status)}
               </span>
             </div>
             {request.requestNo && (

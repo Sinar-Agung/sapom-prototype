@@ -5,6 +5,7 @@ import {
   Factory,
   Package,
   UserCircle,
+  Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -85,11 +86,11 @@ export default function App() {
     );
   });
   const [userRole, setUserRole] = useState<
-    "sales" | "stockist" | "jb" | "supplier"
+    "sales" | "salesInternal" | "stockist" | "jb" | "supplier"
   >(() => {
     return (localStorage.getItem("userRole") ||
       sessionStorage.getItem("userRole") ||
-      "sales") as "sales" | "stockist" | "jb" | "supplier";
+      "sales") as "sales" | "salesInternal" | "stockist" | "jb" | "supplier";
   });
   const [userLanguage, setUserLanguage] = useState<LanguageCode>(() => {
     // Check for saved language preference
@@ -157,7 +158,9 @@ export default function App() {
             ? "Stockist"
             : userRole === "supplier"
               ? "Supplier"
-              : "Sales";
+              : userRole === "salesInternal"
+                ? "Sales Internal"
+                : "Sales";
       document.title = `SAPOM (${roleLabel})`;
     } else {
       document.title = "SAPOM";
@@ -308,7 +311,7 @@ export default function App() {
     const fallback =
       userRole === "jb"
         ? "jb-orders"
-        : userRole === "sales"
+        : userRole === "sales" || userRole === "salesInternal"
           ? "sales-orders"
           : "my-orders";
     const target =
@@ -421,8 +424,8 @@ export default function App() {
       // JB sees request details
       console.log("→ Opening request detail for JB");
       handleSeeDetail(request, "assigned-detail");
-    } else if (userRole === "sales") {
-      // Sales: if request is Open and belongs to them, go to edit page
+    } else if (userRole === "sales" || userRole === "salesInternal") {
+      // Sales/SalesInternal: if request is Open and belongs to them, go to edit page
       // Otherwise, go to detail page
       if (request.status === "Open" && request.createdBy === currentUser) {
         console.log(
@@ -619,7 +622,7 @@ export default function App() {
     const fallback =
       userRole === "supplier"
         ? "supplier-orders"
-        : userRole === "sales"
+        : userRole === "sales" || userRole === "salesInternal"
           ? "sales-orders"
           : "jb-orders";
     setCurrentPage(previousPage || fallback);
@@ -743,7 +746,7 @@ export default function App() {
   const handleNavigateToMyRequests = () => {
     setHasFormChanges(false);
     // Sales users go to the Pesanan page on the Internal tab
-    if (userRole === "sales") {
+    if (userRole === "sales" || userRole === "salesInternal") {
       setPreviousOrdersTab("internal");
       setCurrentPage("sales-orders");
     } else {
@@ -771,7 +774,10 @@ export default function App() {
     }
 
     // Go back to where the user came from
-    const fallback = userRole === "sales" ? "sales-orders" : "my-orders";
+    const fallback =
+      userRole === "sales" || userRole === "salesInternal"
+        ? "sales-orders"
+        : "my-orders";
     setCurrentPage(previousPage || fallback);
     setHasFormChanges(false);
   };
@@ -828,7 +834,12 @@ export default function App() {
     checkAndNotifyExpiringRequests(username, role);
 
     // Set default page based on role
-    if (role === "stockist" || role === "jb" || role === "sales") {
+    if (
+      role === "stockist" ||
+      role === "jb" ||
+      role === "sales" ||
+      role === "salesInternal"
+    ) {
       setCurrentPage("home");
     } else {
       setCurrentPage("tambah-pesanan");
@@ -1014,25 +1025,50 @@ export default function App() {
             />
           );
         }
-      case "eta-calendar":
+      case "eta-calendar": {
+        const calendarSupplierId =
+          userRole === "supplier"
+            ? (getCurrentUserDetails() as any)?.supplierId
+            : undefined;
         return (
           <ETACalendar
-            userRole={userRole as "sales" | "jb"}
+            userRole={userRole as "sales" | "jb" | "supplier"}
             currentUser={currentUser}
+            supplierId={calendarSupplierId}
             onSeeDetail={(order) => handleSeeOrderDetail(order)}
-            onUpdateOrder={(order) => {
-              setPreviousPage("eta-calendar");
-              handleSeeOrderDetail(order);
-            }}
-            onEditOrder={handleEditOrder}
-            onCancelOrder={(id) => {
-              const orders = JSON.parse(localStorage.getItem("orders") ?? "[]");
-              const order = orders.find((o: any) => o.id === id);
-              if (order) handleSeeOrderDetail(order);
-            }}
-            onDuplicateOrder={(order) => handleDuplicateOrder(order)}
+            onUpdateOrder={
+              userRole === "supplier"
+                ? (order) => {
+                    setPreviousPage("eta-calendar");
+                    handleSeeOrderDetail(order);
+                  }
+                : userRole === "jb"
+                  ? (order) => {
+                      setPreviousPage("eta-calendar");
+                      handleSeeOrderDetail(order);
+                    }
+                  : undefined
+            }
+            onEditOrder={userRole === "sales" ? handleEditOrder : undefined}
+            onCancelOrder={
+              userRole === "sales"
+                ? (id) => {
+                    const orders = JSON.parse(
+                      localStorage.getItem("orders") ?? "[]",
+                    );
+                    const order = orders.find((o: any) => o.id === id);
+                    if (order) handleSeeOrderDetail(order);
+                  }
+                : undefined
+            }
+            onDuplicateOrder={
+              userRole === "sales"
+                ? (order) => handleDuplicateOrder(order)
+                : undefined
+            }
           />
         );
+      }
       case "activities":
         return (
           <div className="h-full flex items-center justify-center">
@@ -1117,7 +1153,7 @@ export default function App() {
             isJBWaiting={userRole === "jb" && jbRequestsTab === "waiting"}
             onEditRequest={
               // Only show edit button for sales when request is Open and belongs to them
-              userRole === "sales" &&
+              (userRole === "sales" || userRole === "salesInternal") &&
               verifyingOrder?.status === "Open" &&
               verifyingOrder?.createdBy === currentUser
                 ? () => handleEditOrder(verifyingOrder)
@@ -1125,7 +1161,7 @@ export default function App() {
             }
             onDuplicateRequest={
               // Only show duplicate button for sales
-              userRole === "sales"
+              userRole === "sales" || userRole === "salesInternal"
                 ? () => handleDuplicateOrder(verifyingOrder)
                 : undefined
             }
@@ -1204,6 +1240,13 @@ export default function App() {
           label: "Supplier",
           color: "text-orange-600",
           bg: "bg-orange-50",
+        };
+      case "salesInternal":
+        return {
+          icon: Users,
+          label: "Sales Internal",
+          color: "text-indigo-600",
+          bg: "bg-indigo-50",
         };
       case "sales":
       default:

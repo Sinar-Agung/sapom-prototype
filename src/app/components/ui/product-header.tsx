@@ -1,7 +1,11 @@
-import { Fragment } from "react";
 import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getBranchName, getFullNameFromUsername } from "@/app/utils/user-data";
 import type { BranchCode } from "@/app/utils/user-data";
+import {
+  findUserByUsername,
+  getBranchName,
+  getFullNameFromUsername,
+} from "@/app/utils/user-data";
+import { Fragment, useState } from "react";
 
 export type ProductHeaderAttributeKey =
   | "poNumber"
@@ -14,6 +18,7 @@ export type ProductHeaderAttributeKey =
   | "status"
   | "created"
   | "sales"
+  | "assignedSales"
   | "createdBy"
   | "updated"
   | "updatedBy";
@@ -30,6 +35,7 @@ const ATTRIBUTE_ORDER: ProductHeaderAttributeKey[] = [
   "status",
   "created",
   "sales",
+  "assignedSales",
   "createdBy",
   "updated",
   "updatedBy",
@@ -51,6 +57,8 @@ interface ProductHeaderProps {
   poNumber?: string;
   /** Sales person username (resolved to full name, shown as "Sales") */
   salesUsername?: string;
+  /** Assigned sales person username for salesInternal-created requests */
+  assignedSalesUsername?: string;
   /** JB creator username (resolved to full name, shown as "JB") */
   createdByUsername?: string;
   branchCode?: BranchCode | string;
@@ -73,6 +81,8 @@ interface ProductHeaderProps {
   onOriginalRequest?: () => void;
   /** Whether a related request exists to link to */
   hasRelatedRequest?: boolean;
+  /** Optional product notes shown below the title in a distinct style */
+  notes?: string;
 }
 
 export function ProductHeader({
@@ -83,6 +93,7 @@ export function ProductHeader({
   status,
   poNumber,
   salesUsername,
+  assignedSalesUsername,
   createdByUsername,
   branchCode,
   stockistUsername,
@@ -95,7 +106,10 @@ export function ProductHeader({
   updatedByUsername,
   onOriginalRequest,
   hasRelatedRequest,
+  notes,
 }: ProductHeaderProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   const userRole =
     sessionStorage.getItem("userRole") ||
     localStorage.getItem("userRole") ||
@@ -216,13 +230,27 @@ export function ProductHeader({
       show: !!created,
     },
     sales: {
-      label: "Sales",
+      label:
+        findUserByUsername(salesUsername || "")?.accountType === "salesInternal"
+          ? "Sales Internal"
+          : "Sales",
       value: (
         <span className="font-medium">
           {salesUsername ? getFullNameFromUsername(salesUsername) : ""}
         </span>
       ),
       show: !!salesUsername,
+    },
+    assignedSales: {
+      label: "Atas Nama Sales",
+      value: (
+        <span className="font-medium">
+          {assignedSalesUsername
+            ? getFullNameFromUsername(assignedSalesUsername)
+            : ""}
+        </span>
+      ),
+      show: !!assignedSalesUsername,
     },
     createdBy: {
       label: "JB",
@@ -255,26 +283,56 @@ export function ProductHeader({
     .filter((row) => row.show);
 
   return (
-    <div className="flex gap-4">
-      <div className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50">
-        <img
-          src={imageSrc}
-          alt={imageAlt}
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <div className="flex-1">
-        <h2 className="text-lg font-bold mb-2">{title}</h2>
-        <div className="grid grid-cols-[minmax(160px,auto)_auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
-          {rows.map((row, i) => (
-            <Fragment key={i}>
-              <span className="text-gray-600">{row.label}</span>
-              <span>:</span>
-              <span>{row.value}</span>
-            </Fragment>
-          ))}
+    <>
+      {/* Lightbox overlay */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white bg-black/50 rounded-full w-9 h-9 flex items-center justify-center text-xl hover:bg-black/70"
+            onClick={() => setLightboxOpen(false)}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <img
+            src={imageSrc}
+            alt={imageAlt}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+      <div className="flex gap-4">
+        <div
+          className="w-32 h-32 shrink-0 border rounded-lg overflow-hidden bg-gray-50 cursor-zoom-in"
+          onClick={() => setLightboxOpen(true)}
+          title="Click to enlarge"
+        >
+          <img
+            src={imageSrc}
+            alt={imageAlt}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-lg font-bold mb-1">{title}</h2>
+          {notes && (
+            <p className="text-xs italic text-gray-500 mb-2">{notes}</p>
+          )}
+          <div className="grid grid-cols-[minmax(160px,auto)_auto_1fr] gap-x-3 gap-y-0.5 sm:gap-y-1 text-[11px] sm:text-sm text-gray-700 mb-2 sm:mb-3">
+            {rows.map((row, i) => (
+              <Fragment key={i}>
+                <span className="text-gray-600">{row.label}</span>
+                <span>:</span>
+                <span>{row.value}</span>
+              </Fragment>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

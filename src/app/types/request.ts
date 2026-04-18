@@ -62,6 +62,7 @@ export interface Request {
   stockistId?: string;
   branchCode?: BranchCode; // Branch where request was created
   viewedBy?: string[]; // Array of usernames who have viewed this request
+  assignedSalesUsername?: string; // Sales person assigned by Sales Internal user
 
   // Factory reference - can be object or string for compatibility
   pabrik: EntityReference | string;

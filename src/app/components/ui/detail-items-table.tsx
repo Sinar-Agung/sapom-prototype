@@ -1,6 +1,9 @@
 import { DetailBarangItem } from "@/app/types/request";
+import { Info } from "lucide-react";
+import { useState } from "react";
 import { AvailablePcsInput } from "./available-pcs-input";
 import { Card } from "./card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 interface DetailItemsTableProps {
   items: DetailBarangItem[];
@@ -25,6 +28,8 @@ export function DetailItemsTable({
   getUkuranLabel,
   title = "Detail Barang",
 }: DetailItemsTableProps) {
+  const [notesOpenId, setNotesOpenId] = useState<string | null>(null);
+
   const displayWarnaLabel = (warna: string) => {
     if (getWarnaLabel) {
       return getWarnaLabel(warna);
@@ -70,9 +75,7 @@ export function DetailItemsTable({
                     Available Pcs
                   </th>
                 )}
-                <th className="px-3 py-2 text-left font-medium border bg-gray-100">
-                  Notes
-                </th>
+                <th className="px-3 py-2 w-12 font-medium border bg-gray-100" />
               </tr>
             </thead>
             <tbody>
@@ -123,8 +126,34 @@ export function DetailItemsTable({
                         </div>
                       </td>
                     )}
-                    <td className="px-3 py-2 border text-gray-500 text-xs">
-                      {item.notes || "-"}
+                    <td className="px-3 py-2 border w-12 text-center">
+                      {item.notes ? (
+                        <Tooltip
+                          open={notesOpenId === item.id}
+                          onOpenChange={(open: boolean) =>
+                            setNotesOpenId(open ? item.id : null)
+                          }
+                        >
+                          <TooltipTrigger asChild>
+                            <button
+                              className="p-0.5 rounded text-gray-400 hover:text-blue-600 transition-colors"
+                              onClick={() =>
+                                setNotesOpenId(
+                                  notesOpenId === item.id ? null : item.id,
+                                )
+                              }
+                            >
+                              <Info className="w-4 h-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            className="max-w-[240px] whitespace-pre-wrap break-words text-xs"
+                          >
+                            {item.notes}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : null}
                     </td>
                   </tr>
                 );

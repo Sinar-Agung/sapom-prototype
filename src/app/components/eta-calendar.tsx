@@ -42,8 +42,9 @@ function requestToOrder(request: Request): Order {
 }
 
 interface ETACalendarProps {
-  userRole: "sales" | "jb";
+  userRole: "sales" | "jb" | "supplier";
   currentUser?: string;
+  supplierId?: string;
   onSeeDetail?: (order: Order) => void;
   onUpdateOrder?: (order: Order) => void;
   onEditOrder?: (order: Order) => void;
@@ -54,6 +55,7 @@ interface ETACalendarProps {
 export function ETACalendar({
   userRole,
   currentUser,
+  supplierId,
   onSeeDetail,
   onUpdateOrder,
   onEditOrder,
@@ -102,6 +104,8 @@ export function ETACalendar({
       )
         return false;
       if (userRole === "sales" && o.sales !== user) return false;
+      if (userRole === "supplier" && supplierId && o.pabrik?.id !== supplierId)
+        return false;
       return true;
     });
 
@@ -132,7 +136,7 @@ export function ETACalendar({
     }
 
     return { etaMap: map, items: allItems };
-  }, [userRole, currentUser]);
+  }, [userRole, currentUser, supplierId]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();

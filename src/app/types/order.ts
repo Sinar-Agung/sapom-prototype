@@ -146,6 +146,8 @@ export interface Order {
   // Customer and sales information (from request)
   sales?: string; // Sales person username (from request createdBy)
   atasNama?: string; // Customer name (from request namaPelanggan)
+  assignedSalesUsername?: string; // Set when a Sales Internal user created the request on behalf of a sales person
+  notes?: string; // Free-text product notes from the original request
 
   // Timestamps and user tracking
   createdDate: number;

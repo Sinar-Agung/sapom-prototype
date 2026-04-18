@@ -320,7 +320,15 @@ export function DetailItemsDisplay({
             {items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={hasActions ? (hideSupplierNotes ? 8 : 9) : (hideSupplierNotes ? 7 : 8)}
+                  colSpan={
+                    hasActions
+                      ? hideSupplierNotes
+                        ? 8
+                        : 9
+                      : hideSupplierNotes
+                        ? 7
+                        : 8
+                  }
                   className="border p-4 text-center text-gray-500"
                 >
                   No data yet. Please add product details.

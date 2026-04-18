@@ -25,7 +25,11 @@ import {
   notifyOrderShipmentEdited,
   notifyOrderStatusChanged,
 } from "@/app/utils/notification-helper";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import { printQRCode } from "@/app/utils/qr-print";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -45,6 +49,7 @@ import {
   ChevronsRight,
   Info,
   Pencil,
+  Printer,
   X,
   XCircle,
 } from "lucide-react";
@@ -75,6 +80,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ProductHeader } from "./ui/product-header";
 import { Textarea } from "./ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 // Image mapping for Nama Basic
 const NAMA_BASIC_IMAGES: Record<string, string> = {
@@ -161,12 +167,29 @@ export function OrderDetails({
   const [editingArrivalItems, setEditingArrivalItems] = useState<
     Record<number, string>
   >({});
+  const [editingArrivalUnlockedRows, setEditingArrivalUnlockedRows] = useState<
+    Set<number>
+  >(new Set());
   const [inlineArrivalPcs, setInlineArrivalPcs] = useState<
     Record<string, string>
   >({});
+  const [inlineArrivalEditingRows, setInlineArrivalEditingRows] = useState<
+    Set<string>
+  >(new Set());
+  const [arrivalEditingRows, setArrivalEditingRows] = useState<
+    Record<string, Set<number>>
+  >({});
+  const [shippingEditingRows, setShippingEditingRows] = useState<Set<string>>(
+    new Set(),
+  );
+  const [notesOpenId, setNotesOpenId] = useState<string | null>(null);
   const userRole = (sessionStorage.getItem("userRole") ||
     localStorage.getItem("userRole") ||
     "sales") as "sales" | "stockist" | "jb" | "supplier";
+  // JB cannot record new arrivals for terminal-status orders
+  const canRecordArrival =
+    userRole === "jb" &&
+    !["Unable to Fulfill", "Closed", "Cancelled"].includes(currentOrder.status);
   const currentUser =
     sessionStorage.getItem("username") ||
     localStorage.getItem("username") ||
@@ -936,14 +959,25 @@ export function OrderDetails({
             <h1 className="text-xl font-bold">
               {reviewMode ? "Review Order Revision" : "Order Details"}
             </h1>
-            <p className="text-sm text-gray-600 font-mono font-semibold truncate">
-              {order.PONumber}
-            </p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm text-gray-600 font-mono font-semibold truncate">
+                {order.PONumber}
+              </p>
+              {userRole === "supplier" && (
+                <button
+                  title="Print QR code for PO Number"
+                  className="p-0.5 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                  onClick={() => printQRCode(order.PONumber, order.PONumber)}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
           <span
             className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 ${getStatusBadgeClasses(currentOrder.status)}`}
           >
-            {currentOrder.status}
+            {getStatusLabel(currentOrder.status)}
           </span>
         </div>
       </div>
@@ -1872,7 +1906,14 @@ export function OrderDetails({
                           </Button>
 
                           <Button
-                            onClick={handleApproveSupplierRevision}
+                            onClick={() =>
+                              setPendingAction({
+                                label: "Submit Review",
+                                description:
+                                  "Are you sure you want to submit your review of the supplier's proposed changes? This action cannot be undone.",
+                                onConfirm: handleApproveSupplierRevision,
+                              })
+                            }
                             disabled={!allItemsDecided}
                             className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -2161,6 +2202,7 @@ export function OrderDetails({
                               <th className="px-3 py-2 text-right">Ordered</th>
                               <th className="px-3 py-2 text-right">Shipped</th>
                               <th className="px-3 py-2 text-right">Received</th>
+                              <th className="px-3 py-2 w-12" />
                               <th className="px-3 py-2 text-right">
                                 <div className="flex items-center justify-end gap-1">
                                   Shipping
@@ -2185,7 +2227,6 @@ export function OrderDetails({
                                   </button>
                                 </div>
                               </th>
-                              <th className="px-3 py-2 w-8" />
                             </tr>
                           </thead>
                           <tbody>
@@ -2246,38 +2287,91 @@ export function OrderDetails({
                                         ) : null}
                                       </div>
                                     </td>
-                                    <td className="px-3 py-2 text-right">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={shippingPcs[item.id] || ""}
-                                        onChange={(e) => {
-                                          const v = e.target.value.replace(
-                                            /[^0-9]/g,
-                                            "",
-                                          );
-                                          setShippingPcs((prev) => ({
-                                            ...prev,
-                                            [item.id]: v,
-                                          }));
-                                        }}
-                                        className="w-20 text-right"
-                                        placeholder="0"
-                                      />
+                                    <td className="px-3 py-2 w-12 text-center">
+                                      {item.notes ? (
+                                        <Tooltip
+                                          open={notesOpenId === item.id}
+                                          onOpenChange={(open) =>
+                                            setNotesOpenId(
+                                              open ? item.id : null,
+                                            )
+                                          }
+                                        >
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              className="p-0.5 rounded text-gray-400 hover:text-blue-600 transition-colors"
+                                              onClick={() =>
+                                                setNotesOpenId(
+                                                  notesOpenId === item.id
+                                                    ? null
+                                                    : item.id,
+                                                )
+                                              }
+                                            >
+                                              <Info className="w-4 h-4" />
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent
+                                            side="top"
+                                            className="max-w-[240px] whitespace-pre-wrap break-words text-xs"
+                                          >
+                                            {item.notes}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      ) : null}
                                     </td>
                                     <td className="px-3 py-2">
-                                      <button
-                                        title="Match outstanding quantity"
-                                        onClick={() =>
-                                          setShippingPcs((prev) => ({
-                                            ...prev,
-                                            [item.id]: String(outstanding),
-                                          }))
-                                        }
-                                        className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
-                                      >
-                                        <ChevronsRight className="w-4 h-4" />
-                                      </button>
+                                      {shipped >= ordered &&
+                                      ordered > 0 &&
+                                      !shippingEditingRows.has(item.id) ? (
+                                        <div className="flex items-center justify-end">
+                                          <button
+                                            title="Edit shipping quantity"
+                                            className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                                            onClick={() =>
+                                              setShippingEditingRows((prev) => {
+                                                const next = new Set(prev);
+                                                next.add(item.id);
+                                                return next;
+                                              })
+                                            }
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center justify-end gap-1">
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            value={shippingPcs[item.id] || ""}
+                                            onChange={(e) => {
+                                              const v = e.target.value.replace(
+                                                /[^0-9]/g,
+                                                "",
+                                              );
+                                              setShippingPcs((prev) => ({
+                                                ...prev,
+                                                [item.id]: v,
+                                              }));
+                                            }}
+                                            className="w-20 text-right"
+                                            placeholder="0"
+                                          />
+                                          <button
+                                            title="Match outstanding quantity"
+                                            onClick={() =>
+                                              setShippingPcs((prev) => ({
+                                                ...prev,
+                                                [item.id]: String(outstanding),
+                                              }))
+                                            }
+                                            className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
+                                          >
+                                            <ChevronsRight className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      )}
                                     </td>
                                   </tr>
                                 );
@@ -2288,7 +2382,19 @@ export function OrderDetails({
                       </div>
                       <div className="flex justify-end mt-3">
                         <Button
-                          onClick={handleSubmitShipping}
+                          onClick={() => {
+                            const total = currentOrder.detailItems.reduce(
+                              (s, item) =>
+                                s +
+                                (parseInt(shippingPcs[item.id] || "0") || 0),
+                              0,
+                            );
+                            setPendingAction({
+                              label: "Submit Shipping",
+                              description: `Submit shipping of ${total} pcs for order ${currentOrder.PONumber}?`,
+                              onConfirm: handleSubmitShipping,
+                            });
+                          }}
                           disabled={!hasAnyShipping}
                           className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -2346,7 +2452,8 @@ export function OrderDetails({
                                 <th className="px-3 py-2 text-right">
                                   Received
                                 </th>
-                                {userRole === "jb" && (
+                                <th className="px-3 py-2 w-12" />
+                                {canRecordArrival && (
                                   <>
                                     <th className="px-3 py-2 text-right">
                                       <div className="flex items-center justify-end gap-1">
@@ -2377,7 +2484,6 @@ export function OrderDetails({
                                         </button>
                                       </div>
                                     </th>
-                                    <th className="px-3 py-2 w-8" />
                                   </>
                                 )}
                               </tr>
@@ -2442,40 +2548,103 @@ export function OrderDetails({
                                           ) : null}
                                         </div>
                                       </td>
-                                      {userRole === "jb" && (
-                                        <>
-                                          <td className="px-3 py-2 text-right">
-                                            <Input
-                                              type="number"
-                                              min="0"
-                                              value={
-                                                inlineArrivalPcs[item.id] ?? ""
-                                              }
-                                              onChange={(e) =>
-                                                setInlineArrivalPcs((prev) => ({
-                                                  ...prev,
-                                                  [item.id]: e.target.value,
-                                                }))
-                                              }
-                                              className="w-20 text-right"
-                                              placeholder="0"
-                                            />
-                                          </td>
-                                          <td className="px-3 py-2">
-                                            <button
-                                              title="Match remaining quantity"
-                                              className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
-                                              onClick={() =>
-                                                setInlineArrivalPcs((prev) => ({
-                                                  ...prev,
-                                                  [item.id]: String(remaining),
-                                                }))
-                                              }
+                                      <td className="px-3 py-2 w-12 text-center">
+                                        {item.notes ? (
+                                          <Tooltip
+                                            open={notesOpenId === item.id}
+                                            onOpenChange={(open) =>
+                                              setNotesOpenId(
+                                                open ? item.id : null,
+                                              )
+                                            }
+                                          >
+                                            <TooltipTrigger asChild>
+                                              <button
+                                                className="p-0.5 rounded text-gray-400 hover:text-blue-600 transition-colors"
+                                                onClick={() =>
+                                                  setNotesOpenId(
+                                                    notesOpenId === item.id
+                                                      ? null
+                                                      : item.id,
+                                                  )
+                                                }
+                                              >
+                                                <Info className="w-4 h-4" />
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="top"
+                                              className="max-w-[240px] whitespace-pre-wrap break-words text-xs"
                                             >
-                                              <ChevronsRight className="w-4 h-4" />
-                                            </button>
-                                          </td>
-                                        </>
+                                              {item.notes}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        ) : null}
+                                      </td>
+                                      {canRecordArrival && (
+                                        <td className="px-3 py-2">
+                                          {received >= shipped &&
+                                          shipped > 0 &&
+                                          !inlineArrivalEditingRows.has(
+                                            item.id,
+                                          ) ? (
+                                            <div className="flex items-center justify-end">
+                                              <button
+                                                title="Edit arrival quantity"
+                                                className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                                                onClick={() =>
+                                                  setInlineArrivalEditingRows(
+                                                    (prev) => {
+                                                      const next = new Set(
+                                                        prev,
+                                                      );
+                                                      next.add(item.id);
+                                                      return next;
+                                                    },
+                                                  )
+                                                }
+                                              >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center justify-end gap-1">
+                                              <Input
+                                                type="number"
+                                                min="0"
+                                                value={
+                                                  inlineArrivalPcs[item.id] ??
+                                                  ""
+                                                }
+                                                onChange={(e) =>
+                                                  setInlineArrivalPcs(
+                                                    (prev) => ({
+                                                      ...prev,
+                                                      [item.id]: e.target.value,
+                                                    }),
+                                                  )
+                                                }
+                                                className="w-20 text-right"
+                                                placeholder="0"
+                                              />
+                                              <button
+                                                title="Match remaining quantity"
+                                                className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
+                                                onClick={() =>
+                                                  setInlineArrivalPcs(
+                                                    (prev) => ({
+                                                      ...prev,
+                                                      [item.id]:
+                                                        String(remaining),
+                                                    }),
+                                                  )
+                                                }
+                                              >
+                                                <ChevronsRight className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                          )}
+                                        </td>
                                       )}
                                     </tr>
                                   );
@@ -2484,10 +2653,19 @@ export function OrderDetails({
                             </tbody>
                           </table>
                         </div>
-                        {userRole === "jb" && (
+                        {canRecordArrival && (
                           <div className="flex justify-end mt-3">
                             <Button
-                              onClick={handleSaveDirectArrivals}
+                              onClick={() => {
+                                const total = Object.values(
+                                  inlineArrivalPcs,
+                                ).reduce((s, v) => s + (parseInt(v) || 0), 0);
+                                setPendingAction({
+                                  label: "Record Arrivals",
+                                  description: `Record ${total} pcs manual arrival for order ${currentOrder.PONumber}?`,
+                                  onConfirm: handleSaveDirectArrivals,
+                                });
+                              }}
                               disabled={
                                 !Object.values(inlineArrivalPcs).some(
                                   (v) => parseInt(v) > 0,
@@ -3166,6 +3344,49 @@ export function OrderDetails({
                                                 );
                                               },
                                             )}
+                                            {/* Deleted items — in prevItems but removed in this revision */}
+                                            {revision.previousValues
+                                              ?.detailItems &&
+                                              revision.previousValues.detailItems
+                                                .slice(
+                                                  revision.changes.detailItems
+                                                    .length,
+                                                )
+                                                .map((deletedItem, i) => {
+                                                  const ud = getUkuranDisplay(
+                                                    deletedItem.ukuran,
+                                                  );
+                                                  return (
+                                                    <tr
+                                                      key={`deleted-${i}`}
+                                                      className="opacity-70 bg-red-50"
+                                                    >
+                                                      <td
+                                                        className={`px-2 py-1 font-medium border line-through text-red-600 ${getKadarColor(deletedItem.kadar)}`}
+                                                      >
+                                                        {deletedItem.kadar}
+                                                      </td>
+                                                      <td
+                                                        className={`px-2 py-1 border line-through text-red-600 ${getWarnaColor(deletedItem.warna)}`}
+                                                      >
+                                                        {getWarnaLabel(
+                                                          deletedItem.warna,
+                                                        )}
+                                                      </td>
+                                                      <td className="px-2 py-1 border line-through text-red-600">
+                                                        {ud.showUnit
+                                                          ? `${ud.value} cm`
+                                                          : ud.value}
+                                                      </td>
+                                                      <td className="px-2 py-1 text-right border line-through text-red-600">
+                                                        {deletedItem.berat}
+                                                      </td>
+                                                      <td className="px-2 py-1 text-right border line-through text-red-600">
+                                                        {deletedItem.pcs}
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                })}
                                           </tbody>
                                         </table>
                                       </div>
@@ -3730,6 +3951,15 @@ export function OrderDetails({
                           <span className="font-mono text-sm font-semibold text-blue-700">
                             {entry.id}
                           </span>
+                          {userRole === "supplier" && (
+                            <button
+                              title="Print QR code for Shipment ID"
+                              className="ml-1 p-0.5 rounded hover:bg-gray-200 text-gray-500 transition-colors inline-flex"
+                              onClick={() => printQRCode(entry.id, entry.id)}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <span className="ml-3 text-xs text-gray-500">
                             {new Date(entry.shippingDate).toLocaleDateString(
                               "id-ID",
@@ -3741,9 +3971,9 @@ export function OrderDetails({
                             )}{" "}
                             · {getFullNameFromUsername(entry.createdBy)}
                           </span>
-                          {userRole === "jb" && (
+                          {(userRole === "jb" || userRole === "supplier") && (
                             <span className="ml-3 text-xs text-gray-500">
-                              Shipped: {totalShipped} pcs | Arrived:{" "}
+                              Shipped: {totalShipped} pcs | Received:{" "}
                               {totalArrived} pcs
                             </span>
                           )}
@@ -3811,7 +4041,8 @@ export function OrderDetails({
                               <th className="px-3 py-2 text-left">Ukuran</th>
                               <th className="px-3 py-2 text-right">Berat</th>
                               <th className="px-3 py-2 text-right">Shipped</th>
-                              {userRole === "jb" && (
+                              {(userRole === "jb" ||
+                                userRole === "supplier") && (
                                 <th className="px-3 py-2 text-right">
                                   Received
                                 </th>
@@ -3826,7 +4057,6 @@ export function OrderDetails({
                                   <th className="px-3 py-2 text-right">
                                     Arrival
                                   </th>
-                                  <th className="px-3 py-2 w-8" />
                                 </>
                               )}
                             </tr>
@@ -3856,7 +4086,14 @@ export function OrderDetails({
                                 item.pcs - receivedForItem,
                               );
                               return (
-                                <tr key={idx} className="border-t">
+                                <tr
+                                  key={idx}
+                                  className={`border-t ${
+                                    receivedForItem >= item.pcs && item.pcs > 0
+                                      ? "bg-green-50"
+                                      : ""
+                                  }`}
+                                >
                                   <td
                                     className={`px-3 py-2 font-medium ${getKadarColor(item.kadar)}`}
                                   >
@@ -3878,7 +4115,8 @@ export function OrderDetails({
                                   <td className="px-3 py-2 text-right">
                                     {item.pcs}
                                   </td>
-                                  {userRole === "jb" && (
+                                  {(userRole === "jb" ||
+                                    userRole === "supplier") && (
                                     <td
                                       className={`px-3 py-2 text-right font-medium ${
                                         receivedForItem >= item.pcs
@@ -3889,10 +4127,13 @@ export function OrderDetails({
                                       }`}
                                     >
                                       <span className="inline-flex items-center justify-end gap-1">
-                                        {receivedForItem}
-                                        {receivedForItem >= item.pcs && (
-                                          <Check className="w-4 h-4 text-green-600 shrink-0" />
-                                        )}
+                                        {receivedForItem > 0
+                                          ? receivedForItem
+                                          : "-"}
+                                        {receivedForItem >= item.pcs &&
+                                          item.pcs > 0 && (
+                                            <Check className="w-4 h-4 text-green-600 shrink-0" />
+                                          )}
                                       </span>
                                     </td>
                                   )}
@@ -3920,39 +4161,65 @@ export function OrderDetails({
                                   {userRole === "jb" && (
                                     <>
                                       <td className="px-3 py-2">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          value={edits[idx] ?? ""}
-                                          onChange={(e) =>
-                                            setArrivalEdits((prev) => ({
-                                              ...prev,
-                                              [entry.id]: {
-                                                ...(prev[entry.id] || {}),
-                                                [idx]: e.target.value,
-                                              },
-                                            }))
-                                          }
-                                          className="w-20 text-right"
-                                          placeholder="0"
-                                        />
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        <button
-                                          title="Match remaining quantity"
-                                          className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
-                                          onClick={() =>
-                                            setArrivalEdits((prev) => ({
-                                              ...prev,
-                                              [entry.id]: {
-                                                ...(prev[entry.id] || {}),
-                                                [idx]: String(remaining),
-                                              },
-                                            }))
-                                          }
-                                        >
-                                          <ChevronsRight className="w-4 h-4" />
-                                        </button>
+                                        {receivedForItem >= item.pcs &&
+                                        item.pcs > 0 &&
+                                        !arrivalEditingRows[entry.id]?.has(
+                                          idx,
+                                        ) ? (
+                                          <div className="flex items-center justify-end">
+                                            <button
+                                              title="Edit arrival quantity"
+                                              className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                                              onClick={() =>
+                                                setArrivalEditingRows(
+                                                  (prev) => ({
+                                                    ...prev,
+                                                    [entry.id]: new Set([
+                                                      ...(prev[entry.id] ?? []),
+                                                      idx,
+                                                    ]),
+                                                  }),
+                                                )
+                                              }
+                                            >
+                                              <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center justify-end gap-1">
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              value={edits[idx] ?? ""}
+                                              onChange={(e) =>
+                                                setArrivalEdits((prev) => ({
+                                                  ...prev,
+                                                  [entry.id]: {
+                                                    ...(prev[entry.id] || {}),
+                                                    [idx]: e.target.value,
+                                                  },
+                                                }))
+                                              }
+                                              className="w-20 text-right"
+                                              placeholder="0"
+                                            />
+                                            <button
+                                              title="Match remaining quantity"
+                                              className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
+                                              onClick={() =>
+                                                setArrivalEdits((prev) => ({
+                                                  ...prev,
+                                                  [entry.id]: {
+                                                    ...(prev[entry.id] || {}),
+                                                    [idx]: String(remaining),
+                                                  },
+                                                }))
+                                              }
+                                            >
+                                              <ChevronsRight className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                        )}
                                       </td>
                                     </>
                                   )}
@@ -3992,7 +4259,28 @@ export function OrderDetails({
                           <Button
                             size="sm"
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleSaveArrivals(entry.id, entry)}
+                            disabled={
+                              !entry.items.some(
+                                (_, idx) =>
+                                  parseInt(
+                                    (arrivalEdits[entry.id] || {})[idx] || "0",
+                                  ) > 0,
+                              )
+                            }
+                            onClick={() => {
+                              const edits = arrivalEdits[entry.id] || {};
+                              const total = entry.items.reduce(
+                                (s, item, idx) =>
+                                  s + (parseInt(edits[idx] || "0") || 0),
+                                0,
+                              );
+                              setPendingAction({
+                                label: "Record Arrivals",
+                                description: `Record ${total} pcs arrival for shipment ${entry.id}?`,
+                                onConfirm: () =>
+                                  handleSaveArrivals(entry.id, entry),
+                              });
+                            }}
                           >
                             Record Arrivals
                           </Button>
@@ -4077,6 +4365,18 @@ export function OrderDetails({
               <div className="mt-3 space-y-4">
                 {shipmentArrivals.map((arrival) => {
                   const isEditing = editingArrivalId === arrival.id;
+                  const linkedShipment = arrival.shippingId
+                    ? shipmentEntries.find((s) => s.id === arrival.shippingId)
+                    : undefined;
+                  const totalReceived = arrival.items.reduce(
+                    (s, i) => s + i.pcs,
+                    0,
+                  );
+                  const totalShipped = linkedShipment
+                    ? linkedShipment.items.reduce((s, i) => s + i.pcs, 0)
+                    : 0;
+                  const hasMissingItems =
+                    !!linkedShipment && totalReceived < totalShipped;
                   return (
                     <div
                       key={arrival.id}
@@ -4107,6 +4407,16 @@ export function OrderDetails({
                               </span>
                             </>
                           )}
+                          {!arrival.shippingId && (
+                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                              Manual Entry
+                            </span>
+                          )}
+                          {hasMissingItems && (
+                            <span className="animate-missing-badge text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">
+                              Incomplete Arrival
+                            </span>
+                          )}
                         </div>
                         {userRole === "jb" &&
                           !isEditing &&
@@ -4115,6 +4425,7 @@ export function OrderDetails({
                               className="p-1 hover:bg-gray-200 rounded"
                               onClick={() => {
                                 setEditingArrivalId(arrival.id);
+                                setEditingArrivalUnlockedRows(new Set());
                                 const init: Record<number, string> = {};
                                 arrival.items.forEach((item, idx) => {
                                   init[idx] = String(item.pcs);
@@ -4135,49 +4446,137 @@ export function OrderDetails({
                               <th className="px-3 py-2 text-left">Warna</th>
                               <th className="px-3 py-2 text-left">Ukuran</th>
                               <th className="px-3 py-2 text-right">Berat</th>
+                              {linkedShipment && (
+                                <th className="px-3 py-2 text-right">
+                                  Shipped
+                                </th>
+                              )}
                               <th className="px-3 py-2 text-right">
                                 Pcs Received
                               </th>
                             </tr>
                           </thead>
                           <tbody>
-                            {arrival.items.map((item, idx) => (
-                              <tr key={idx} className="border-t">
-                                <td className="px-3 py-2 font-medium">
-                                  {item.karat.toUpperCase()}
-                                </td>
-                                <td
-                                  className={`px-3 py-2 ${getWarnaColor(item.warna)}`}
+                            {arrival.items.map((item, idx) => {
+                              const shippedPcsForRow = linkedShipment
+                                ? (linkedShipment.items.find(
+                                    (si) =>
+                                      si.kadar === item.karat &&
+                                      si.warna === item.warna &&
+                                      si.ukuran === item.size &&
+                                      si.berat === item.berat,
+                                  )?.pcs ?? 0)
+                                : 0;
+                              const isRowFulfilled =
+                                !!linkedShipment &&
+                                item.pcs >= shippedPcsForRow &&
+                                shippedPcsForRow > 0;
+                              const isRowUnderReceived =
+                                !!linkedShipment &&
+                                shippedPcsForRow > 0 &&
+                                item.pcs < shippedPcsForRow;
+                              const isRowUnlocked =
+                                editingArrivalUnlockedRows.has(idx);
+                              return (
+                                <tr
+                                  key={idx}
+                                  className={`border-t ${
+                                    isRowFulfilled ? "bg-green-50" : ""
+                                  }`}
                                 >
-                                  {getWarnaLabel(item.warna)}
-                                </td>
-                                <td className="px-3 py-2">{item.size}</td>
-                                <td className="px-3 py-2 text-right">
-                                  {item.berat || "-"}
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  {isEditing ? (
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      value={
-                                        editingArrivalItems[idx] ??
-                                        String(item.pcs)
-                                      }
-                                      onChange={(e) =>
-                                        setEditingArrivalItems((prev) => ({
-                                          ...prev,
-                                          [idx]: e.target.value,
-                                        }))
-                                      }
-                                      className="w-20 text-right"
-                                    />
-                                  ) : (
-                                    item.pcs
+                                  <td className="px-3 py-2 font-medium">
+                                    {item.karat.toUpperCase()}
+                                  </td>
+                                  <td
+                                    className={`px-3 py-2 ${getWarnaColor(item.warna)}`}
+                                  >
+                                    {getWarnaLabel(item.warna)}
+                                  </td>
+                                  <td className="px-3 py-2">{item.size}</td>
+                                  <td className="px-3 py-2 text-right">
+                                    {item.berat || "-"}
+                                  </td>
+                                  {linkedShipment && (
+                                    <td className="px-3 py-2 text-right">
+                                      {shippedPcsForRow || "-"}
+                                    </td>
                                   )}
-                                </td>
-                              </tr>
-                            ))}
+                                  <td className="px-3 py-2 text-right">
+                                    {isEditing ? (
+                                      isRowFulfilled && !isRowUnlocked ? (
+                                        <div className="flex items-center justify-end gap-1">
+                                          <span className="font-medium text-green-700">
+                                            {editingArrivalItems[idx] ??
+                                              item.pcs}
+                                          </span>
+                                          <button
+                                            title="Edit this quantity"
+                                            className="p-0.5 rounded hover:bg-gray-200 text-gray-500 transition-colors"
+                                            onClick={() =>
+                                              setEditingArrivalUnlockedRows(
+                                                (prev) =>
+                                                  new Set([...prev, idx]),
+                                              )
+                                            }
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center justify-end gap-1">
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            value={
+                                              editingArrivalItems[idx] ??
+                                              String(item.pcs)
+                                            }
+                                            onChange={(e) =>
+                                              setEditingArrivalItems(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  [idx]: e.target.value,
+                                                }),
+                                              )
+                                            }
+                                            className="w-20 text-right"
+                                          />
+                                          <button
+                                            title="Match to shipped quantity"
+                                            className="p-0.5 rounded hover:bg-gray-100 text-blue-500 transition-colors"
+                                            onClick={() =>
+                                              setEditingArrivalItems(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  [idx]: String(
+                                                    shippedPcsForRow ||
+                                                      item.pcs,
+                                                  ),
+                                                }),
+                                              )
+                                            }
+                                          >
+                                            <ChevronsRight className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      )
+                                    ) : (
+                                      <span
+                                        className={`font-medium ${
+                                          isRowUnderReceived
+                                            ? "text-red-600 font-bold"
+                                            : isRowFulfilled
+                                              ? "text-green-700"
+                                              : ""
+                                        }`}
+                                      >
+                                        {item.pcs}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -4189,6 +4588,7 @@ export function OrderDetails({
                             onClick={() => {
                               setEditingArrivalId(null);
                               setEditingArrivalItems({});
+                              setEditingArrivalUnlockedRows(new Set());
                             }}
                           >
                             Cancel
@@ -4531,7 +4931,7 @@ export function OrderDetails({
                     <span
                       className={`inline-block text-xs ${getStatusBadgeClasses(relatedRequest.status)} px-2 py-1 rounded-full font-medium`}
                     >
-                      {relatedRequest.status}
+                      {getStatusLabel(relatedRequest.status)}
                     </span>
                   </div>
                   {relatedRequest.updatedDate && (

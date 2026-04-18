@@ -9,6 +9,164 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Sales Internal Role**
+
+- New `salesInternal` account type added — users with this role create requests on behalf of a regular sales person (`assignedSalesUsername`)
+- `App.tsx` recognises `salesInternal` throughout: page title, default page routing, navigation fallbacks, and request detail / edit routing
+- `App.tsx` shows an indigo `Users` icon for Sales Internal in the role badge
+- ETA Calendar now accepts `supplier` as a third role and passes `supplierId` to filter visible orders; edit/cancel/duplicate callbacks are gated by role
+- Updated: `App.tsx`, `user-data.ts`, `navigation.tsx`, `my-orders.tsx`
+
+**Request Form — Atas Nama Dropdown for Sales Internal**
+
+- When logged in as Sales Internal, the request form header shows an "Atas Nama" dropdown listing all sales users in the same branch
+- Selected `atasNamaUsername` is saved as `assignedSalesUsername` on the request
+- Updated: `request-form.tsx`, `request-form-header.tsx`, `request.ts`
+
+**Request Auto-Split — Confirmation Dialog**
+
+- Creating a request with items spanning both Kadar Muda (6k/8k/9k) and Kadar Tua (16k/17k/24k) prompts a confirmation dialog before splitting into two requests
+- On confirmation the two requests are saved and a toast is shown; the user is returned to My Requests highlighting the first new request
+- `assignedSalesUsername` is propagated to both split requests when set
+- Updated: `request-form.tsx`
+
+**Kadar Filter — Orders Page & Notifications Page**
+
+- "All Kadar" multi-select filter added to the Orders page filter bar (visible for JB and Supplier roles)
+- Supplier's branch and kadar filters are pre-populated from their `SupplierUser.branches` / `.kadar` attributes on mount
+- Same kadar and branch pre-population applied to the Notifications page for supplier accounts
+- Notifications page now additionally filters by kadar and branch using maps built from `localStorage` orders/requests
+- `applySearchTypeFilter` helper replaced by `applyAllFilters` which includes kadar and branch filters for accurate per-tab badge counts
+- Updated: `filter-sort-controls.tsx`, `unified-orders.tsx`, `notifications.tsx`
+
+**Order Card — Image Lightbox**
+
+- Clicking the product thumbnail on an order card opens a full-screen lightbox overlay; a `ZoomIn` hover indicator appears on the image
+- "View Full Image" option added to the card's overflow menu
+- Updated: `order-card.tsx`
+
+**Product Header — Image Lightbox**
+
+- Clicking the product thumbnail in `ProductHeader` (used in request and order detail views) opens a full-screen lightbox overlay
+- Updated: `ui/product-header.tsx`
+
+**Product Header — Atas Nama Sales Row**
+
+- `ProductHeader` accepts `assignedSalesUsername` and `notes` props; the "Sales" label changes to "Sales Internal" when the creator is a Sales Internal user, and a new "Atas Nama Sales" row is shown below it
+- Updated: `ui/product-header.tsx`, `request-details.tsx`, `request.ts`, `order.ts`
+
+**Order Details — QR Print Button for Supplier**
+
+- A `Printer` icon button next to the PO Number triggers QR code printing via the new `qr-print.ts` utility (supplier role only)
+- Updated: `order-details.tsx`, `qr-print.ts` (new)
+
+**Order Details — Arrival Row Lock / Unlock**
+
+- Arrival items rows that are already fulfilled (received ≥ shipped) are shown as locked with a green quantity; a pencil icon unlocks the field for correction
+- A "Match to shipped" (`ChevronsRight`) button appears on unlocked rows to autofill the shipped quantity
+- JB cannot record new arrivals on terminal-status orders (Closed, Cancelled, Unable to Fulfill)
+- Updated: `order-details.tsx`
+
+**Order Arrival — Confirmation Dialog**
+
+- Clicking "Record Arrival" now opens a confirmation dialog before submitting
+- Arrival history cards now show a "Shipment" linked badge with shipped vs received totals; rows with received ≥ shipped are highlighted green
+- Updated: `order-arrival.tsx`
+
+**JB Inbound Search — Received Column & Row Lock**
+
+- Inbound search table now shows a "Received" column with colour-coded values (green = fulfilled, red = under-received)
+- Fulfilled rows are locked by default with a pencil icon to unlock for correction; the "Match" button is hidden when locked
+- Shipments whose parent order is `Closed` are excluded from results
+- Inbound search term persists across sessions via `sessionStorage`
+- Updated: `jb-inbound-search.tsx`
+
+**JB Inbound — Branch Filtering**
+
+- JB Inbound page now filters orders to the JB user's own branch; tab counts (Waiting / Partial / Delivered) are derived from the branch-filtered set
+- Simplified order card markup (removed unused status badge and "View Details" button from waiting/partial/delivered lists)
+- Updated: `jb-inbound.tsx`
+
+**Revision History Panel — Deleted Row Display**
+
+- Items present in a previous revision but removed in the current revision are now shown with a red strikethrough in the revision history table
+- Updated: `ui/revision-history-panel.tsx`
+
+**Request Details — Rejection Reason Dropdown**
+
+- Stockist rejection dialog now uses a predefined dropdown (Spec not available, Supplier cannot fulfill, Price exceeds budget, ETA too long, Duplicate request, Customer cancelled, Incomplete information, Other) with an "Other" free-text fallback
+- Updated: `request-details.tsx`
+
+**User Data — Expanded Supplier & Sales Internal Accounts**
+
+- Added per-branch, per-kadar supplier sub-accounts for SB Gold, CRM, and Lotus Gold (18 new accounts)
+- All existing users and the new `SALES_INTERNAL_USERS` list are merged into the unified user directory
+- `getUserRole` return type updated to include `"salesInternal"`
+- Updated: `user-data.ts`
+
+### Changed
+
+**Status Display — "Ordered" Renamed to "New Order"**
+
+- The status value `"Ordered"` now displays as `"New Order"` everywhere via the new `getStatusLabel()` helper exported from `status-colors.ts`
+- `getStatusLabel` is called in: `order-card.tsx`, `order-arrival.tsx`, `order-details.tsx`, `request-details.tsx`, `jb-inbound-search.tsx`
+- Updated: `status-colors.ts`, `order-card.tsx`, `order-arrival.tsx`, `order-details.tsx`, `request-details.tsx`, `jb-inbound-search.tsx`
+
+**Order Card — Mobile Product Type Abbreviation**
+
+- On small screens the Jenis Produk label is abbreviated to initials (e.g. "Gelang Kaku" → "G K") to save horizontal space
+- Updated: `order-card.tsx`
+
+**Order Card — Product Notes Display**
+
+- If an order has a `notes` field, it is rendered in italics below the product name on the card
+- Updated: `order-card.tsx`
+
+**Orders Page — Kadar Filter Applied to Requests Tab**
+
+- Kadar filter now also applies to the requests (Internal) tab in addition to orders
+- Kadar and branch option lists are alphabetically sorted
+- Updated: `unified-orders.tsx`
+
+**My Orders — Persistent Sort & Filter State**
+
+- Sort field, sort direction, and PO number filter are now persisted to `sessionStorage` and restored on re-mount
+- Updated: `my-orders.tsx`
+
+**Notifications — Sort Direction Persisted**
+
+- Notifications page sort direction (asc/desc) is now saved to `sessionStorage` and restored on re-mount
+- Updated: `notifications.tsx`
+
+**Notifications — Notes Field Reads from Correct Store**
+
+- "Notes" tooltip on notification cards now correctly reads from `localStorage("requests")` for request notifications and `localStorage("orders")` for order notifications (previously always read from orders)
+- Updated: `notifications.tsx`
+
+**Notifications — Product Type Abbreviation on Mobile**
+
+- The "Product Type" change field in notification cards is abbreviated to initials on small screens, matching the order card behaviour
+- Updated: `notifications.tsx`
+
+**Request Form — `requestNo` Sequence Strip Trailing Dot**
+
+- Sequence parser in `form-helpers.ts` strips a trailing dot from a parsed part (e.g. `"11."` → `"11"`) to avoid malformed request numbers
+- Updated: `request-form/form-helpers.tsx`
+
+**Search Filters — Trim Whitespace Before Matching**
+
+- Text search in Orders page and Notifications page trims whitespace before lowercasing, preventing false negatives from leading/trailing spaces
+- Updated: `unified-orders.tsx`, `notifications.tsx`
+
+### Removed
+
+- Deleted `available-pcs-demo.tsx` (unused demo component)
+- Deleted `ui/product-details-table.tsx` (replaced by `ProductHeader`)
+- Deleted `ui/textarea-with-check.tsx` (unused component)
+- Deleted `utils/mock-data-old.ts` and `utils/mock-data.old.bak` (stale backup files)
+
+### Added
+
 **Atas Nama Sales — Full Request Visibility & Read-Only Access**
 
 - Sales users set as `assignedSalesUsername` on a request can now see those requests across all statuses in My Requests, not just their own

@@ -16,7 +16,7 @@ import {
   notifyRequestUpdated,
 } from "@/app/utils/notification-helper";
 import { generateRequestNo } from "@/app/utils/request-number";
-import { getCurrentUserDetails } from "@/app/utils/user-data";
+import { getCurrentUserDetails, SALES_USERS } from "@/app/utils/user-data";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -75,6 +75,10 @@ export function RequestForm(props: RequestFormProps) {
   // State for confirmation dialog
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
+  const [showSplitConfirmDialog, setShowSplitConfirmDialog] = useState(false);
+  const [pendingSplitAction, setPendingSplitAction] = useState<
+    "save" | "saveAndAddMore"
+  >("save");
   const [lastSavedOrderId, setLastSavedOrderId] = useState<string | null>(null);
   const [pendingChange, setPendingChange] = useState<{
     field: "kategoriBarang" | "jenisProduk";
@@ -95,6 +99,18 @@ export function RequestForm(props: RequestFormProps) {
     formData: typeof formData;
     detailItems: DetailBarangItem[];
   } | null>(null);
+
+  // Atas Nama (On Behalf) — only for Sales Internal users
+  const currentUserRole =
+    sessionStorage.getItem("userRole") ||
+    localStorage.getItem("userRole") ||
+    "";
+  const isSalesInternal = currentUserRole === "salesInternal";
+  const currentUserBranchCode = getCurrentUserDetails()?.branchCode || null;
+  const salesInBranch = isSalesInternal
+    ? SALES_USERS.filter((s) => s.branchCode === currentUserBranchCode)
+    : [];
+  const [atasNamaUsername, setAtasNamaUsername] = useState<string>("");
 
   // State for cancel confirmation dialog
   const [showCancelConfirmDialog, setShowCancelConfirmDialog] = useState(false);
@@ -249,7 +265,10 @@ export function RequestForm(props: RequestFormProps) {
     setShowSaveConfirmDialog(true);
   };
 
-  const handleSaveOrder = async (action: "save" | "saveAndAddMore") => {
+  const handleSaveOrder = async (
+    action: "save" | "saveAndAddMore",
+    confirmedSplit = false,
+  ) => {
     // Convert image to photoId if it's a Model with uploaded photo
     let photoId: string | undefined;
     if (formData.kategoriBarang === "model" && formData.fotoBarang) {
@@ -355,17 +374,37 @@ export function RequestForm(props: RequestFormProps) {
       }
     } else {
       // Create new order (for "new" and "duplicate" modes)
-      const orderId = `order-${Date.now()}`;
+      const KADAR_MUDA = ["6k", "8k", "9k"];
+      const KADAR_TUA = ["16k", "17k", "24k"];
       const currentUserDetails = getCurrentUserDetails();
-      const order = {
-        id: orderId,
+      const currentUser =
+        sessionStorage.getItem("username") ||
+        localStorage.getItem("username") ||
+        "";
+
+      // Check if detail items span both muda and tua kadar
+      const mudaItems = detailItems.filter((item) =>
+        KADAR_MUDA.includes(item.kadar),
+      );
+      const tuaItems = detailItems.filter((item) =>
+        KADAR_TUA.includes(item.kadar),
+      );
+      const hasMixed = mudaItems.length > 0 && tuaItems.length > 0;
+
+      // Show confirmation dialog before splitting
+      if (hasMixed && !confirmedSplit) {
+        setPendingSplitAction(action);
+        setShowSplitConfirmDialog(true);
+        return;
+      }
+
+      const baseOrderFields = {
         timestamp: Date.now(),
-        requestNo: generateRequestNo(currentUserDetails?.branchCode),
-        createdBy:
-          sessionStorage.getItem("username") ||
-          localStorage.getItem("username") ||
-          "",
+        createdBy: currentUser,
         branchCode: currentUserDetails?.branchCode || undefined,
+        ...(isSalesInternal && atasNamaUsername
+          ? { assignedSalesUsername: atasNamaUsername }
+          : {}),
         pabrik: formData.pabrik,
         kategoriBarang: formData.kategoriBarang,
         jenisProduk: formData.jenisProduk,
@@ -375,15 +414,63 @@ export function RequestForm(props: RequestFormProps) {
         waktuKirim: formData.waktuKirim?.toISOString() || "",
         customerExpectation: formData.customerExpectation,
         notes: formData.notes || undefined,
-        detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
         photoId: photoId,
-        status: "Open", // Default status for new orders
+        status: "Open" as const,
       };
 
-      // Add new order
-      orders.push(order);
+      if (hasMixed) {
+        // Split into two requests: one for muda, one for tua
+        const mudaId = `order-${Date.now()}`;
+        const tuaId = `order-${Date.now() + 1}`;
+        const branchCode = currentUserDetails?.branchCode || undefined;
 
-      // Store the last saved order ID
+        const mudaOrder = {
+          ...baseOrderFields,
+          id: mudaId,
+          requestNo: generateRequestNo(branchCode),
+          detailItems: mudaItems.map((item) => ({ ...item, orderPcs: "0" })),
+        };
+        const tuaOrder = {
+          ...baseOrderFields,
+          id: tuaId,
+          timestamp: Date.now() + 1,
+          requestNo: generateRequestNo(branchCode),
+          detailItems: tuaItems.map((item) => ({ ...item, orderPcs: "0" })),
+        };
+
+        orders.push(mudaOrder, tuaOrder);
+        setLastSavedOrderId(mudaId);
+
+        // Notify for both
+        notifyRequestCreated(mudaOrder, currentUser);
+        notifyRequestCreated(tuaOrder, currentUser);
+
+        // Save and show toast before navigating
+        localStorage.setItem("requests", JSON.stringify(orders));
+        toast.success("Request split into 2: Kadar Muda & Kadar Tua");
+
+        if (action === "save") {
+          sessionStorage.setItem("highlightOrderId", mudaId);
+          if (onNavigateToMyRequests) onNavigateToMyRequests();
+        } else if (action === "saveAndAddMore") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        if (onSaveComplete) onSaveComplete(action);
+        return;
+      }
+
+      // Single request (no mixed kadar)
+      const orderId = `order-${Date.now()}`;
+      const order = {
+        ...baseOrderFields,
+        id: orderId,
+        requestNo: generateRequestNo(
+          currentUserDetails?.branchCode ?? undefined,
+        ),
+        detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
+      };
+
+      orders.push(order);
       setLastSavedOrderId(orderId);
     }
 
@@ -603,6 +690,9 @@ export function RequestForm(props: RequestFormProps) {
           onFileInputKeyChange={setFileInputKey}
           existingPhotoId={existingPhotoId}
           onExistingPhotoClear={() => setExistingPhotoId(null)}
+          atasNamaOptions={isSalesInternal ? salesInBranch : undefined}
+          atasNamaValue={atasNamaUsername}
+          onAtasNamaChange={isSalesInternal ? setAtasNamaUsername : undefined}
         />
 
         {/* Input Detail Barang Section */}
@@ -643,6 +733,54 @@ export function RequestForm(props: RequestFormProps) {
           )}
         </div>
       </Card>
+
+      {/* Split Request Confirmation Dialog */}
+      <AlertDialog
+        open={showSplitConfirmDialog}
+        onOpenChange={setShowSplitConfirmDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Request Will Be Split</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Your request contains items from both{" "}
+                  <span className="font-semibold text-foreground">
+                    Kadar Muda (6k, 8k, 9k)
+                  </span>{" "}
+                  and{" "}
+                  <span className="font-semibold text-foreground">
+                    Kadar Tua (16k, 17k, 24k)
+                  </span>
+                  .
+                </p>
+                <p>
+                  These will be saved as{" "}
+                  <span className="font-semibold text-foreground">
+                    two separate requests
+                  </span>{" "}
+                  — one for Kadar Muda items and one for Kadar Tua items.
+                </p>
+                <p>Do you want to continue?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowSplitConfirmDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowSplitConfirmDialog(false);
+                handleSaveOrder(pendingSplitAction, true);
+              }}
+            >
+              Split & Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Reset Confirmation Dialog */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>

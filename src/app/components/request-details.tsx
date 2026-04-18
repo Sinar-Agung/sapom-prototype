@@ -14,7 +14,10 @@ import {
   notifyRequestStatusChanged,
   removeETAReminderForStockist,
 } from "@/app/utils/notification-helper";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -104,6 +107,7 @@ export function RequestDetails({
   const [showReadyStockDialog, setShowReadyStockDialog] = useState(false);
   const [showSendToJBDialog, setShowSendToJBDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReasonOption, setRejectReasonOption] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [wasUpdated, setWasUpdated] = useState(false);
   const [currentRequest, setCurrentRequest] = useState<Request>(request);
@@ -468,7 +472,7 @@ export function RequestDetails({
           <span
             className={`text-xs px-3 py-1 rounded-full font-medium shrink-0 ${getStatusBadgeClasses(currentRequest.status)}`}
           >
-            {currentRequest.status}
+            {getStatusLabel(currentRequest.status)}
           </span>
         </div>
       </div>
@@ -490,12 +494,14 @@ export function RequestDetails({
             "status",
             "created",
             "sales",
+            "assignedSales",
             "updated",
             "updatedBy",
           ]}
           status={currentRequest.status}
           poNumber={currentRequest.requestNo}
           salesUsername={currentRequest.createdBy}
+          assignedSalesUsername={(currentRequest as any).assignedSalesUsername}
           branchCode={currentRequest.branchCode}
           stockistUsername={currentRequest.stockistId}
           customerName={request.namaPelanggan ? atasNamaLabel : undefined}
@@ -512,6 +518,7 @@ export function RequestDetails({
           created={currentRequest.timestamp}
           updated={currentRequest.updatedDate}
           updatedByUsername={currentRequest.updatedBy}
+          notes={currentRequest.notes}
         />
       </Card>
 
@@ -592,6 +599,7 @@ export function RequestDetails({
             <Button
               variant="outline"
               onClick={() => {
+                setRejectReasonOption("");
                 setRejectReason("");
                 setShowRejectDialog(true);
               }}
@@ -636,24 +644,56 @@ export function RequestDetails({
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Request</AlertDialogTitle>
             <AlertDialogDescription>
-              Please provide a reason for rejecting this request.
+              Please select a reason for rejecting this request.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-2">
-            <textarea
-              className="w-full min-h-[100px] rounded-md border-2 border-gray-400 bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-gray-600 resize-none"
-              placeholder="Reason of Rejection (required)"
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-            />
+          <div className="py-2 space-y-3">
+            <select
+              className="w-full rounded-md border-2 border-gray-400 bg-white px-3 py-2 text-sm focus:outline-none focus:border-gray-600"
+              value={rejectReasonOption}
+              onChange={(e) => {
+                setRejectReasonOption(e.target.value);
+                if (e.target.value !== "other") setRejectReason("");
+              }}
+            >
+              <option value="">-- Select a reason --</option>
+              <option value="Spec not available">Spec not available</option>
+              <option value="Supplier cannot fulfill">
+                Supplier cannot fulfill
+              </option>
+              <option value="Price exceeds budget">Price exceeds budget</option>
+              <option value="ETA too long">ETA too long</option>
+              <option value="Duplicate request">Duplicate request</option>
+              <option value="Customer cancelled">Customer cancelled</option>
+              <option value="Incomplete information">
+                Incomplete information
+              </option>
+              <option value="other">Other (please specify)</option>
+            </select>
+            {rejectReasonOption === "other" && (
+              <textarea
+                className="w-full min-h-[80px] rounded-md border-2 border-gray-400 bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-gray-600 resize-none"
+                placeholder="Please describe the reason (required)"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                autoFocus
+              />
+            )}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={!rejectReason.trim()}
+              disabled={
+                !rejectReasonOption ||
+                (rejectReasonOption === "other" && !rejectReason.trim())
+              }
               onClick={() => {
-                if (rejectReason.trim()) {
-                  onReject!(rejectReason.trim());
+                const finalReason =
+                  rejectReasonOption === "other"
+                    ? rejectReason.trim()
+                    : rejectReasonOption;
+                if (finalReason) {
+                  onReject!(finalReason);
                   setShowRejectDialog(false);
                 }
               }}

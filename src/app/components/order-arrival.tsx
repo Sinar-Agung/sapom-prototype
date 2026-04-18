@@ -5,9 +5,12 @@ import {
   NAMA_PRODUK_OPTIONS,
   getLabelFromValue,
 } from "@/app/data/order-data";
-import { Order, OrderArrival } from "@/app/types/order";
+import { Order, OrderArrival, OrderShipping } from "@/app/types/order";
 import { useImage } from "@/app/utils/image-storage";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -19,7 +22,17 @@ import milano from "@/assets/images/milano.png";
 import sunnyVanessa from "@/assets/images/sunny-vanessa.png";
 import tambang from "@/assets/images/tambang.png";
 import { ArrowLeft, Calculator, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -70,6 +83,22 @@ export function OrderArrivalComponent({
   );
   const [newArrivals, setNewArrivals] = useState<Record<string, number>>({});
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+
+  // Build a lookup map shippingId → OrderShipping for arrival history display
+  const shipmentMap = useMemo(() => {
+    const allShipments: OrderShipping[] = JSON.parse(
+      localStorage.getItem("orderShippings") || "[]",
+    );
+    const map = new Map<string, OrderShipping>();
+    arrivals.forEach((a) => {
+      if (a.shippingId) {
+        const found = allShipments.find((s) => s.id === a.shippingId);
+        if (found) map.set(a.shippingId, found);
+      }
+    });
+    return map;
+  }, [arrivals]);
 
   // Calculate total delivered for each item
   const getDeliveredCount = (
@@ -241,7 +270,7 @@ export function OrderArrivalComponent({
                 <span
                   className={`${getStatusBadgeClasses(order.status)} px-3 py-1 rounded-full text-sm font-medium`}
                 >
-                  {order.status}
+                  {getStatusLabel(order.status)}
                 </span>
               </div>
             </div>
@@ -375,7 +404,15 @@ export function OrderArrivalComponent({
                 const newArrival = newArrivals[item.id] || 0;
 
                 return (
-                  <tr key={item.id || index} className="hover:bg-gray-50">
+                  <tr
+                    key={item.id || index}
+                    className={`${
+                      delivered >= (parseInt(item.pcs) || 0) &&
+                      (parseInt(item.pcs) || 0) > 0
+                        ? "bg-green-50"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
                     <td className="border p-2 text-center">{index + 1}</td>
                     <td
                       className={`border p-2 font-medium ${getKadarColor(item.kadar)}`}
@@ -430,7 +467,10 @@ export function OrderArrivalComponent({
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!hasNewArrivals}>
+          <Button
+            onClick={() => setIsConfirmDialogOpen(true)}
+            disabled={!hasNewArrivals}
+          >
             Submit Arrival
           </Button>
         </div>
@@ -455,103 +495,155 @@ export function OrderArrivalComponent({
             <div className="space-y-4 mt-4">
               {arrivals
                 .sort((a, b) => b.createdDate - a.createdDate)
-                .map((arrival) => (
-                  <div
-                    key={arrival.id}
-                    className="border rounded-lg p-4 bg-gray-50"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-4">
-                        <span className="font-medium">
-                          {new Date(arrival.createdDate).toLocaleString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "2-digit",
-                              day: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              second: "2-digit",
-                              hour12: false,
-                            },
+                .map((arrival) => {
+                  const linkedShipment = arrival.shippingId
+                    ? shipmentMap.get(arrival.shippingId)
+                    : undefined;
+                  const totalReceived = arrival.items.reduce(
+                    (s, i) => s + i.pcs,
+                    0,
+                  );
+                  const totalShipped = linkedShipment
+                    ? linkedShipment.items.reduce((s, i) => s + i.pcs, 0)
+                    : 0;
+                  const hasMissingItems =
+                    !!linkedShipment && totalReceived < totalShipped;
+                  return (
+                    <div
+                      key={arrival.id}
+                      className="border rounded-lg p-4 bg-gray-50"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <span className="font-medium">
+                            {new Date(arrival.createdDate).toLocaleString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                                hour12: false,
+                              },
+                            )}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            by {getFullNameFromUsername(arrival.createdBy)}
+                          </span>
+                          {!arrival.shippingId && (
+                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                              Manual Entry
+                            </span>
                           )}
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          by {getFullNameFromUsername(arrival.createdBy)}
-                        </span>
+                          {hasMissingItems && (
+                            <span className="animate-missing-badge text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">
+                              Incomplete Arrival
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => toggleArrivalExpansion(arrival.id)}
+                          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        >
+                          {expandedArrivals.has(arrival.id) ? (
+                            <>
+                              Hide Details <ChevronUp className="w-4 h-4" />
+                            </>
+                          ) : (
+                            <>
+                              Show Details <ChevronDown className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => toggleArrivalExpansion(arrival.id)}
-                        className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                      >
-                        {expandedArrivals.has(arrival.id) ? (
-                          <>
-                            Hide Details <ChevronUp className="w-4 h-4" />
-                          </>
-                        ) : (
-                          <>
-                            Show Details <ChevronDown className="w-4 h-4" />
-                          </>
-                        )}
-                      </button>
-                    </div>
 
-                    {expandedArrivals.has(arrival.id) && (
-                      <div className="mt-3 overflow-x-auto">
-                        <table className="w-full text-sm border-collapse border">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="border p-2 text-left bg-gray-100">
-                                #
-                              </th>
-                              <th className="border p-2 text-left bg-gray-100">
-                                Kadar
-                              </th>
-                              <th className="border p-2 text-left bg-gray-100">
-                                Warna
-                              </th>
-                              <th className="border p-2 text-left bg-gray-100">
-                                Ukuran
-                              </th>
-                              <th className="border p-2 text-left bg-gray-100">
-                                Berat
-                              </th>
-                              <th className="border p-2 text-left bg-gray-100">
-                                Pcs
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {arrival.items.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-gray-50">
-                                <td className="border p-2 text-center">
-                                  {idx + 1}
-                                </td>
-                                <td
-                                  className={`border p-2 font-medium ${getKadarColor(item.karat)}`}
-                                >
-                                  {item.karat.toUpperCase()}
-                                </td>
-                                <td
-                                  className={`border p-2 ${getWarnaColor(item.warna)}`}
-                                >
-                                  {getWarnaLabel(item.warna)}
-                                </td>
-                                <td className="border p-2">
-                                  {getUkuranDisplay(item.size)}
-                                </td>
-                                <td className="border p-2">
-                                  {item.berat || "-"}
-                                </td>
-                                <td className="border p-2">{item.pcs}</td>
+                      {expandedArrivals.has(arrival.id) && (
+                        <div className="mt-3 overflow-x-auto">
+                          <table className="w-full text-sm border-collapse border">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="border p-2 text-left bg-gray-100">
+                                  #
+                                </th>
+                                <th className="border p-2 text-left bg-gray-100">
+                                  Kadar
+                                </th>
+                                <th className="border p-2 text-left bg-gray-100">
+                                  Warna
+                                </th>
+                                <th className="border p-2 text-left bg-gray-100">
+                                  Ukuran
+                                </th>
+                                <th className="border p-2 text-left bg-gray-100">
+                                  Berat
+                                </th>
+                                {linkedShipment && (
+                                  <th className="border p-2 text-right bg-gray-100">
+                                    Shipped
+                                  </th>
+                                )}
+                                <th className="border p-2 text-left bg-gray-100">
+                                  Pcs
+                                </th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                            </thead>
+                            <tbody>
+                              {arrival.items.map((item, idx) => {
+                                const shippedPcs = linkedShipment?.items.find(
+                                  (si) =>
+                                    si.kadar === item.karat &&
+                                    si.warna === item.warna &&
+                                    si.ukuran === item.size &&
+                                    si.berat === item.berat,
+                                )?.pcs;
+                                return (
+                                  <tr
+                                    key={idx}
+                                    className={`${
+                                      shippedPcs !== undefined &&
+                                      item.pcs >= shippedPcs &&
+                                      shippedPcs > 0
+                                        ? "bg-green-50"
+                                        : "hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    <td className="border p-2 text-center">
+                                      {idx + 1}
+                                    </td>
+                                    <td
+                                      className={`border p-2 font-medium ${getKadarColor(item.karat)}`}
+                                    >
+                                      {item.karat.toUpperCase()}
+                                    </td>
+                                    <td
+                                      className={`border p-2 ${getWarnaColor(item.warna)}`}
+                                    >
+                                      {getWarnaLabel(item.warna)}
+                                    </td>
+                                    <td className="border p-2">
+                                      {getUkuranDisplay(item.size)}
+                                    </td>
+                                    <td className="border p-2">
+                                      {item.berat || "-"}
+                                    </td>
+                                    {linkedShipment && (
+                                      <td className="border p-2 text-right">
+                                        {shippedPcs ?? "-"}
+                                      </td>
+                                    )}
+                                    <td className="border p-2">{item.pcs}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           )}
         </Card>
@@ -586,6 +678,33 @@ export function OrderArrivalComponent({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Submit Arrival Dialog */}
+      <AlertDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit Arrival?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to submit these arrival entries? This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setIsConfirmDialogOpen(false);
+                handleSubmit();
+              }}
+            >
+              Submit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

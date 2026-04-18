@@ -12,6 +12,7 @@ import {
   getBranchName,
   getCurrentUserDetails,
   getFullNameFromUsername,
+  SupplierUser,
 } from "../utils/user-data";
 import { FilterSortControls } from "./filter-sort-controls";
 import { OrderCard } from "./order-card";
@@ -42,6 +43,7 @@ function requestToOrder(request: Request): Order {
     requestNo: request.requestNo,
     requestId: request.id,
     sales: request.createdBy,
+    assignedSalesUsername: (request as any).assignedSalesUsername,
     atasNama:
       typeof request.namaPelanggan === "string"
         ? request.namaPelanggan
@@ -284,7 +286,7 @@ function useRequestSortOptions(role: UserRole) {
     options.push({ value: "branch", label: "Branch" });
   }
   options.push({ value: "status", label: "Status" });
-  return options;
+  return options.sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function UnifiedOrders({
@@ -340,7 +342,28 @@ export function UnifiedOrders({
   });
 
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [branchFilter, setBranchFilter] = useState<string[]>([]);
+  const [branchFilter, setBranchFilter] = useState<string[]>(() => {
+    // Pre-populate from supplier user's branches attribute
+    const userDetails = getCurrentUserDetails();
+    if (userDetails?.accountType === "supplier") {
+      const supplierUser = userDetails as SupplierUser;
+      if (supplierUser.branches && supplierUser.branches.length > 0) {
+        return supplierUser.branches;
+      }
+    }
+    return [];
+  });
+  const [kadarFilter, setKadarFilter] = useState<string[]>(() => {
+    // Pre-populate from supplier user's kadar attribute
+    const userDetails = getCurrentUserDetails();
+    if (userDetails?.accountType === "supplier") {
+      const supplierUser = userDetails as SupplierUser;
+      if (supplierUser.kadar && supplierUser.kadar.length > 0) {
+        return supplierUser.kadar;
+      }
+    }
+    return [];
+  });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -424,6 +447,7 @@ export function UnifiedOrders({
     searchFilter,
     statusFilter,
     branchFilter,
+    kadarFilter,
   ]);
 
   const loadData = () => {
@@ -472,7 +496,7 @@ export function UnifiedOrders({
         const allOrders: Order[] = JSON.parse(savedOrders);
 
         if (userRole === "supplier" && supplierId) {
-          // Filter by supplier ID
+          // Filter by supplier ID only; kadar/branch filtering is done via UI filters
           const myOrders = allOrders.filter(
             (order) => order.pabrik?.id === supplierId,
           );
@@ -612,8 +636,8 @@ export function UnifiedOrders({
   // Filter by search term
   const searchFiltered = {
     requests: requests.filter((req: Request) => {
-      if (searchFilter) {
-        const searchTerm = searchFilter.toLowerCase();
+      if (searchFilter.trim()) {
+        const searchTerm = searchFilter.trim().toLowerCase();
         const requestNo = req.requestNo?.toLowerCase() || "";
         const createdBy = req.createdBy?.toLowerCase() || "";
         const pabrikName =
@@ -652,8 +676,8 @@ export function UnifiedOrders({
       return true;
     }),
     orders: orders.filter((order: Order) => {
-      if (searchFilter) {
-        const searchTerm = searchFilter.toLowerCase();
+      if (searchFilter.trim()) {
+        const searchTerm = searchFilter.trim().toLowerCase();
         const poNumber = order.PONumber?.toLowerCase() || "";
         const sales = order.sales?.toLowerCase() || "";
         const salesFull = getFullNameFromUsername(
@@ -701,13 +725,6 @@ export function UnifiedOrders({
     const tabRequests = searchFiltered.requests.filter((req: Request) => {
       if (tab.value !== "all" && !tab.requestStatuses?.includes(req.status))
         return false;
-      if (
-        tab.value === "all" &&
-        (userRole === "sales" || userRole === "jb") &&
-        req.status !== "Open" &&
-        req.status !== "JB Verifying"
-      )
-        return false;
       if (statusFilter.length > 0 && !statusFilter.includes(req.status))
         return false;
       return true;
@@ -720,6 +737,11 @@ export function UnifiedOrders({
       if (
         branchFilter.length > 0 &&
         (!order.branchCode || !branchFilter.includes(order.branchCode))
+      )
+        return false;
+      if (
+        kadarFilter.length > 0 &&
+        !order.detailItems?.some((item) => kadarFilter.includes(item.kadar))
       )
         return false;
       return true;
@@ -740,15 +762,7 @@ export function UnifiedOrders({
       const currentTabConfig = tabConfigs.find((t) => t.value === activeTab);
       if (!currentTabConfig) return false;
 
-      if (activeTab === "all") {
-        // For personal role, show all requests
-        // For sales/jb roles, only show requests in Internal tab statuses
-        if (userRole === "personal") return true;
-        if (userRole === "sales" || userRole === "jb") {
-          return req.status === "Open" || req.status === "JB Verifying";
-        }
-        return true;
-      }
+      if (activeTab === "all") return true;
 
       return currentTabConfig.requestStatuses?.includes(req.status) || false;
     }),
@@ -775,7 +789,7 @@ export function UnifiedOrders({
     value: s,
     label: s,
     disabled: !allTabStatusSet.has(s),
-  }));
+  })).sort((a, b) => a.label.localeCompare(b.label));
 
   // Build branch options: all known branches shown; disabled when not present across all orders
   const ALL_BRANCHES: Array<{ code: string; label: string }> = [
@@ -801,6 +815,34 @@ export function UnifiedOrders({
         }))
       : [];
 
+  // Build kadar options from all orders/requests (show for supplier + jb roles)
+  const ALL_KADAR = [
+    { value: "6k", label: "6K" },
+    { value: "8k", label: "8K" },
+    { value: "9k", label: "9K" },
+    { value: "16k", label: "16K" },
+    { value: "17k", label: "17K" },
+    { value: "24k", label: "24K" },
+  ];
+  const allKadarSet = new Set<string>(
+    [
+      ...searchFiltered.orders.flatMap((o: Order) =>
+        (o.detailItems || []).map((item) => item.kadar),
+      ),
+      ...searchFiltered.requests.flatMap((r: Request) =>
+        (r.detailItems || []).map((item: any) => item.kadar),
+      ),
+    ].filter(Boolean),
+  );
+  const availableKadar: { value: string; label: string; disabled?: boolean }[] =
+    userRole === "supplier" || userRole === "jb"
+      ? ALL_KADAR.map(({ value, label }) => ({
+          value,
+          label,
+          disabled: !allKadarSet.has(value),
+        }))
+      : [];
+
   const statusFiltered = {
     requests:
       statusFilter.length > 0
@@ -818,12 +860,22 @@ export function UnifiedOrders({
 
   const filteredData = {
     requests: statusFiltered.requests,
-    orders:
-      branchFilter.length > 0
-        ? statusFiltered.orders.filter(
-            (o: Order) => o.branchCode && branchFilter.includes(o.branchCode),
-          )
-        : statusFiltered.orders,
+    orders: (() => {
+      let result = statusFiltered.orders;
+      if (branchFilter.length > 0) {
+        result = result.filter(
+          (o: Order) => o.branchCode && branchFilter.includes(o.branchCode),
+        );
+      }
+      if (kadarFilter.length > 0) {
+        result = result.filter(
+          (o: Order) =>
+            o.detailItems &&
+            o.detailItems.some((item) => kadarFilter.includes(item.kadar)),
+        );
+      }
+      return result;
+    })(),
   };
 
   // Sort requests
@@ -1063,6 +1115,11 @@ export function UnifiedOrders({
             onBranchFilterChange={setBranchFilter}
             branchOptions={
               availableBranches.length > 0 ? availableBranches : undefined
+            }
+            kadarFilter={kadarFilter}
+            onKadarFilterChange={setKadarFilter}
+            kadarOptions={
+              availableKadar.length > 0 ? availableKadar : undefined
             }
           />
 

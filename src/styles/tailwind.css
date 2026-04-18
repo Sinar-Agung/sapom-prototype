@@ -13,6 +13,18 @@
   }
 }
 
+@keyframes missing-badge-pulse {
+  0%,
+  100% {
+    transform: scale(0.88);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -23,5 +35,8 @@
   }
   .animate-pulse-scale {
     animation: pulse-scale 2s ease-in-out infinite;
+  }
+  .animate-missing-badge {
+    animation: missing-badge-pulse 1.4s ease-in-out infinite;
   }
 }

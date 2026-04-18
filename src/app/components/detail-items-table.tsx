@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Info } from "lucide-react";
+import { useState } from "react";
 import {
   CUSTOMER_EXPECTATION_OPTIONS,
   getLabelFromValue,
@@ -13,17 +14,6 @@ interface DetailItemsTableProps {
 
 export function DetailItemsTable({ order, userRole }: DetailItemsTableProps) {
   const [expandedNote, setExpandedNote] = useState<string | null>(null);
-  const noteRefs = useRef<Record<string, HTMLSpanElement | null>>({});
-  const [overflowIds, setOverflowIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const newOverflow = new Set<string>();
-    for (const id of Object.keys(noteRefs.current)) {
-      const el = noteRefs.current[id];
-      if (el && el.scrollWidth > el.clientWidth) newOverflow.add(id);
-    }
-    setOverflowIds(newOverflow);
-  }, [order.detailItems]);
 
   const getKadarColor = (kadar: string) => {
     // Return empty string to use default table styling (white background, black text)
@@ -103,7 +93,7 @@ export function DetailItemsTable({ order, userRole }: DetailItemsTableProps) {
                     Available Pcs
                   </th>
                 )}
-                <th className="border p-2 text-left bg-gray-100">Notes</th>
+                <th className="border p-2 text-center bg-gray-100 w-8"></th>
               </tr>
             </thead>
             <tbody>
@@ -130,48 +120,34 @@ export function DetailItemsTable({ order, userRole }: DetailItemsTableProps) {
                     {userRole === "stockist" && (
                       <td className="border p-2">{item.availablePcs || "-"}</td>
                     )}
-                    <td className="border p-2 max-w-[150px]">
+                    <td className="border p-2 text-center w-8">
                       {item.notes ? (
-                        <div className="flex items-center gap-1">
-                          <span
-                            ref={(el) => {
-                              noteRefs.current[item.id] = el;
-                            }}
-                            className="truncate text-xs text-gray-700 max-w-[100px] inline-block"
-                          >
-                            {item.notes}
-                          </span>
-                          {overflowIds.has(item.id) && (
-                            <Tooltip
-                              open={expandedNote === item.id}
-                              onOpenChange={(open: boolean) =>
-                                setExpandedNote(open ? item.id : null)
+                        <Tooltip
+                          open={expandedNote === item.id}
+                          onOpenChange={(open: boolean) =>
+                            setExpandedNote(open ? item.id : null)
+                          }
+                        >
+                          <TooltipTrigger asChild>
+                            <button
+                              className="p-0.5 rounded text-gray-400 hover:text-blue-600 transition-colors"
+                              onClick={() =>
+                                setExpandedNote(
+                                  expandedNote === item.id ? null : item.id,
+                                )
                               }
                             >
-                              <TooltipTrigger asChild>
-                                <button
-                                  className="text-[10px] text-blue-600 hover:text-blue-800 font-medium shrink-0 underline"
-                                  onClick={() =>
-                                    setExpandedNote(
-                                      expandedNote === item.id ? null : item.id,
-                                    )
-                                  }
-                                >
-                                  more
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side="top"
-                                className="max-w-[240px] whitespace-pre-wrap break-words text-xs"
-                              >
-                                {item.notes}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
+                              <Info className="w-4 h-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            className="max-w-[240px] whitespace-pre-wrap break-words text-xs"
+                          >
+                            {item.notes}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : null}
                     </td>
                   </tr>
                 );

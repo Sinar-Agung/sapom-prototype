@@ -4,11 +4,12 @@ import {
   notifyOrderClosed,
   notifyOrderStatusChanged,
 } from "@/app/utils/notification-helper";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import {
+  getCurrentUserDetails,
+  getFullNameFromUsername,
+} from "@/app/utils/user-data";
 import { useEffect, useState } from "react";
 import { OrderArrivalComponent } from "./order-arrival";
-import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
@@ -65,6 +66,7 @@ export function JBInbound() {
 
   // Filter orders by tab
   const getFilteredOrders = () => {
+    const currentUser = getCurrentUserDetails();
     return orders.filter((order) => {
       // Show Stock Ready, In Production, and legacy delivery status orders
       // Note: "Partially Delivered" and "Fully Delivered" are legacy statuses
@@ -81,6 +83,14 @@ export function JBInbound() {
 
       // Don't show Confirmed by JB orders
       if (order.status === "Confirmed by JB") {
+        return false;
+      }
+
+      // Only show orders from the JB user's own branch
+      if (
+        currentUser?.branchCode &&
+        order.branchCode !== currentUser.branchCode
+      ) {
         return false;
       }
 
@@ -208,29 +218,23 @@ export function JBInbound() {
   };
 
   const filteredOrders = getFilteredOrders();
-  const waitingCount = orders.filter(
+  const currentUser = getCurrentUserDetails();
+  const branchOrders = orders.filter(
     (o) =>
       (o.status === "Stock Ready" ||
         o.status === "In Production" ||
         o.status === "Partially Delivered" ||
         o.status === "Fully Delivered") &&
-      getDeliveryStatus(o) === "waiting",
+      (!currentUser?.branchCode || o.branchCode === currentUser.branchCode),
+  );
+  const waitingCount = branchOrders.filter(
+    (o) => getDeliveryStatus(o) === "waiting",
   ).length;
-  const partialCount = orders.filter(
-    (o) =>
-      (o.status === "Stock Ready" ||
-        o.status === "In Production" ||
-        o.status === "Partially Delivered" ||
-        o.status === "Fully Delivered") &&
-      getDeliveryStatus(o) === "partial",
+  const partialCount = branchOrders.filter(
+    (o) => getDeliveryStatus(o) === "partial",
   ).length;
-  const deliveredCount = orders.filter(
-    (o) =>
-      (o.status === "Stock Ready" ||
-        o.status === "In Production" ||
-        o.status === "Partially Delivered" ||
-        o.status === "Fully Delivered") &&
-      getDeliveryStatus(o) === "delivered",
+  const deliveredCount = branchOrders.filter(
+    (o) => getDeliveryStatus(o) === "delivered",
   ).length;
 
   // If an order is selected, show the arrival component
@@ -311,33 +315,17 @@ export function JBInbound() {
                     className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => setSelectedOrder(order)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{order.PONumber}</h3>
-                          <span
-                            className={`${getStatusBadgeClasses(
-                              order.status,
-                            )} px-2 py-1 rounded-full text-xs`}
-                          >
-                            {order.status}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p>Supplier: {order.pabrik.name}</p>
-                          <p>
-                            Created:{" "}
-                            {new Date(order.createdDate).toLocaleDateString()}
-                          </p>
-                          <p>
-                            Created By:{" "}
-                            {getFullNameFromUsername(order.createdBy)}
-                          </p>
-                        </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{order.PONumber}</h3>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>
+                          Created:{" "}
+                          {new Date(order.createdDate).toLocaleDateString()}
+                        </p>
+                        <p>
+                          Created By: {getFullNameFromUsername(order.createdBy)}
+                        </p>
                       </div>
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
                     </div>
                   </Card>
                 ))
@@ -365,33 +353,17 @@ export function JBInbound() {
                     className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => setSelectedOrder(order)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{order.PONumber}</h3>
-                          <span
-                            className={`${getStatusBadgeClasses(
-                              order.status,
-                            )} px-2 py-1 rounded-full text-xs`}
-                          >
-                            {order.status}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p>Supplier: {order.pabrik.name}</p>
-                          <p>
-                            Created:{" "}
-                            {new Date(order.createdDate).toLocaleDateString()}
-                          </p>
-                          <p>
-                            Created By:{" "}
-                            {getFullNameFromUsername(order.createdBy)}
-                          </p>
-                        </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{order.PONumber}</h3>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>
+                          Created:{" "}
+                          {new Date(order.createdDate).toLocaleDateString()}
+                        </p>
+                        <p>
+                          Created By: {getFullNameFromUsername(order.createdBy)}
+                        </p>
                       </div>
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
                     </div>
                   </Card>
                 ))
@@ -419,33 +391,17 @@ export function JBInbound() {
                     className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => setSelectedOrder(order)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{order.PONumber}</h3>
-                          <span
-                            className={`${getStatusBadgeClasses(
-                              order.status,
-                            )} px-2 py-1 rounded-full text-xs`}
-                          >
-                            {order.status}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p>Supplier: {order.pabrik.name}</p>
-                          <p>
-                            Created:{" "}
-                            {new Date(order.createdDate).toLocaleDateString()}
-                          </p>
-                          <p>
-                            Created By:{" "}
-                            {getFullNameFromUsername(order.createdBy)}
-                          </p>
-                        </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{order.PONumber}</h3>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>
+                          Created:{" "}
+                          {new Date(order.createdDate).toLocaleDateString()}
+                        </p>
+                        <p>
+                          Created By: {getFullNameFromUsername(order.createdBy)}
+                        </p>
                       </div>
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
                     </div>
                   </Card>
                 ))

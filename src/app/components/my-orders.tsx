@@ -79,7 +79,7 @@ function useRequestSortOptions() {
     { value: "atasNama", label: t("sortOptions.atasNama") },
     { value: "pabrik", label: t("sortOptions.pabrik") },
     { value: "requestNo", label: t("sortOptions.requestNo") },
-  ];
+  ].sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function MyOrders({
@@ -122,9 +122,17 @@ export function MyOrders({
     );
     return saved || "open";
   });
-  const [sortBy, setSortBy] = useState<string>("updatedDate");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [requestNoFilter, setRequestNoFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>(
+    () => sessionStorage.getItem("myOrdersSortBy") || "updatedDate",
+  );
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(
+    () =>
+      (sessionStorage.getItem("myOrdersSortDirection") as "asc" | "desc") ||
+      "desc",
+  );
+  const [requestNoFilter, setRequestNoFilter] = useState<string>(
+    () => sessionStorage.getItem("myOrdersFilter") || "",
+  );
   const [displayedCount, setDisplayedCount] = useState(20);
   const observerTarget = useRef<HTMLDivElement>(null);
   const currentUser =
@@ -350,7 +358,8 @@ export function MyOrders({
       // Assigned tab - show Requested to JB status for both sales and stockist
       return order.status === "Requested to JB";
     }
-    return false;
+    // "all" tab — show everything
+    return true;
   });
 
   // Calculate filtered counts for each tab based on requestNo filter
@@ -474,6 +483,17 @@ export function MyOrders({
       }
     };
   }, [loadMore]);
+
+  // Persist sort and filter state
+  useEffect(() => {
+    sessionStorage.setItem("myOrdersSortBy", sortBy);
+  }, [sortBy]);
+  useEffect(() => {
+    sessionStorage.setItem("myOrdersSortDirection", sortDirection);
+  }, [sortDirection]);
+  useEffect(() => {
+    sessionStorage.setItem("myOrdersFilter", requestNoFilter);
+  }, [requestNoFilter]);
 
   // Reset displayed count when tab, sort, or filter changes
   useEffect(() => {

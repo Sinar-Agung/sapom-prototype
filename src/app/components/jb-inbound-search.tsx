@@ -4,13 +4,20 @@ import {
   notifyOrderArrival,
   notifyOrderFullyDelivered,
 } from "@/app/utils/notification-helper";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
+import {
+  getCurrentUserDetails,
+  getFullNameFromUsername,
+} from "@/app/utils/user-data";
 import {
   CheckCheck,
   ChevronDown,
   ChevronUp,
   ChevronsRight,
+  Pencil,
   Search,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -75,7 +82,9 @@ interface JBInboundSearchProps {
 }
 
 export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(
+    () => sessionStorage.getItem("inboundSearch") || "",
+  );
   const [orders, setOrders] = useState<Order[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -113,6 +122,10 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    sessionStorage.setItem("inboundSearch", search);
+  }, [search]);
+
   const trimmed = search.trim().toUpperCase();
   const isShipmentMode = trimmed.length > PO_NUMBER_LENGTH;
 
@@ -148,22 +161,27 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
     const matches = allShipments.filter((s) =>
       s.id.toUpperCase().includes(trimmed),
     );
-    setFoundEntries(matches);
-    if (matches.length > 0) {
-      const allOrders: Order[] = JSON.parse(
-        localStorage.getItem("orders") || "[]",
-      );
+    // Exclude shipments whose order is Closed
+    const allOrders: Order[] = JSON.parse(
+      localStorage.getItem("orders") || "[]",
+    );
+    const openMatches = matches.filter((s) => {
+      const ord = allOrders.find((o) => o.id === s.orderId);
+      return ord?.status !== "Closed";
+    });
+    setFoundEntries(openMatches);
+    if (openMatches.length > 0) {
       const matchOrder =
-        allOrders.find((o) => o.id === matches[0].orderId) || null;
+        allOrders.find((o) => o.id === openMatches[0].orderId) || null;
       setFoundEntryOrder(matchOrder);
       const allArrivals: OrderArrival[] = JSON.parse(
         localStorage.getItem("orderArrivals") || "[]",
       );
       setOrderArrivals(
-        allArrivals.filter((a) => a.orderId === matches[0].orderId),
+        allArrivals.filter((a) => a.orderId === openMatches[0].orderId),
       );
       const init: Record<string, Record<number, string>> = {};
-      matches.forEach((m) => {
+      openMatches.forEach((m) => {
         init[m.id] = {};
       });
       setSingleEdits(init);
@@ -332,6 +350,7 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
       0,
     );
     const hasAnyEdit = Object.values(edits).some((v) => parseInt(v) > 0);
+    const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
 
     return (
       <div className="border rounded-lg overflow-hidden">
@@ -372,15 +391,27 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
                 <th className="px-3 py-2 text-left">Ukuran</th>
                 <th className="px-3 py-2 text-right">Berat</th>
                 <th className="px-3 py-2 text-right">Shipped</th>
+                <th className="px-3 py-2 text-right">Received</th>
                 <th className="px-3 py-2 text-right">Arrival</th>
-                <th className="px-3 py-2 w-8" />
               </tr>
             </thead>
             <tbody>
               {entry.items.map((item, idx) => {
                 const ukuran = getUkuranDisplay(item.ukuran);
+                const received = getReceivedPcs(
+                  entry.orderId,
+                  item.kadar,
+                  item.warna,
+                  item.ukuran,
+                  item.berat,
+                );
                 return (
-                  <tr key={idx} className="border-t">
+                  <tr
+                    key={idx}
+                    className={`border-t ${
+                      received >= item.pcs && item.pcs > 0 ? "bg-green-50" : ""
+                    }`}
+                  >
                     <td
                       className={`px-3 py-2 font-medium ${getKadarColor(item.kadar)}`}
                     >
@@ -397,23 +428,56 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
                     </td>
                     <td className="px-3 py-2 text-right">{item.pcs}</td>
                     <td className="px-3 py-2 text-right">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={edits[idx] ?? ""}
-                        onChange={(e) => onEditChange(idx, e.target.value)}
-                        className="w-20 text-right"
-                        placeholder="0"
-                      />
+                      <span
+                        className={`font-medium ${
+                          received >= item.pcs && item.pcs > 0
+                            ? "text-green-700"
+                            : received > 0 && received < item.pcs
+                              ? "font-bold text-red-600"
+                              : "text-gray-400"
+                        }`}
+                      >
+                        {received > 0 ? received : "-"}
+                      </span>
                     </td>
                     <td className="px-3 py-2">
-                      <button
-                        title="Match to shipped quantity"
-                        className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
-                        onClick={() => onMatchOne(idx, item.pcs)}
-                      >
-                        <ChevronsRight className="w-4 h-4" />
-                      </button>
+                      {received >= item.pcs &&
+                      item.pcs > 0 &&
+                      !editingRows.has(idx) ? (
+                        <div className="flex items-center justify-end">
+                          <button
+                            title="Edit arrival quantity"
+                            className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                            onClick={() =>
+                              setEditingRows((prev) => {
+                                const next = new Set(prev);
+                                next.add(idx);
+                                return next;
+                              })
+                            }
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={edits[idx] ?? ""}
+                            onChange={(e) => onEditChange(idx, e.target.value)}
+                            className="w-20 text-right"
+                            placeholder="0"
+                          />
+                          <button
+                            title="Match to shipped quantity"
+                            className="p-1 rounded hover:bg-gray-100 text-blue-500 transition-colors"
+                            onClick={() => onMatchOne(idx, item.pcs)}
+                          >
+                            <ChevronsRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -438,6 +502,7 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
   };
 
   // ---- PO mode filtered orders (In Production, Stock Ready, or Partially Delivered) ----
+  const currentUser = getCurrentUserDetails();
   const filteredOrders =
     trimmed && !isShipmentMode
       ? orders.filter(
@@ -445,7 +510,9 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
             (o.status === "In Production" ||
               o.status === "Stock Ready" ||
               o.status === "Partially Delivered") &&
-            o.PONumber.toUpperCase().includes(trimmed),
+            o.PONumber.toUpperCase().includes(trimmed) &&
+            (!currentUser?.branchCode ||
+              o.branchCode === currentUser.branchCode),
         )
       : [];
 
@@ -461,7 +528,8 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
         (o.status === "In Production" ||
           o.status === "Stock Ready" ||
           o.status === "Partially Delivered") &&
-        o.PONumber.toUpperCase().includes(trimmed),
+        o.PONumber.toUpperCase().includes(trimmed) &&
+        (!currentUser?.branchCode || o.branchCode === currentUser.branchCode),
     );
     if (matches.length === 1) {
       const order = matches[0];
@@ -544,36 +612,16 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
                     <OrderCard
                       order={order}
                       userRole="jb"
-                      onSeeDetail={() => {}}
+                      onSeeDetail={() => {
+                        setSelectedOrder(null);
+                        onSeeDetail(order);
+                      }}
                     />
                   </div>
 
                   {/* Inline arrival panel */}
                   {selectedOrder?.id === order.id && (
                     <div className="border border-t-0 rounded-b-lg bg-white px-4 py-4 space-y-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`${getStatusBadgeClasses(order.status)} px-2 py-0.5 rounded-full text-xs`}
-                        >
-                          {order.status}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {order.pabrik?.name}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="ml-auto text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedOrder(null);
-                            onSeeDetail(order);
-                          }}
-                        >
-                          View Full Details →
-                        </Button>
-                      </div>
-
                       {/* Manual Arrival Entry — inline collapsible */}
                       <div>
                         <div className="flex justify-end">
@@ -832,15 +880,25 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
                                     );
                                     return;
                                   }
-                                  saveArrivalItems(
-                                    order.id,
-                                    items,
-                                    undefined,
-                                    () => {
-                                      setManualPcs({});
-                                      setShowManualArrival(false);
-                                    },
+                                  const total = items.reduce(
+                                    (s, i) => s + i.pcs,
+                                    0,
                                   );
+                                  setConfirmAction({
+                                    title: "Record Arrivals",
+                                    description: `Record ${total} pcs manual arrival for order ${order.PONumber}?`,
+                                    onConfirm: () => {
+                                      saveArrivalItems(
+                                        order.id,
+                                        items,
+                                        undefined,
+                                        () => {
+                                          setManualPcs({});
+                                          setShowManualArrival(false);
+                                        },
+                                      );
+                                    },
+                                  });
                                 }}
                               >
                                 Record Arrivals
@@ -972,17 +1030,27 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
                                         );
                                         return;
                                       }
-                                      saveArrivalItems(
-                                        selectedOrder!.id,
-                                        items,
-                                        entry.id,
-                                        () => {
-                                          setArrivalEdits((prev) => ({
-                                            ...prev,
-                                            [entry.id]: {},
-                                          }));
-                                        },
+                                      const total = items.reduce(
+                                        (s, i) => s + i.pcs,
+                                        0,
                                       );
+                                      setConfirmAction({
+                                        title: "Record Arrivals",
+                                        description: `Record ${total} pcs arrival for shipment ${entry.id}?`,
+                                        onConfirm: () => {
+                                          saveArrivalItems(
+                                            selectedOrder!.id,
+                                            items,
+                                            entry.id,
+                                            () => {
+                                              setArrivalEdits((prev) => ({
+                                                ...prev,
+                                                [entry.id]: {},
+                                              }));
+                                            },
+                                          );
+                                        },
+                                      });
                                     }}
                                   />
                                 ))
@@ -1018,7 +1086,7 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
                   <span
                     className={`${getStatusBadgeClasses(foundEntryOrder.status)} px-2 py-0.5 rounded-full text-xs`}
                   >
-                    {foundEntryOrder.status}
+                    {getStatusLabel(foundEntryOrder.status)}
                   </span>
                   <span className="text-sm text-gray-500 ml-auto">
                     {foundEntryOrder.pabrik?.name}
@@ -1097,8 +1165,18 @@ export function JBInboundSearch({ onSeeDetail }: JBInboundSearchProps) {
                       toast.error("Please enter at least one arrival quantity");
                       return;
                     }
-                    saveArrivalItems(entry.orderId, items, entry.id, () => {
-                      setSingleEdits((prev) => ({ ...prev, [entry.id]: {} }));
+                    const total = items.reduce((s, i) => s + i.pcs, 0);
+                    setConfirmAction({
+                      title: "Record Arrivals",
+                      description: `Record ${total} pcs arrival for shipment ${entry.id}?`,
+                      onConfirm: () => {
+                        saveArrivalItems(entry.orderId, items, entry.id, () => {
+                          setSingleEdits((prev) => ({
+                            ...prev,
+                            [entry.id]: {},
+                          }));
+                        });
+                      },
                     });
                   }}
                 />

@@ -7,6 +7,7 @@ import {
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
+import { getStatusLabel } from "@/app/utils/status-colors";
 import {
   getBranchName,
   getCurrentUserDetails,
@@ -222,7 +223,7 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
                           </p>
                         </div>
                         <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                          {order.status}
+                          {getStatusLabel(order.status)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs">

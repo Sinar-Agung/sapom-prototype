@@ -16,13 +16,13 @@ import {
   notifyRequestUpdated,
 } from "@/app/utils/notification-helper";
 import { generateRequestNo } from "@/app/utils/request-number";
-import { getCurrentUserDetails } from "@/app/utils/user-data";
+import { getCurrentUserDetails, SALES_USERS } from "@/app/utils/user-data";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { OrderFormHeader } from "./order-form/order-form-header";
 import { type DetailBarangItem } from "./request-form/detail-items-display";
 import { DetailItemsSection } from "./request-form/detail-items-section";
+import { RequestFormHeader as OrderFormHeader } from "./request-form/request-form-header";
 import { useDetailItems } from "./request-form/use-detail-items";
 
 interface OrderFormProps {
@@ -101,6 +101,22 @@ export function OrderForm(props: OrderFormProps) {
 
   // State for cancel confirmation dialog
   const [showCancelConfirmDialog, setShowCancelConfirmDialog] = useState(false);
+
+  // Get current user role
+  const currentUserRole =
+    sessionStorage.getItem("userRole") ||
+    localStorage.getItem("userRole") ||
+    "";
+  const isSalesInternal = currentUserRole === "salesInternal";
+
+  // Assigned sales person (for salesInternal users)
+  const currentUserDetails = getCurrentUserDetails();
+  const currentBranchCode = currentUserDetails?.branchCode || null;
+  const salesInBranch = isSalesInternal
+    ? SALES_USERS.filter((s) => s.branchCode === currentBranchCode)
+    : [];
+  const [assignedSalesUsername, setAssignedSalesUsername] =
+    useState<string>("");
 
   // Handle Kategori Barang change with confirmation
   const handleKategoriBarangChange = (value: string) => {
@@ -308,6 +324,7 @@ export function OrderForm(props: OrderFormProps) {
           fotoBarangBase64: undefined,
           updatedDate: Date.now(),
           updatedBy: currentUser,
+          ...(isSalesInternal && { assignedSalesUsername }),
           // Keep existing id, timestamp, and status
         };
 
@@ -341,6 +358,7 @@ export function OrderForm(props: OrderFormProps) {
         detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
         photoId: photoId,
         status: "Open", // Default status for new orders
+        ...(isSalesInternal && { assignedSalesUsername }),
       };
 
       // Add new order
@@ -431,6 +449,11 @@ export function OrderForm(props: OrderFormProps) {
         setExistingPhotoId(initialData.photoId);
       } else {
         setExistingPhotoId(null);
+      }
+
+      // Restore assigned sales for salesInternal users in edit mode
+      if (isSalesInternal && initialData.assignedSalesUsername) {
+        setAssignedSalesUsername(initialData.assignedSalesUsername);
       }
 
       // Store initial state for change detection
@@ -550,6 +573,11 @@ export function OrderForm(props: OrderFormProps) {
           fileInputRef={fileInputRef}
           fileInputKey={fileInputKey}
           onFileInputKeyChange={setFileInputKey}
+          atasNamaOptions={isSalesInternal ? salesInBranch : undefined}
+          atasNamaValue={assignedSalesUsername}
+          onAtasNamaChange={
+            isSalesInternal ? setAssignedSalesUsername : undefined
+          }
         />
 
         {/* Input Detail Barang Section */}

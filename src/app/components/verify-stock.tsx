@@ -14,7 +14,10 @@ import {
   notifyRequestStatusChanged,
   removeETAReminderForStockist,
 } from "@/app/utils/notification-helper";
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import { getFullNameFromUsername } from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
@@ -578,7 +581,7 @@ export function VerifyStock({
               <span
                 className={`inline-block text-xs ${getStatusBadgeClasses(currentRequest.status)} px-2 py-1 rounded-full font-medium`}
               >
-                {currentRequest.status}
+                {getStatusLabel(currentRequest.status)}
               </span>
             </div>
             {currentRequest.updatedDate && (

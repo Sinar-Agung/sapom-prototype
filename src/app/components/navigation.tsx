@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 interface NavigationProps {
   currentPage?: string;
   onNavigate?: (page: string) => void;
-  userRole?: "sales" | "stockist" | "jb" | "supplier";
+  userRole?: "sales" | "salesInternal" | "stockist" | "jb" | "supplier";
 }
 
 export function Navigation({
@@ -83,6 +83,7 @@ export function Navigation({
       return [
         { id: "home", label: t("navigation.home"), icon: Home },
         { id: "supplier-orders", label: t("navigation.orders"), icon: Package },
+        { id: "eta-calendar", label: "Calendar", icon: CalendarDays },
         {
           id: "notifications",
           label: t("navigation.notifications"),
