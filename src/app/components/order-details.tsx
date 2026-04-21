@@ -19,18 +19,23 @@ import { DetailBarangItem, Request } from "@/app/types/request";
 import { useImageMap } from "@/app/utils/image-storage";
 import {
   notifyOrderArrival,
+  notifyOrderChangeApproved,
   notifyOrderClosed,
   notifyOrderFullyDelivered,
   notifyOrderShipmentCreated,
   notifyOrderShipmentEdited,
   notifyOrderStatusChanged,
+  notifyPendingJBReview,
 } from "@/app/utils/notification-helper";
 import { printQRCode } from "@/app/utils/qr-print";
 import {
   getStatusBadgeClasses,
   getStatusLabel,
 } from "@/app/utils/status-colors";
-import { getFullNameFromUsername } from "@/app/utils/user-data";
+import {
+  findUserByUsername,
+  getFullNameFromUsername,
+} from "@/app/utils/user-data";
 import casteli from "@/assets/images/casteli.png";
 import hollowFancyNori from "@/assets/images/hollow-fancy-nori.png";
 import italyBambu from "@/assets/images/italy-bambu.png";
@@ -47,6 +52,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsRight,
+  Copy,
   Info,
   Pencil,
   Printer,
@@ -102,6 +108,7 @@ interface OrderDetailsProps {
   onApproveRevision?: (orderId: string) => void;
   onCancelOrder?: (orderId: string) => void;
   onUpdateOrder?: (order: Order) => void;
+  onDuplicate?: (order: Order) => void;
 }
 
 export function OrderDetails({
@@ -111,6 +118,7 @@ export function OrderDetails({
   onApproveRevision,
   onCancelOrder,
   onUpdateOrder,
+  onDuplicate,
 }: OrderDetailsProps) {
   const [relatedRequest, setRelatedRequest] = useState<Request | null>(null);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -183,9 +191,15 @@ export function OrderDetails({
     new Set(),
   );
   const [notesOpenId, setNotesOpenId] = useState<string | null>(null);
-  const userRole = (sessionStorage.getItem("userRole") ||
+  const storedRole =
+    sessionStorage.getItem("userRole") ||
     localStorage.getItem("userRole") ||
-    "sales") as "sales" | "stockist" | "jb" | "supplier";
+    "sales";
+  // salesInternal users act as "sales" for order review purposes (approve/reject supplier changes)
+  const userRole: "sales" | "stockist" | "jb" | "supplier" =
+    storedRole === "salesInternal"
+      ? "sales"
+      : (storedRole as "sales" | "stockist" | "jb" | "supplier");
   // JB cannot record new arrivals for terminal-status orders
   const canRecordArrival =
     userRole === "jb" &&
@@ -308,6 +322,12 @@ export function OrderDetails({
       allOrders[idx].updatedBy = currentUser;
       localStorage.setItem("orders", JSON.stringify(allOrders));
       setCurrentOrder(allOrders[idx]);
+      notifyOrderChangeApproved(
+        allOrders[idx],
+        currentUser,
+        userRole as "sales" | "jb",
+        true,
+      );
       toast.success(
         "Both parties approved. Order is now ready for production.",
       );
@@ -320,6 +340,9 @@ export function OrderDetails({
       allOrders[idx].updatedBy = currentUser;
       localStorage.setItem("orders", JSON.stringify(allOrders));
       setCurrentOrder({ ...allOrders[idx] });
+      if (userRole === "sales") {
+        notifyPendingJBReview(allOrders[idx], currentUser);
+      }
       const waitingFor = userRole === "jb" ? "Sales" : "JB";
       toast.success(`Review submitted. Awaiting ${waitingFor} review.`);
     }
@@ -4824,6 +4847,24 @@ export function OrderDetails({
         </div>
       )}
 
+      {/* Sales Action Buttons - Duplicate */}
+      {userRole === "sales" && !reviewMode && onDuplicate && (
+        <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
+          <div className="bg-white/95 backdrop-blur-sm border-t shadow-lg p-4">
+            <div className="flex gap-3 justify-end max-w-7xl mx-auto">
+              <Button
+                variant="outline"
+                onClick={() => onDuplicate(currentOrder)}
+                className="flex items-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                Duplicate
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Review Action Buttons - Only shown in review mode */}
       {reviewMode && onApproveRevision && onCancelOrder && (
         <div className="sticky bottom-16 md:bottom-0 left-0 right-0 mt-6 z-40">
@@ -4884,16 +4925,41 @@ export function OrderDetails({
                       </span>
                     </span>
                   </div>
-                  {relatedRequest.createdBy && (
-                    <div>
-                      <span className="text-gray-500">Sales: </span>
-                      <span className="font-medium">
-                        {typeof relatedRequest.createdBy === "string"
-                          ? getFullNameFromUsername(relatedRequest.createdBy)
-                          : relatedRequest.createdBy.username}
-                      </span>
-                    </div>
-                  )}
+                  {relatedRequest.createdBy &&
+                    (() => {
+                      const creatorUsername =
+                        typeof relatedRequest.createdBy === "string"
+                          ? relatedRequest.createdBy
+                          : relatedRequest.createdBy.username;
+                      const creatorUser = findUserByUsername(creatorUsername);
+                      const isSalesInt =
+                        creatorUser?.accountType === "salesInternal";
+                      return (
+                        <>
+                          <div>
+                            <span className="text-gray-500">
+                              {isSalesInt ? "Sales Int." : "Sales"}:{" "}
+                            </span>
+                            <span className="font-medium">
+                              {getFullNameFromUsername(creatorUsername)}
+                            </span>
+                          </div>
+                          {isSalesInt &&
+                            relatedRequest.assignedSalesUsername && (
+                              <div>
+                                <span className="text-gray-500">
+                                  A/N Sales:{" "}
+                                </span>
+                                <span className="font-medium">
+                                  {getFullNameFromUsername(
+                                    relatedRequest.assignedSalesUsername,
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                        </>
+                      );
+                    })()}
                   {relatedRequest.stockistId && (
                     <div>
                       <span className="text-gray-500">Stockist: </span>
@@ -4902,14 +4968,26 @@ export function OrderDetails({
                       </span>
                     </div>
                   )}
-                  {relatedRequest.namaPelanggan && (
-                    <div>
-                      <span className="text-gray-500">Atas Nama: </span>
-                      <span className="font-medium">
-                        {relatedRequest.namaPelanggan.name}
-                      </span>
-                    </div>
-                  )}
+                  {relatedRequest.namaPelanggan &&
+                    (() => {
+                      const creatorUsername =
+                        typeof relatedRequest.createdBy === "string"
+                          ? relatedRequest.createdBy
+                          : relatedRequest.createdBy?.username || "";
+                      const isSalesInt =
+                        findUserByUsername(creatorUsername)?.accountType ===
+                        "salesInternal";
+                      return (
+                        <div>
+                          <span className="text-gray-500">
+                            {isSalesInt ? "Customer" : "Atas Nama"}:{" "}
+                          </span>
+                          <span className="font-medium">
+                            {relatedRequest.namaPelanggan.name}
+                          </span>
+                        </div>
+                      );
+                    })()}
                 </div>
 
                 <div className="space-y-2">
@@ -4926,14 +5004,7 @@ export function OrderDetails({
                       </span>
                     </div>
                   )}
-                  <div>
-                    <span className="text-gray-500">Status: </span>
-                    <span
-                      className={`inline-block text-xs ${getStatusBadgeClasses(relatedRequest.status)} px-2 py-1 rounded-full font-medium`}
-                    >
-                      {getStatusLabel(relatedRequest.status)}
-                    </span>
-                  </div>
+
                   {relatedRequest.updatedDate && (
                     <div>
                       <span className="text-gray-500">Updated: </span>

@@ -135,6 +135,16 @@ export const checkAndExpireRequests = () => {
   if (!requestsJson) return;
 
   const requests: Request[] = JSON.parse(requestsJson);
+
+  // Load orders to check whether a request has been written into one
+  const ordersJson = localStorage.getItem("orders");
+  const orders: { requestId?: string }[] = ordersJson
+    ? JSON.parse(ordersJson)
+    : [];
+  const orderedRequestIds = new Set(
+    orders.map((o) => o.requestId).filter(Boolean),
+  );
+
   const now = new Date();
   let hasChanges = false;
 
@@ -146,6 +156,11 @@ export const checkAndExpireRequests = () => {
       req.status === "Ordered" ||
       req.status === "Cancelled"
     ) {
+      return;
+    }
+
+    // Skip if this request has been written into an order by JB
+    if (orderedRequestIds.has(req.id)) {
       return;
     }
 
@@ -367,6 +382,10 @@ export const getNotificationsForUser = (
   const requests = requestsJson ? JSON.parse(requestsJson) : [];
   console.log("All requests:", requests.length);
 
+  // Get all orders (used for sales-specific order notification filtering)
+  const ordersJson = localStorage.getItem("orders");
+  const orders = ordersJson ? JSON.parse(ordersJson) : [];
+
   const filtered = all
     .filter((notification) => {
       // Filter out notifications that have been removed by this user
@@ -467,6 +486,23 @@ export const getNotificationsForUser = (
                 `Request notification ${notification.id} missing originator field`,
               );
               return false;
+            }
+          }
+        }
+
+        // Sales-specific filtering for ALL order notifications
+        if (userRole === "sales" && notification.entityType === "order") {
+          const relatedOrder = orders.find(
+            (o: any) => o.id === notification.entityId,
+          );
+          if (relatedOrder) {
+            const isOwner =
+              relatedOrder.sales?.toLowerCase() === username.toLowerCase();
+            const isAtasNama =
+              relatedOrder.assignedSalesUsername?.toLowerCase() ===
+              username.toLowerCase();
+            if (!isOwner && !isAtasNama) {
+              return false; // Not this sales user's order, don't show
             }
           }
         }
@@ -686,8 +722,17 @@ export const createNotification = (
   });
 
   const notifications = getAllNotifications();
-  notifications.unshift(notification); // Add at the beginning for newest first
-  saveNotifications(notifications);
+  // Deduplicate: remove any existing notification with same eventType, entityId, and triggeredBy
+  const deduped = notifications.filter(
+    (n) =>
+      !(
+        n.eventType === eventType &&
+        n.entityId === entityId &&
+        n.triggeredBy === triggeredBy
+      ),
+  );
+  deduped.unshift(notification); // Add at the beginning for newest first
+  saveNotifications(deduped);
 
   return notification;
 };
@@ -744,7 +789,14 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
   // Message: Supplier, ETA, Sales, and item count
   const etaDate = formatDate(request.waktuKirim);
   const itemCount = request.detailItems?.length || 0;
-  const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\nSales: ${creatorName}\nItem count: ${itemCount}`;
+  const creatorUser = findUserByUsername(createdBy);
+  const isSalesInternalCreator = creatorUser?.accountType === "salesInternal";
+  const salesLabel = isSalesInternalCreator ? "Sales Int." : "Sales";
+  const atasNamaSalesLine =
+    isSalesInternalCreator && request.assignedSalesUsername
+      ? `\nA/N Sales: ${getFullNameFromUsername(request.assignedSalesUsername)}`
+      : "";
+  const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\n${salesLabel}: ${creatorName}${atasNamaSalesLine}\nItem count: ${itemCount}`;
 
   const notification = createNotification(
     "request_created",
@@ -756,7 +808,15 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
     title,
     message,
     ["sales", "stockist", "jb"], // Include sales so they can see their own request creation
-    request.assignedSalesUsername ? [request.assignedSalesUsername] : undefined, // also notify atas nama sales
+    (() => {
+      const specific: string[] = [createdBy]; // notify the author themselves
+      if (
+        request.assignedSalesUsername &&
+        !specific.includes(request.assignedSalesUsername)
+      )
+        specific.push(request.assignedSalesUsername);
+      return specific;
+    })(),
     undefined,
     undefined,
     undefined,
@@ -858,7 +918,6 @@ export const notifyRequestStatusChanged = (
 
     const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
-    const orderedSalesName = getFullNameFromUsername(request.createdBy || "");
     const orderedEta = (() => {
       if (!order.waktuKirim) return "-";
       return new Date(order.waktuKirim).toLocaleDateString("id-ID", {
@@ -868,29 +927,34 @@ export const notifyRequestStatusChanged = (
       });
     })();
     const orderedItems = order.detailItems?.length || 0;
-    const orderedMessage = `Supplier: ${supplierName}\nETA: ${orderedEta}\nSales: ${orderedSalesName}\nItems: ${orderedItems}`;
+    const orderedMessage = `Supplier: ${supplierName}\nETA: ${orderedEta}\n${buildOrderSalesLines(order)}\nItems: ${orderedItems}`;
 
     return createNotification(
-      "request_status_changed",
+      "order_written",
       changedBy,
       changedByRole,
-      "request",
-      request.id,
-      request.requestNo || request.id,
+      "order",
+      order.id,
+      order.PONumber,
       title,
       orderedMessage,
-      ["jb", "sales"],
-      salesTargets,
+      ["jb", "supplier", "sales"],
+      salesTargets.length > 0 ? salesTargets : undefined,
       [{ field: "status", oldValue: "Assigned to JB", newValue: newStatus }],
       {
         supplierId:
           typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id,
         supplierName: supplierName,
         requestId: request.id,
+        ...(order.assignedSalesUsername
+          ? { assignedSalesUsername: order.assignedSalesUsername }
+          : request.assignedSalesUsername
+            ? { assignedSalesUsername: request.assignedSalesUsername }
+            : {}),
       },
+      supplierName,
       undefined,
-      request.createdBy,
-      request.branchCode,
+      order.branchCode,
     );
   }
 
@@ -1235,10 +1299,9 @@ export const notifyOrderViewedBySupplier = (
     });
   };
 
-  const salesName = getFullNameFromUsername(order.sales || "");
   const etaFormatted = order.waktuKirim ? formatDate(order.waktuKirim) : "N/A";
   const itemCount = order.detailItems?.length || 0;
-  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
+  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\n${buildOrderSalesLines(order)}\nItem count: ${itemCount}`;
 
   return createNotification(
     "supplier_views_order",
@@ -1261,6 +1324,26 @@ export const notifyOrderViewedBySupplier = (
     undefined,
     order.branchCode,
   );
+};
+
+/**
+ * Build the Sales line(s) for an order notification message body.
+ * Returns "Sales Int.: Name\nA/N Sales: Name" when order.sales is a salesInternal user,
+ * or "Sales: Name" for regular sales.
+ */
+const buildOrderSalesLines = (order: Order): string => {
+  const salesUser = findUserByUsername(order.sales || "");
+  const salesName = getFullNameFromUsername(order.sales || "");
+  if (salesUser?.accountType === "salesInternal") {
+    const lines = [`Sales Int.: ${salesName}`];
+    if (order.assignedSalesUsername) {
+      lines.push(
+        `A/N Sales: ${getFullNameFromUsername(order.assignedSalesUsername)}`,
+      );
+    }
+    return lines.join("\n");
+  }
+  return `Sales: ${salesName}`;
 };
 
 // Helper: Create notification for order creation
@@ -1299,10 +1382,9 @@ export const notifyOrderCreated = (order: Order, createdBy: string) => {
   };
 
   // Format message with standardized fields
-  const salesName = getFullNameFromUsername(order.sales || "Unknown");
   const etaFormatted = order.waktuKirim ? formatDate(order.waktuKirim) : "N/A";
   const itemCount = order.detailItems?.length || 0;
-  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
+  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\n${buildOrderSalesLines(order)}\nItem count: ${itemCount}`;
 
   console.log("🏭 Creating order notification:", {
     orderPONumber: order.PONumber,
@@ -1373,10 +1455,9 @@ export const notifyOrderRevised = (order: Order, revisedBy: string) => {
           year: "numeric",
         })
       : "-";
-  const revSalesName = getFullNameFromUsername(order.sales || "");
   const revEta = formatDateRev(order.waktuKirim);
   const revItems = order.detailItems?.length || 0;
-  const revMessage = `Supplier: ${supplierName}\nETA: ${revEta}\nSales: ${revSalesName}\nItems: ${revItems}`;
+  const revMessage = `Supplier: ${supplierName}\nETA: ${revEta}\n${buildOrderSalesLines(order)}\nItems: ${revItems}`;
 
   return createNotification(
     "order_revised",
@@ -1464,13 +1545,20 @@ export const notifyOrderStatusChanged = (
     const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
 
     // Format the detailed body
-    const salesName = getFullNameFromUsername(order.sales || "Unknown");
     const itemCount = order.detailItems?.length || 0;
     const etaFormatted = order.waktuKirim
       ? formatDate(order.waktuKirim)
       : "N/A";
 
-    const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItem count: ${itemCount}`;
+    const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\n${buildOrderSalesLines(order)}\nItem count: ${itemCount}`;
+
+    const specificTargets: string[] = order.sales ? [order.sales] : [];
+    if (
+      order.assignedSalesUsername &&
+      !specificTargets.includes(order.assignedSalesUsername)
+    ) {
+      specificTargets.push(order.assignedSalesUsername);
+    }
 
     return createNotification(
       "order_change_requested",
@@ -1482,7 +1570,7 @@ export const notifyOrderStatusChanged = (
       title,
       message,
       targets,
-      order.sales ? [order.sales] : undefined,
+      specificTargets.length > 0 ? specificTargets : undefined,
       [{ field: "status", oldValue: oldStatus, newValue: newStatus }],
       {
         supplierId: supplierId,
@@ -1496,10 +1584,29 @@ export const notifyOrderStatusChanged = (
 
   // Use standard title format
   const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
-  const stdSalesName = getFullNameFromUsername(order.sales || "");
   const stdEta = order.waktuKirim ? formatDate(order.waktuKirim) : "N/A";
   const stdItems = order.detailItems?.length || 0;
-  const message = `Supplier: ${supplierName}\nETA: ${stdEta}\nSales: ${stdSalesName}\nItems: ${stdItems}`;
+  // Resolve assignedSalesUsername from order or linked request for message body
+  const resolvedOrderForMessage: typeof order =
+    !order.assignedSalesUsername && order.requestId
+      ? (() => {
+          const savedRequests = localStorage.getItem("requests");
+          if (savedRequests) {
+            const allRequests = JSON.parse(savedRequests);
+            const linked = allRequests.find(
+              (r: any) => r.id === order.requestId,
+            );
+            if (linked?.assignedSalesUsername) {
+              return {
+                ...order,
+                assignedSalesUsername: linked.assignedSalesUsername,
+              };
+            }
+          }
+          return order;
+        })()
+      : order;
+  const message = `Supplier: ${supplierName}\nETA: ${stdEta}\n${buildOrderSalesLines(resolvedOrderForMessage)}\nItems: ${stdItems}`;
 
   let eventType: NotificationEventType = "order_status_changed";
   let specificTargetsForEvent: string[] | undefined = undefined;
@@ -1509,14 +1616,54 @@ export const notifyOrderStatusChanged = (
     if (!targets.includes("supplier")) targets.push("supplier");
     // Sales who placed the order also gets notified
     if (!targets.includes("sales")) targets.push("sales");
-    specificTargetsForEvent = order.sales ? [order.sales] : undefined;
+    const inProdTargets: string[] = order.sales ? [order.sales] : [];
+    if (
+      order.assignedSalesUsername &&
+      !inProdTargets.includes(order.assignedSalesUsername)
+    )
+      inProdTargets.push(order.assignedSalesUsername);
+    specificTargetsForEvent =
+      inProdTargets.length > 0 ? inProdTargets : undefined;
   } else if (newStatus === "Stock Ready") {
     eventType = "order_stock_ready";
     // Supplier also gets a record of their own action
     if (!targets.includes("supplier")) targets.push("supplier");
     // Sales who placed the order also gets notified
     if (!targets.includes("sales")) targets.push("sales");
-    specificTargetsForEvent = order.sales ? [order.sales] : undefined;
+    const stockReadyTargets: string[] = order.sales ? [order.sales] : [];
+    // Resolve assignedSalesUsername from order or fallback to original request in localStorage
+    let resolvedAssignedSales = order.assignedSalesUsername;
+    if (!resolvedAssignedSales && order.requestId) {
+      const savedRequests = localStorage.getItem("requests");
+      if (savedRequests) {
+        const allRequests = JSON.parse(savedRequests);
+        const linkedRequest = allRequests.find(
+          (r: any) => r.id === order.requestId,
+        );
+        if (linkedRequest?.assignedSalesUsername) {
+          resolvedAssignedSales = linkedRequest.assignedSalesUsername;
+        }
+      }
+    }
+    if (
+      resolvedAssignedSales &&
+      !stockReadyTargets.includes(resolvedAssignedSales)
+    )
+      stockReadyTargets.push(resolvedAssignedSales);
+    specificTargetsForEvent =
+      stockReadyTargets.length > 0 ? stockReadyTargets : undefined;
+  } else if (newStatus === "Unable to Fulfill") {
+    eventType = "order_unable_to_fulfill";
+    // Sales who placed the order also gets notified
+    if (!targets.includes("sales")) targets.push("sales");
+    const unableTargets: string[] = order.sales ? [order.sales] : [];
+    if (
+      order.assignedSalesUsername &&
+      !unableTargets.includes(order.assignedSalesUsername)
+    )
+      unableTargets.push(order.assignedSalesUsername);
+    specificTargetsForEvent =
+      unableTargets.length > 0 ? unableTargets : undefined;
   }
 
   return createNotification(
@@ -1534,9 +1681,70 @@ export const notifyOrderStatusChanged = (
     {
       supplierId: supplierId,
       supplierName: supplierName,
+      ...(order.assignedSalesUsername
+        ? { assignedSalesUsername: order.assignedSalesUsername }
+        : {}),
     },
     supplierName, // addressedTo
     undefined, // originator (not applicable for orders)
+    order.branchCode,
+  );
+};
+
+// Helper: Create notification when Sales submits their review (→ Pending JB Review)
+export const notifyPendingJBReview = (order: Order, reviewedBy: string) => {
+  const jenisProdukLabel = getLabelFromValue(
+    JENIS_PRODUK_OPTIONS,
+    order.jenisProduk,
+  );
+  const productNameLabel =
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
+  const productName = `${jenisProdukLabel} ${productNameLabel}`;
+  const atasNama = order.atasNama || "Unknown Customer";
+  const supplierName =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
+  const supplierId =
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id;
+
+  const title = `<strong class="text-blue-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
+  const reviewerName = getFullNameFromUsername(reviewedBy);
+  const message = `${buildOrderSalesLines(order)}\nSupplier: ${supplierName}\nReviewed by: ${reviewerName}\nStatus: Pending JB Review`;
+
+  const targets: NotificationTargetAudience[] = ["jb", "sales", "supplier"];
+  const specific: string[] = [];
+  if (order.sales) specific.push(order.sales);
+  if (order.jbId) specific.push(order.jbId);
+  if (
+    order.assignedSalesUsername &&
+    !specific.includes(order.assignedSalesUsername)
+  )
+    specific.push(order.assignedSalesUsername);
+
+  return createNotification(
+    "order_pending_jb_review",
+    reviewedBy,
+    "sales",
+    "order",
+    order.id,
+    order.PONumber,
+    title,
+    message,
+    targets,
+    specific.length > 0 ? specific : undefined,
+    [
+      {
+        field: "status",
+        oldValue: "Pending Sales Review",
+        newValue: "Pending JB Review",
+      },
+    ],
+    { supplierId, supplierName },
+    supplierName,
+    order.sales,
     order.branchCode,
   );
 };
@@ -1570,11 +1778,19 @@ export const notifyOrderChangeApproved = (
 
   const message = `Product: ${productName}\nCustomer: ${atasNama}\nSupplier: ${supplierName}\nApproved by: ${approverName}\nStatus: ${bothApproved ? "Fully Approved — Order Revised" : `Waiting for ${approvedByRole === "jb" ? "Sales" : "JB"} approval`}`;
 
-  // Notify the other party and the originating sales
-  const targets: NotificationTargetAudience[] = ["jb", "sales"];
+  // Notify the other party and the originating sales (and atas nama if set)
+  // When fully approved (Order Revised), also notify supplier
+  const targets: NotificationTargetAudience[] = bothApproved
+    ? ["jb", "sales", "supplier"]
+    : ["jb", "sales"];
   const specific: string[] = [];
   if (order.sales) specific.push(order.sales);
   if (order.jbId) specific.push(order.jbId);
+  if (
+    order.assignedSalesUsername &&
+    !specific.includes(order.assignedSalesUsername)
+  )
+    specific.push(order.assignedSalesUsername);
 
   return createNotification(
     "order_change_approved",
@@ -1632,10 +1848,17 @@ export const notifyOrderArrival = (
           year: "numeric",
         })
       : "-";
-  const arrSalesName = getFullNameFromUsername(order.sales || "");
   const arrEta = formatDateArr(order.waktuKirim);
   const arrItems = order.detailItems?.length || 0;
-  const arrMessage = `Supplier: ${supplierName}\nETA: ${arrEta}\nSales: ${arrSalesName}\nItems: ${arrItems}\nPcs Received: ${pcsDelivered}`;
+  const arrMessage = `Supplier: ${supplierName}\nETA: ${arrEta}\n${buildOrderSalesLines(order)}\nItems: ${arrItems}\nPcs Received: ${pcsDelivered}`;
+
+  const arrSpecificTargets: string[] = [];
+  if (order.sales) arrSpecificTargets.push(order.sales);
+  if (
+    order.assignedSalesUsername &&
+    !arrSpecificTargets.includes(order.assignedSalesUsername)
+  )
+    arrSpecificTargets.push(order.assignedSalesUsername);
 
   return createNotification(
     "order_arrival_recorded",
@@ -1647,7 +1870,7 @@ export const notifyOrderArrival = (
     title,
     arrMessage,
     ["jb", "supplier", "sales"],
-    order.sales ? [order.sales] : undefined,
+    arrSpecificTargets.length > 0 ? arrSpecificTargets : undefined,
     undefined,
     {
       supplierId: supplierId,
@@ -1684,8 +1907,15 @@ export const notifyOrderShipmentCreated = (
   const atasNama = order.atasNama || "Unknown Customer";
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
-  const salesName = getFullNameFromUsername(order.sales || "");
-  const message = `Supplier: ${supplierName}\nShipment ID: ${shippingId}\nSales: ${salesName}`;
+  const message = `Supplier: ${supplierName}\nShipment ID: ${shippingId}\n${buildOrderSalesLines(order)}`;
+
+  const shipCreTargets: string[] = [];
+  if (order.sales) shipCreTargets.push(order.sales);
+  if (
+    order.assignedSalesUsername &&
+    !shipCreTargets.includes(order.assignedSalesUsername)
+  )
+    shipCreTargets.push(order.assignedSalesUsername);
 
   return createNotification(
     "order_shipment_created",
@@ -1697,7 +1927,7 @@ export const notifyOrderShipmentCreated = (
     title,
     message,
     ["jb", "supplier", "sales"],
-    order.sales ? [order.sales] : undefined,
+    shipCreTargets.length > 0 ? shipCreTargets : undefined,
     undefined,
     { supplierId, supplierName, shippingId },
     supplierName,
@@ -1731,8 +1961,15 @@ export const notifyOrderShipmentEdited = (
   const atasNama = order.atasNama || "Unknown Customer";
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
-  const salesName = getFullNameFromUsername(order.sales || "");
-  const message = `Supplier: ${supplierName}\nShipment ID: ${shippingId}\nSales: ${salesName}`;
+  const message = `Supplier: ${supplierName}\nShipment ID: ${shippingId}\n${buildOrderSalesLines(order)}`;
+
+  const shipEdiTargets: string[] = [];
+  if (order.sales) shipEdiTargets.push(order.sales);
+  if (
+    order.assignedSalesUsername &&
+    !shipEdiTargets.includes(order.assignedSalesUsername)
+  )
+    shipEdiTargets.push(order.assignedSalesUsername);
 
   return createNotification(
     "order_shipment_edited",
@@ -1744,7 +1981,7 @@ export const notifyOrderShipmentEdited = (
     title,
     message,
     ["jb", "supplier", "sales"],
-    order.sales ? [order.sales] : undefined,
+    shipEdiTargets.length > 0 ? shipEdiTargets : undefined,
     undefined,
     { supplierId, supplierName, shippingId },
     supplierName,
@@ -1774,7 +2011,6 @@ export const notifyOrderFullyDelivered = (order: Order, recordedBy: string) => {
   const atasNama = order.atasNama || "Unknown Customer";
 
   const title = `<strong class="text-green-600">${productName}</strong>${atasNama ? ` for ${atasNama}` : ""}`;
-  const salesName = getFullNameFromUsername(order.sales || "");
   const etaFormatted = order.waktuKirim
     ? new Date(order.waktuKirim).toLocaleDateString("id-ID", {
         day: "2-digit",
@@ -1783,7 +2019,15 @@ export const notifyOrderFullyDelivered = (order: Order, recordedBy: string) => {
       })
     : "-";
   const itemCount = order.detailItems?.length || 0;
-  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\nSales: ${salesName}\nItems: ${itemCount}`;
+  const message = `Supplier: ${supplierName}\nETA: ${etaFormatted}\n${buildOrderSalesLines(order)}\nItems: ${itemCount}`;
+
+  const fullyDelTargets: string[] = [];
+  if (order.sales) fullyDelTargets.push(order.sales);
+  if (
+    order.assignedSalesUsername &&
+    !fullyDelTargets.includes(order.assignedSalesUsername)
+  )
+    fullyDelTargets.push(order.assignedSalesUsername);
 
   return createNotification(
     "order_fully_delivered",
@@ -1795,7 +2039,7 @@ export const notifyOrderFullyDelivered = (order: Order, recordedBy: string) => {
     title,
     message,
     ["jb", "supplier", "sales"],
-    order.sales ? [order.sales] : undefined,
+    fullyDelTargets.length > 0 ? fullyDelTargets : undefined,
     undefined,
     { supplierId, supplierName },
     supplierName,
@@ -1837,10 +2081,17 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
           year: "numeric",
         })
       : "-";
-  const clSalesName = getFullNameFromUsername(order.sales || "");
   const clEta = formatDateCl(order.waktuKirim);
   const clItems = order.detailItems?.length || 0;
-  const clMessage = `Supplier: ${supplierName}\nETA: ${clEta}\nSales: ${clSalesName}\nItems: ${clItems}`;
+  const clMessage = `Supplier: ${supplierName}\nETA: ${clEta}\n${buildOrderSalesLines(order)}\nItems: ${clItems}`;
+
+  const closedTargets: string[] = [];
+  if (order.sales) closedTargets.push(order.sales);
+  if (
+    order.assignedSalesUsername &&
+    !closedTargets.includes(order.assignedSalesUsername)
+  )
+    closedTargets.push(order.assignedSalesUsername);
 
   return createNotification(
     "order_closed",
@@ -1852,7 +2103,7 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
     title,
     clMessage,
     ["jb", "supplier", "sales"],
-    undefined,
+    closedTargets.length > 0 ? closedTargets : undefined,
     undefined,
     {
       supplierId: supplierId,
@@ -2032,9 +2283,16 @@ export const notifyRequestUpdated = (
         })
       : "-";
   const updEta = formatDateUpd(newRequest.waktuKirim);
-  const updSalesName = getFullNameFromUsername(newRequest.createdBy || "");
+  const updSalesName = getFullNameFromUsername(updatedBy);
   const updItems = newRequest.detailItems?.length || 0;
-  const updMessage = `Supplier: ${updPabrikLabel}\nETA: ${updEta}\nSales: ${updSalesName}\nItems: ${updItems}`;
+  const updUser = findUserByUsername(updatedBy);
+  const isUpdSalesInternal = updUser?.accountType === "salesInternal";
+  const updSalesLabel = isUpdSalesInternal ? "Sales Int." : "Sales";
+  const updAtasNamaLine =
+    isUpdSalesInternal && newRequest.assignedSalesUsername
+      ? `\nA/N Sales: ${getFullNameFromUsername(newRequest.assignedSalesUsername)}`
+      : "";
+  const updMessage = `Supplier: ${updPabrikLabel}\nETA: ${updEta}\n${updSalesLabel}: ${updSalesName}${updAtasNamaLine}\nItems: ${updItems}`;
 
   return createNotification(
     "request_updated",
@@ -2094,9 +2352,17 @@ export const notifyRequestCancelled = (
         })
       : "-";
   const canEta = formatDateCan(request.waktuKirim);
-  const canSalesName = getFullNameFromUsername(request.createdBy || "");
+  const canCancelledByUser = findUserByUsername(cancelledBy);
+  const isCanSalesInternal =
+    canCancelledByUser?.accountType === "salesInternal";
+  const canSalesLabel = isCanSalesInternal ? "Sales Int." : "Sales";
+  const canSalesName = getFullNameFromUsername(cancelledBy);
+  const canAtasNamaLine =
+    isCanSalesInternal && request.assignedSalesUsername
+      ? `\nA/N Sales: ${getFullNameFromUsername(request.assignedSalesUsername)}`
+      : "";
   const canItems = request.detailItems?.length || 0;
-  const canMessage = `Supplier: ${canPabrikLabel}\nETA: ${canEta}\nSales: ${canSalesName}\nItems: ${canItems}`;
+  const canMessage = `Supplier: ${canPabrikLabel}\nETA: ${canEta}\n${canSalesLabel}: ${canSalesName}${canAtasNamaLine}\nItems: ${canItems}`;
 
   return createNotification(
     "request_cancelled",

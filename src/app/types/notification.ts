@@ -31,8 +31,10 @@ export type NotificationEventType =
   | "order_updated"
   | "order_revised"
   | "order_status_changed"
+  | "order_unable_to_fulfill" // Supplier marks order as Unable to Fulfill
   | "order_change_requested" // Supplier requested change on order
   | "order_change_approved" // Sales or JB approved an order change revision
+  | "order_pending_jb_review" // Sales submitted review; waiting for JB approval
   | "order_viewed_by_supplier"
   | "supplier_views_order" // Supplier views a New Order
   | "order_arrival_recorded"

@@ -8,10 +8,7 @@ import {
 import { Order } from "@/app/types/order";
 import { DetailBarangItem, Request } from "@/app/types/request";
 import { useImage } from "@/app/utils/image-storage";
-import {
-  notifyOrderCreated,
-  notifyRequestStatusChanged,
-} from "@/app/utils/notification-helper";
+import { notifyRequestStatusChanged } from "@/app/utils/notification-helper";
 import {
   getStatusBadgeClasses,
   getStatusLabel,
@@ -590,6 +587,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
           sales: salesUsername,
           atasNama: atasNamaValue,
           branchCode: request.branchCode,
+          assignedSalesUsername: request.assignedSalesUsername,
           pabrik: pabrikRef as any,
           kategoriBarang: request.kategoriBarang,
           jenisProduk: request.jenisProduk,
@@ -633,9 +631,6 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
             );
           }
         }
-
-        // Create notification for order creation
-        notifyOrderCreated(newOrder, currentUser);
 
         toast.success("Order created successfully!");
         setTimeout(() => {

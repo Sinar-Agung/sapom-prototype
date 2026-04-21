@@ -642,6 +642,9 @@ export function Notifications({
     if (eventType === "order_change_requested") {
       return <Edit className="w-5 h-5 text-blue-600" />;
     }
+    if (eventType === "order_pending_jb_review") {
+      return <Edit className="w-5 h-5 text-orange-600" />;
+    }
     if (eventType === "order_change_approved") {
       return <CheckCheck className="w-5 h-5 text-green-600" />;
     }
@@ -663,6 +666,8 @@ export function Notifications({
     if (eventType === "request_expired") return "bg-red-50 border-red-300";
     if (eventType === "order_change_requested")
       return "bg-blue-50 border-blue-200";
+    if (eventType === "order_pending_jb_review")
+      return "bg-orange-50 border-orange-200";
     if (eventType === "order_change_approved")
       return "bg-green-50 border-green-300";
     if (eventType.includes("created")) return "bg-green-50 border-green-200";
@@ -697,11 +702,18 @@ export function Notifications({
     if (eventType === "request_viewed_by_jb") return "Viewed by JB";
     if (eventType === "order_in_production") return "Production Started";
     if (eventType === "order_stock_ready") return "Stock Ready";
+    if (eventType === "order_unable_to_fulfill") return "Unable to Fulfill";
     if (eventType === "supplier_views_order") return "Supplier Views Order";
     if (eventType === "order_shipment_created") return "New Shipment";
     if (eventType === "order_shipment_edited") return "Shipment Updated";
     if (eventType === "order_arrival_recorded") return "Order Arrival";
     if (eventType === "order_fully_delivered") return "Fully Delivered";
+    if (eventType === "request_created") return "New Request";
+    if (eventType === "order_written") return "Order Created";
+    if (eventType === "order_change_requested") return "Pending Sales Review";
+    if (eventType === "order_pending_jb_review") return "Pending JB Review";
+    if (eventType === "order_change_approved") return "Order Revised";
+    if (eventType === "order_revised") return "Order Revised";
     return eventType
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -721,6 +733,8 @@ export function Notifications({
     if (eventType === "request_expired") return "bg-red-100 text-red-700";
     if (eventType === "order_change_requested")
       return "bg-blue-100 text-blue-700";
+    if (eventType === "order_pending_jb_review")
+      return "bg-orange-100 text-orange-700";
     if (eventType === "order_change_approved")
       return "bg-green-100 text-green-700";
     if (eventType.includes("created")) return "bg-green-100 text-green-700";
@@ -731,6 +745,8 @@ export function Notifications({
       return "bg-indigo-100 text-indigo-700";
     if (eventType === "order_stock_ready")
       return "bg-emerald-100 text-emerald-700";
+    if (eventType === "order_unable_to_fulfill")
+      return "bg-red-100 text-red-700";
     if (eventType === "order_shipment_created")
       return "bg-violet-100 text-violet-700";
     if (eventType === "order_shipment_edited")
@@ -1143,17 +1159,6 @@ export function Notifications({
                 />
                 Refresh
               </Button>
-              {unreadCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarkAllAsRead}
-                  className="flex items-center gap-2"
-                >
-                  <CheckCheck className="w-4 h-4" />
-                  Mark all as read
-                </Button>
-              )}
             </div>
           </div>
 

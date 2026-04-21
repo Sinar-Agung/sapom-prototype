@@ -149,20 +149,6 @@ export function Login({ onLogin, onRegister }: LoginProps) {
             >
               {t("auth.login")}
             </Button>
-
-            {/* Register Link */}
-            <div className="text-center pt-4 border-t">
-              <p className="text-sm text-gray-600">
-                {t("auth.noAccount")}{" "}
-                <button
-                  type="button"
-                  onClick={onRegister}
-                  className="text-amber-600 hover:text-amber-700 font-semibold hover:underline"
-                >
-                  {t("auth.registerHere")}
-                </button>
-              </p>
-            </div>
           </form>
         </div>
       </div>

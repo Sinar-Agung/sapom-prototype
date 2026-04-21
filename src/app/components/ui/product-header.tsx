@@ -1,4 +1,7 @@
-import { getStatusBadgeClasses } from "@/app/utils/status-colors";
+import {
+  getStatusBadgeClasses,
+  getStatusLabel,
+} from "@/app/utils/status-colors";
 import type { BranchCode } from "@/app/utils/user-data";
 import {
   findUserByUsername,
@@ -194,7 +197,7 @@ export function ProductHeader({
       show: !!stockistUsername,
     },
     customerName: {
-      label: "Customer Name",
+      label: "Customer",
       value: <span className="font-medium">{customerName}</span>,
       show: !!customerName,
     },
@@ -219,7 +222,7 @@ export function ProductHeader({
         <span
           className={`inline-block text-xs ${getStatusBadgeClasses(status || "")} px-2 py-1 rounded-full font-medium w-fit`}
         >
-          {status}
+          {getStatusLabel(status || "")}
         </span>
       ),
       show: !!status,
@@ -232,7 +235,7 @@ export function ProductHeader({
     sales: {
       label:
         findUserByUsername(salesUsername || "")?.accountType === "salesInternal"
-          ? "Sales Internal"
+          ? "Sales Int."
           : "Sales",
       value: (
         <span className="font-medium">
@@ -242,7 +245,7 @@ export function ProductHeader({
       show: !!salesUsername,
     },
     assignedSales: {
-      label: "Atas Nama Sales",
+      label: "A/N Sales",
       value: (
         <span className="font-medium">
           {assignedSalesUsername

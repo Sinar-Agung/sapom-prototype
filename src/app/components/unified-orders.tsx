@@ -322,7 +322,10 @@ export function UnifiedOrders({
       return "open";
     }
     if (initialTab) return initialTab;
-    return TAB_CONFIGS[userRole][0].value;
+    const stored = sessionStorage.getItem(
+      `${userRole === "personal" ? "myOrders" : `${userRole}Order`}ActiveTab`,
+    );
+    return stored || TAB_CONFIGS[userRole][0].value;
   });
 
   const [sortBy, setSortBy] = useState<string>(() => {
@@ -341,7 +344,12 @@ export function UnifiedOrders({
     return sessionStorage.getItem(`${storagePrefix}Filter`) || "";
   });
 
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>(() => {
+    const stored = sessionStorage.getItem(
+      `${userRole === "personal" ? "myOrders" : `${userRole}Order`}StatusFilter`,
+    );
+    return stored ? JSON.parse(stored) : [];
+  });
   const [branchFilter, setBranchFilter] = useState<string[]>(() => {
     // Pre-populate from supplier user's branches attribute
     const userDetails = getCurrentUserDetails();
@@ -398,6 +406,17 @@ export function UnifiedOrders({
   useEffect(() => {
     sessionStorage.setItem(`${storagePrefix}Filter`, searchFilter);
   }, [searchFilter, storagePrefix]);
+
+  useEffect(() => {
+    sessionStorage.setItem(`${storagePrefix}ActiveTab`, activeTab);
+  }, [activeTab, storagePrefix]);
+
+  useEffect(() => {
+    sessionStorage.setItem(
+      `${storagePrefix}StatusFilter`,
+      JSON.stringify(statusFilter),
+    );
+  }, [statusFilter, storagePrefix]);
 
   // Load data on mount and when window regains focus
   useEffect(() => {
@@ -465,12 +484,14 @@ export function UnifiedOrders({
           );
           setRequests(myRequests);
         } else if (userRole === "sales") {
-          // Sales only see their own requests, scoped to their branch
+          // Sales see their own requests OR requests where they are atas nama, scoped to their branch
           const currentUserDetails = getCurrentUserDetails();
           const myBranch = currentUserDetails?.branchCode;
           const myRequests = allRequests.filter(
             (req: Request) =>
-              req.createdBy?.toLowerCase() === currentUser.toLowerCase() &&
+              (req.createdBy?.toLowerCase() === currentUser.toLowerCase() ||
+                (req as any).assignedSalesUsername?.toLowerCase() ===
+                  currentUser.toLowerCase()) &&
               (!myBranch || !req.branchCode || req.branchCode === myBranch),
           );
           setRequests(myRequests);
@@ -502,12 +523,14 @@ export function UnifiedOrders({
           );
           setOrders(myOrders);
         } else if (userRole === "sales") {
-          // Sales only see their own orders, scoped to their branch
+          // Sales see their own orders OR orders where they are atas nama, scoped to their branch
           const currentUserDetails = getCurrentUserDetails();
           const myBranch = currentUserDetails?.branchCode;
           const myOrders = allOrders.filter(
             (order) =>
-              order.sales?.toLowerCase() === currentUser.toLowerCase() &&
+              (order.sales?.toLowerCase() === currentUser.toLowerCase() ||
+                order.assignedSalesUsername?.toLowerCase() ===
+                  currentUser.toLowerCase()) &&
               (!myBranch || !order.branchCode || order.branchCode === myBranch),
           );
           setOrders(myOrders);
@@ -1184,6 +1207,12 @@ export function UnifiedOrders({
                           ? "jb"
                           : userRole;
 
+                    // Atas nama sales can view but not edit/cancel/duplicate
+                    const isRequestAtasNama =
+                      userRole === "sales" &&
+                      (request as any).assignedSalesUsername?.toLowerCase() ===
+                        currentUser.toLowerCase();
+
                     return (
                       <OrderCard
                         key={request.id}
@@ -1195,9 +1224,11 @@ export function UnifiedOrders({
                           toggleExpand(request.id);
                           markAsViewed(request.id, "request");
                         }}
-                        onCancelOrder={handleCancelRequest}
+                        onCancelOrder={
+                          isRequestAtasNama ? undefined : handleCancelRequest
+                        }
                         onEditOrder={
-                          onEditRequest
+                          !isRequestAtasNama && onEditRequest
                             ? (_o) => onEditRequest(request)
                             : undefined
                         }
@@ -1218,6 +1249,7 @@ export function UnifiedOrders({
                     );
                   } else {
                     const order = item.data as Order;
+
                     return (
                       <OrderCard
                         key={order.id}

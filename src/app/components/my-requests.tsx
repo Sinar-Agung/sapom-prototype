@@ -641,13 +641,12 @@ export function MyOrders({
           }
         : undefined;
 
-    const handleDuplicateOrder =
-      !isAtasNama && onDuplicateOrder
-        ? (_o: Order) => {
-            markRequestAsViewed(order.id);
-            onDuplicateOrder(order);
-          }
-        : undefined;
+    const handleDuplicateOrder = onDuplicateOrder
+      ? (_o: Order) => {
+          markRequestAsViewed(order.id);
+          onDuplicateOrder(order);
+        }
+      : undefined;
 
     return (
       <OrderCard

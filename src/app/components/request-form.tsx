@@ -262,6 +262,23 @@ export function RequestForm(props: RequestFormProps) {
 
   // Save order to session storage
   const handleShowSaveConfirmation = () => {
+    // For new/duplicate modes, check for mixed kadar upfront so the split warning
+    // appears as the first dialog (before the generic confirm-save dialog).
+    if (mode !== "edit") {
+      const KADAR_MUDA = ["6k", "8k", "9k"];
+      const KADAR_TUA = ["16k", "17k", "24k"];
+      const mudaItems = detailItems.filter((item) =>
+        KADAR_MUDA.includes(item.kadar),
+      );
+      const tuaItems = detailItems.filter((item) =>
+        KADAR_TUA.includes(item.kadar),
+      );
+      if (mudaItems.length > 0 && tuaItems.length > 0) {
+        setPendingSplitAction("save");
+        setShowSplitConfirmDialog(true);
+        return;
+      }
+    }
     setShowSaveConfirmDialog(true);
   };
 

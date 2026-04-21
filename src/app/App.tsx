@@ -1201,6 +1201,11 @@ export default function App() {
             onApproveRevision={handleApproveRevision}
             onCancelOrder={handleCancelOrderFromReview}
             onUpdateOrder={handleUpdateOrder}
+            onDuplicate={
+              userRole === "sales" || userRole === "salesInternal"
+                ? (order) => handleDuplicateOrder(order)
+                : undefined
+            }
           />
         );
       default:
