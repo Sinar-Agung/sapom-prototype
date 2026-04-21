@@ -9,6 +9,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Order Details — Duplicate Button for Sales / Sales Internal**
+
+- Sales and Sales Internal users now see a sticky "Duplicate" action button at the bottom of `OrderDetails`
+- `App.tsx` passes `onDuplicate` to `OrderDetails` when the current role is `sales` or `salesInternal`
+- `atasNama` restriction removed from `handleDuplicateOrder` in `my-requests.tsx` — atas nama sales can now duplicate orders
+- Updated: `order-details.tsx`, `App.tsx`, `my-requests.tsx`
+
+**Order Details — Sales Internal Awareness**
+
+- `OrderDetails` resolves `salesInternal` from `sessionStorage`/`localStorage` and maps it to `"sales"` for all review-gating logic (approve/reject supplier changes)
+- Related-request info panel now shows "Sales Int." label and a separate "A/N Sales" row when the request was created by a Sales Internal user; "Atas Nama" / "Customer Name" field label is contextualised to "Customer" for Sales Internal
+- Updated: `order-details.tsx`
+
+**Revision Review — Notifications on Approval**
+
+- When a revision is fully approved by both parties, `notifyOrderChangeApproved` is fired from `OrderDetails`
+- When Sales submits a revision review (awaiting JB), `notifyPendingJBReview` is sent to JB users
+- Updated: `order-details.tsx`, `notification-helper.ts`
+
+**New Notification Event Types**
+
+- `order_unable_to_fulfill` — fired when Supplier marks an order as Unable to Fulfill; renders with red icon and badge in the Notifications page
+- `order_pending_jb_review` — fired when Sales submits a revision review that still needs JB approval; renders with orange icon and badge
+- Updated: `notification.ts`, `notifications.tsx`, `notification-helper.ts`
+
+**Notifications — Human-Readable Event Labels**
+
+- Explicit label mappings added for `request_created` → "New Request", `order_written` → "Order Created", `order_change_requested` → "Pending Sales Review", `order_pending_jb_review` → "Pending JB Review", `order_change_approved` → "Order Revised", `order_revised` → "Order Revised"
+- Updated: `notifications.tsx`
+
+**Notification Helper — Sales-Specific Order Filtering**
+
+- `getNotificationsForUser` now filters out order notifications for sales users whose username matches neither `order.sales` nor `order.assignedSalesUsername`, preventing cross-user order noise
+- Updated: `notification-helper.ts`
+
+**Notification Helper — `buildOrderSalesLines` Utility**
+
+- Internal helper `buildOrderSalesLines(order)` generates consistent "Sales Int. / A/N Sales" or "Sales" lines for notification message bodies when the order's sales user is a Sales Internal account
+- Updated: `notification-helper.ts`
+
+**Notification Helper — Deduplication**
+
+- `saveNotification` now deduplicates by `(eventType, entityId, triggeredBy)` before prepending the new notification, preventing duplicate entries on repeated actions
+- Updated: `notification-helper.ts`
+
+**Write Order — `assignedSalesUsername` Propagated to Order**
+
+- `assignedSalesUsername` from the source request is now copied onto the newly created order in `WriteOrder`, ensuring atas nama sales attribution is preserved through the order lifecycle
+- Updated: `write-order.tsx`
+
+**Use Case Diagram — V2 Draw.io**
+
+- `guidelines/use-case-diagram.drawio` added: complete V2 actor-use-case diagram with virtual/composite actor nodes (`All Users`, `Internal Users`, `Sales and AE`, `JB + Supplier`), 56 use cases, colour-coded swim-lane groupings, hierarchy edges, and a legend
+- Updated: `guidelines/use-case-diagram.drawio` (new)
+
+### Changed
+
+**Notifications — Removed "Mark All as Read" Button**
+
+- The "Mark all as read" button in the Notifications page toolbar has been removed
+- Updated: `notifications.tsx`
+
+**Login — Removed Register Link**
+
+- The "Don't have an account? Register here" link has been removed from the Login form
+- Updated: `login.tsx`
+
+**Orders Page — Active Tab & Status Filter Persisted**
+
+- Active tab and status filter selection are now saved to `sessionStorage` and restored on re-mount, matching the existing sort/search persistence behaviour
+- Updated: `unified-orders.tsx`
+
+**Request Form — Mixed-Kadar Split Dialog Triggers on Duplicate**
+
+- The mixed-kadar split confirmation dialog now fires for both `create` and `duplicate` modes (previously only on `create`)
+- Updated: `request-form.tsx`
+
+**Product Header — Label Shortening**
+
+- "Sales Internal" label shortened to "Sales Int." for compact display
+- "Atas Nama Sales" label shortened to "A/N Sales"
+- "Customer Name" label shortened to "Customer"
+- Status badge now renders via `getStatusLabel()` for human-readable text instead of the raw status value
+- Updated: `ui/product-header.tsx`
+
+### Removed
+
+**Write Order — Order-Created Notification Removed**
+
+- `notifyOrderCreated` call removed from `WriteOrder`; order creation no longer fires a standalone notification (downstream events such as `order_written` are handled by the notification helper)
+- Updated: `write-order.tsx`
+
+---
+
+### Added
+
 **Sales Internal Role**
 
 - New `salesInternal` account type added — users with this role create requests on behalf of a regular sales person (`assignedSalesUsername`)
