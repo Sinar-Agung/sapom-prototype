@@ -11,51 +11,86 @@ BRANCH CODES:
 - BDG: Bandung (Kode: B)
 - SBY: Surabaya (Kode: C)
 
-SALES USERS (6):
-1. Username: sales1         | Password: sales123 | Full Name: Budi Santoso        | Credit: Rp 500,000,000 | Branch: JKT
-2. Username: sales2         | Password: sales123 | Full Name: Ani Wijaya          | Credit: Rp 750,000,000 | Branch: BDG
-3. Username: sales3         | Password: sales123 | Full Name: Cahya Pratama       | Credit: Rp 600,000,000 | Branch: SBY
-4. Username: sales4         | Password: sales123 | Full Name: Dewi Sari           | Credit: Rp 850,000,000 | Branch: JKT
-5. Username: sales5         | Password: sales123 | Full Name: Rina Hartono        | Credit: Rp 700,000,000 | Branch: BDG
-6. Username: sales6         | Password: sales123 | Full Name: Agus Setiawan       | Credit: Rp 550,000,000 | Branch: SBY
+──────────────────────────────────────────
+SALES USERS (6) — Password: sales123
+──────────────────────────────────────────
+ #  Username  Full Name          Credit Limit     Branch
+ 1  sales1    Budi Santoso       Rp 500,000,000   JKT
+ 2  sales2    Ani Wijaya         Rp 750,000,000   BDG
+ 3  sales3    Cahya Pratama      Rp 600,000,000   SBY
+ 4  sales4    Dewi Sari          Rp 850,000,000   JKT
+ 5  sales5    Rina Hartono       Rp 700,000,000   BDG
+ 6  sales6    Agus Setiawan      Rp 550,000,000   SBY
 
-SALES INTERNAL USERS (8) - can create requests and assign a sales person:
-1. Username: ae1             | Password: ae123    | Full Name: Ahmad Fauzi         | Branch: JKT
-2. Username: ae2             | Password: ae123    | Full Name: Bella Anggraini     | Branch: BDG
-3. Username: ae3             | Password: ae123    | Full Name: Citra Kusuma        | Branch: SBY
-4. Username: ae4             | Password: ae123    | Full Name: Dika Firmansyah     | Branch: JKT
-5. Username: ae5             | Password: ae123    | Full Name: Eka Nurhayati       | Branch: BDG
-6. Username: ae6             | Password: ae123    | Full Name: Fajar Ramadan       | Branch: SBY
-7. Username: ae7             | Password: ae123    | Full Name: Gita Pertiwi        | Branch: JKT
-8. Username: ae8             | Password: ae123    | Full Name: Hadi Wibowo         | Branch: BDG
+──────────────────────────────────────────
+SALES INTERNAL USERS (8) — Password: ae123
+  Can create requests and assign an Atas Nama sales person.
+──────────────────────────────────────────
+ #  Username  Full Name          Branch
+ 1  ae1       Ahmad Fauzi        JKT
+ 2  ae2       Bella Anggraini    BDG
+ 3  ae3       Citra Kusuma       SBY
+ 4  ae4       Dika Firmansyah    JKT
+ 5  ae5       Eka Nurhayati      BDG
+ 6  ae6       Fajar Ramadan      SBY
+ 7  ae7       Gita Pertiwi       JKT
+ 8  ae8       Hadi Wibowo        BDG
 
-STOCKIST USERS (6):
-1. Username: stockist1         | Password: stock123 | Full Name: Eko Widodo          | Group: Kadar Muda (375, 420, 700) | Branch: JKT
-2. Username: stockist2         | Password: stock123 | Full Name: Fitri Rahmawati     | Group: Kadar Tua (750, 916, 999)  | Branch: BDG
-3. Username: stockist3         | Password: stock123 | Full Name: Gunawan Pratama     | Group: Kadar Muda (375, 420, 700) | Branch: SBY
-4. Username: stockist4         | Password: stock123 | Full Name: Hani Lestari        | Group: Kadar Tua (750, 916, 999)  | Branch: JKT
-5. Username: stockist5         | Password: stock123 | Full Name: Irfan Hakim         | Group: Kadar Muda (375, 420, 700) | Branch: BDG
-6. Username: stockist6         | Password: stock123 | Full Name: Julia Santoso       | Group: Kadar Tua (750, 916, 999)  | Branch: SBY
+──────────────────────────────────────────
+STOCKIST USERS (6) — Password: stock123
+──────────────────────────────────────────
+ #  Username   Full Name           Group        Kadar             Branch
+ 1  stockist1  Eko Widodo          Kadar Muda   375 / 420 / 700   JKT
+ 2  stockist2  Fitri Rahmawati     Kadar Tua    750 / 916 / 999   BDG
+ 3  stockist3  Gunawan Pratama     Kadar Muda   375 / 420 / 700   SBY
+ 4  stockist4  Hani Lestari        Kadar Tua    750 / 916 / 999   JKT
+ 5  stockist5  Irfan Hakim         Kadar Muda   375 / 420 / 700   BDG
+ 6  stockist6  Julia Santoso       Kadar Tua    750 / 916 / 999   SBY
 
-JEWELRY BUYER (JB) USERS (6):
-1. Username: jb1         | Password: jb123    | Full Name: Hendra Gunawan      | Group: Domestic Supplier   | Branch: JKT
-2. Username: jb2         | Password: jb123    | Full Name: Indah Permatasari   | Group: Import Specialist   | Branch: BDG
-3. Username: jb3         | Password: jb123    | Full Name: Joko Susanto        | Group: Custom Design       | Branch: SBY
-4. Username: jb4         | Password: jb123    | Full Name: Kartika Dewi        | Group: Domestic Supplier   | Branch: JKT
-5. Username: jb5         | Password: jb123    | Full Name: Lukman Hakim        | Group: Import Specialist   | Branch: BDG
-6. Username: jb6         | Password: jb123    | Full Name: Maya Sari           | Group: Custom Design       | Branch: SBY
+──────────────────────────────────────────
+JEWELRY BUYER (JB) USERS (6) — Password: jb123
+──────────────────────────────────────────
+ #  Username  Full Name           Group               Branch
+ 1  jb1       Hendra Gunawan      Domestic Supplier   JKT
+ 2  jb2       Indah Permatasari   Import Specialist   BDG
+ 3  jb3       Joko Susanto        Custom Design       SBY
+ 4  jb4       Kartika Dewi        Domestic Supplier   JKT
+ 5  jb5       Lukman Hakim        Import Specialist   BDG
+ 6  jb6       Maya Sari           Custom Design       SBY
 
-SUPPLIER USERS (10):
-1.  Username: kh          | Password: 123      | Full Name: King Halim Workshop     | Supplier: King Halim   (supplierId: king-halim)
-2.  Username: ub          | Password: 123      | Full Name: UBS Gold Factory        | Supplier: UBS Gold     (supplierId: ubs-gold)
-3.  Username: le          | Password: 123      | Full Name: Lestari Gold Corp       | Supplier: Lestari Gold (supplierId: lestari-gold)
-4.  Username: yt          | Password: 123      | Full Name: YT Gold Manufacturing   | Supplier: YT Gold      (supplierId: yt-gold)
-5.  Username: mt          | Password: 123      | Full Name: MT Gold Industries      | Supplier: MT Gold      (supplierId: mt-gold)
-6.  Username: hw          | Password: 123      | Full Name: HWT Jewelry             | Supplier: HWT          (supplierId: hwt)
-7.  Username: ay          | Password: 123      | Full Name: Ayu Gold Crafters       | Supplier: Ayu          (supplierId: ayu)
-8.  Username: sa          | Password: 123      | Full Name: SB Gold Works           | Supplier: SB Gold      (supplierId: sb-gold)
-9.  Username: se          | Password: 123      | Full Name: CRM Gold Manufacturing  | Supplier: CRM          (supplierId: crm)
-10. Username: lo          | Password: 123      | Full Name: Lotus Gold Artisan      | Supplier: Lotus Gold   (supplierId: lts-gold)
+──────────────────────────────────────────
+SUPPLIER USERS (70 total) — Password: 123
+  10 generic accounts (all branches, all kadar)
+  60 kadar/branch-restricted sub-accounts (6 per supplier)
+  Naming pattern for restricted accounts: [code][m|t][j|b|s]
+    m = Kadar Muda (6k, 8k, 9k)   t = Kadar Tua (16k, 17k, 24k)
+    j = JKT                        b = BDG          s = SBY
+──────────────────────────────────────────
+GENERIC (all branches, all kadar):
+ #   Username  Full Name                Supplier        supplierId
+  1  kh        King Halim Workshop      King Halim      king-halim
+  2  ub        UBS Gold Factory         UBS Gold        ubs-gold
+  3  le        Lestari Gold Corp        Lestari Gold    lestari-gold
+  4  yt        YT Gold Manufacturing    YT Gold         yt-gold
+  5  mt        MT Gold Industries       MT Gold         mt-gold
+  6  hw        HWT Jewelry              HWT             hwt
+  7  ay        Ayu Gold Crafters        Ayu             ayu
+  8  sa        SB Gold Works            SB Gold         sb-gold
+  9  se        CRM Gold Manufacturing   CRM             crm
+ 10  lo        Lotus Gold Artisan       Lotus Gold      lts-gold
+
+KADAR/BRANCH-RESTRICTED SUB-ACCOUNTS:
+ Supplier      Muda JKT  Tua JKT  Muda BDG  Tua BDG  Muda SBY  Tua SBY
+ King Halim    khmj      khtj     khmb       khtb     khms      khts
+ UBS Gold      ubmj      ubtj     ubmb       ubtb     ubms      ubts
+ Lestari Gold  lemj      letj     lemb       letb     lems      lets
+ YT Gold       ytmj      yttj     ytmb       yttb     ytms      ytts
+ MT Gold       mtmj      mttj     mtmb       mttb     mtms      mtts
+ HWT           hwmj      hwtj     hwmb       hwtb     hwms      hwts
+ Ayu           aymj      aytj     aymb       aytb     ayms      ayts
+ SB Gold       samj      satj     samb       satb     sams      sats
+ CRM           semj      setj     semb       setb     sems      sets
+ Lotus Gold    lomj      lotj     lomb       lotb     loms      lots
 
 ==========================================
 */

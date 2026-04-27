@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+---
+
+### Changed
+
+**`user-data.ts` — Credential Comment Reformatted**
+
+- Credential reference tables in the top-of-file JSDoc comment reformatted for readability: section dividers, aligned columns, passwords grouped at section heading
+- Supplier section expanded to document all 70 accounts (10 generic + 60 kadar/branch-restricted sub-accounts) with naming-pattern legend and full lookup grid
+- No runtime behaviour changed
+- Updated: `src/app/utils/user-data.ts`
+
+---
+
 ### Added
 
 **Order Details — Duplicate Button for Sales / Sales Internal**
