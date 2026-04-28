@@ -104,7 +104,13 @@ export function ETACalendar({
       )
         return false;
       if (userRole === "sales" && o.sales !== user) return false;
-      if (userRole === "supplier" && supplierId && (typeof o.pabrik === "string" ? o.pabrik !== supplierId : o.pabrik?.id !== supplierId))
+      if (
+        userRole === "supplier" &&
+        supplierId &&
+        (typeof o.pabrik === "string"
+          ? o.pabrik !== supplierId
+          : o.pabrik?.id !== supplierId)
+      )
         return false;
       return true;
     });

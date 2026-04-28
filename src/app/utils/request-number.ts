@@ -37,9 +37,7 @@ function getBranchLetter(branchCode?: BranchCode): string {
  * Looks at both existing requests and existing orders to find the next sequence.
  */
 export function generateRequestNo(branchCode?: BranchCode): string {
-  const orders: Order[] = JSON.parse(
-    localStorage.getItem("orders") ?? "[]",
-  );
+  const orders: Order[] = JSON.parse(localStorage.getItem("orders") ?? "[]");
 
   const existingNumbers = orders
     .flatMap((o) => [o.PONumber ?? "", o.requestNo ?? ""])
@@ -83,7 +81,8 @@ export function generatePONumber(
   const branchLetter = getBranchLetter(branchCode);
   const year = String(now.getFullYear()).slice(-2);
   const month = now.getMonth() + 1;
-  const monthChar = month <= 9 ? String(month) : String.fromCharCode(55 + month); // A=10,B=11,C=12
+  const monthChar =
+    month <= 9 ? String(month) : String.fromCharCode(55 + month); // A=10,B=11,C=12
   const dayChar = encodeDayChar(now.getDate());
 
   const prefix = `SA${branchLetter}${year}${monthChar}${dayChar}`;

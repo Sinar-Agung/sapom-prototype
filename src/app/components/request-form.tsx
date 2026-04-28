@@ -429,7 +429,7 @@ export function RequestForm(props: RequestFormProps) {
         atasNama:
           typeof formData.namaPelanggan === "string"
             ? formData.namaPelanggan
-            : (formData.namaPelanggan as { name: string })?.name ?? "",
+            : ((formData.namaPelanggan as { name: string })?.name ?? ""),
         kategoriBarang: formData.kategoriBarang,
         jenisProduk: formData.jenisProduk,
         namaProduk: formData.namaProduk,

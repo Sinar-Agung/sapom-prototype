@@ -277,7 +277,10 @@ export function OrderCard({
       ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
       : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
 
-  const pabrikLabel: string = typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name || 'Unknown Supplier';
+  const pabrikLabel: string =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
 
   // Get revision count
   const revisionCount = order.revisionHistory?.length || 0;

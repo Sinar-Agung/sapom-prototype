@@ -912,7 +912,10 @@ export function OrderDetails({
       ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
       : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
 
-  const pabrikLabel = typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name || 'Unknown Supplier';
+  const pabrikLabel =
+    typeof order.pabrik === "string"
+      ? order.pabrik
+      : order.pabrik?.name || "Unknown Supplier";
 
   const getKadarColor = (_kadar: string) => "";
 

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## \[feat/request-order-merge\] — 2026-04-28 (patch)
+
+### Changed
+
+**Code Formatting — Prettier Pass**
+
+- Formatter rewrote single-line ternary expressions and inline array literals into multi-line style across 11 files; no logic or behaviour changed
+- Files: `eta-calendar.tsx`, `jb-home.tsx`, `my-requests.tsx`, `order-arrival.tsx`, `order-card.tsx`, `order-details.tsx`, `order-edit-form.tsx`, `request-form.tsx`, `supplier-home.tsx`, `unified-orders.tsx`, `request-number.ts`
+
+---
+
 ## \[feat/request-order-merge\] — 2026-04-28
 
 ### Changed

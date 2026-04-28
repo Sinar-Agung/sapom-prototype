@@ -260,7 +260,13 @@ export function MyOrders({
       // Show only request-phase orders (not yet written by JB)
       const all: Order[] = JSON.parse(savedOrders);
       const requestPhase = all.filter((o) =>
-        ["Open", "JB Verifying", "Requested to JB", "Request Expired", "Cancelled"].includes(o.status)
+        [
+          "Open",
+          "JB Verifying",
+          "Requested to JB",
+          "Request Expired",
+          "Cancelled",
+        ].includes(o.status),
       );
       setOrders(requestPhase);
     }
@@ -293,7 +299,13 @@ export function MyOrders({
     localStorage.setItem("orders", JSON.stringify(updatedRequests));
     // Update local state with request-phase subset
     const requestPhase = updatedRequests.filter((o) =>
-      ["Open", "JB Verifying", "Requested to JB", "Request Expired", "Cancelled"].includes(o.status)
+      [
+        "Open",
+        "JB Verifying",
+        "Requested to JB",
+        "Request Expired",
+        "Cancelled",
+      ].includes(o.status),
     );
     setOrders(requestPhase);
   };

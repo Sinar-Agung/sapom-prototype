@@ -6,8 +6,8 @@ import {
   NAMA_PRODUK_OPTIONS,
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
-import { Request } from "@/app/types/request";
 import { Order } from "@/app/types/order";
+import { Request } from "@/app/types/request";
 import { getStatusLabel } from "@/app/utils/status-colors";
 import {
   getBranchName,

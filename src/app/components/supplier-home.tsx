@@ -57,8 +57,10 @@ export function SupplierHome({ onNavigateToOrders }: SupplierHomeProps) {
       const allOrders: Order[] = JSON.parse(savedOrders);
 
       // Filter orders for this supplier
-      const myOrders = allOrders.filter(
-        (order) => (typeof order.pabrik === 'string' ? order.pabrik === supplierId : order.pabrik?.id === supplierId),
+      const myOrders = allOrders.filter((order) =>
+        typeof order.pabrik === "string"
+          ? order.pabrik === supplierId
+          : order.pabrik?.id === supplierId,
       );
 
       // Get 5 most recent orders

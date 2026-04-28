@@ -518,8 +518,10 @@ export function UnifiedOrders({
 
         if (userRole === "supplier" && supplierId) {
           // Filter by supplier ID only; kadar/branch filtering is done via UI filters
-          const myOrders = allOrders.filter(
-            (order) => (typeof order.pabrik === 'string' ? order.pabrik === supplierId : order.pabrik?.id === supplierId),
+          const myOrders = allOrders.filter((order) =>
+            typeof order.pabrik === "string"
+              ? order.pabrik === supplierId
+              : order.pabrik?.id === supplierId,
           );
           setOrders(myOrders);
         } else if (userRole === "sales") {
@@ -708,7 +710,11 @@ export function UnifiedOrders({
         ).toLowerCase();
         const jbId = order.jbId?.toLowerCase() || "";
         const jbFull = getFullNameFromUsername(order.jbId || "").toLowerCase();
-        const supplierName = (typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name || '').toLowerCase();
+        const supplierName = (
+          typeof order.pabrik === "string"
+            ? order.pabrik
+            : order.pabrik?.name || ""
+        ).toLowerCase();
         const customerName = order.atasNama?.toLowerCase() || "";
         const namaProduk = order.namaProduk?.toLowerCase() || "";
         const jenisProduk = order.jenisProduk?.toLowerCase() || "";

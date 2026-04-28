@@ -496,7 +496,7 @@ export function OrderEditForm({
       { value: "crm", label: "CRM" },
       { value: "lts-gold", label: "Lotus Gold" },
     ],
-    typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.id || '',
+    typeof order.pabrik === "string" ? order.pabrik : order.pabrik?.id || "",
   );
 
   return (
@@ -534,7 +534,11 @@ export function OrderEditForm({
               <Label className="text-gray-600 font-bold text-base">
                 Customer Name
               </Label>
-              <p className="font-medium mt-1">{typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name}</p>
+              <p className="font-medium mt-1">
+                {typeof order.pabrik === "string"
+                  ? order.pabrik
+                  : order.pabrik?.name}
+              </p>
             </div>
             <div>
               <Label className="text-gray-600 font-bold text-base">
