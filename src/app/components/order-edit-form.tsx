@@ -148,7 +148,7 @@ export function OrderEditForm({
 
   useEffect(() => {
     if (order.requestId) {
-      const saved = localStorage.getItem("requests");
+      const saved = localStorage.getItem("orders");
       if (saved) {
         const requests: Request[] = JSON.parse(saved);
         const req = requests.find((r) => r.id === order.requestId);
@@ -496,7 +496,7 @@ export function OrderEditForm({
       { value: "crm", label: "CRM" },
       { value: "lts-gold", label: "Lotus Gold" },
     ],
-    order.pabrik.id,
+    typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.id || '',
   );
 
   return (
@@ -534,7 +534,7 @@ export function OrderEditForm({
               <Label className="text-gray-600 font-bold text-base">
                 Customer Name
               </Label>
-              <p className="font-medium mt-1">{order.pabrik.name}</p>
+              <p className="font-medium mt-1">{typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name}</p>
             </div>
             <div>
               <Label className="text-gray-600 font-bold text-base">

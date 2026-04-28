@@ -292,7 +292,7 @@ export function OrderForm(props: OrderFormProps) {
     }
 
     // Get existing orders from local storage
-    const existingOrders = localStorage.getItem("requests");
+    const existingOrders = localStorage.getItem("orders");
     const orders = existingOrders ? JSON.parse(existingOrders) : [];
 
     if (mode === "edit" && initialData?.id) {
@@ -369,7 +369,7 @@ export function OrderForm(props: OrderFormProps) {
     }
 
     // Save back to local storage
-    localStorage.setItem("requests", JSON.stringify(orders));
+    localStorage.setItem("orders", JSON.stringify(orders));
 
     // Create notification for new request (only for new and duplicate modes)
     if (mode !== "edit") {

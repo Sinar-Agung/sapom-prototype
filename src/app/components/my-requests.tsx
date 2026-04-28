@@ -1,51 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Order } from "../types/order";
-import { EntityReference, Request } from "../types/request";
+import { Request } from "../types/request";
 import { notifyRequestCancelled } from "../utils/notification-helper";
 import { getCurrentUserDetails } from "../utils/user-data";
 import { FilterSortControls, SortOption } from "./filter-sort-controls";
 import { OrderCard } from "./order-card";
 import { Card } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-
-// Convert a Request to an Order-compatible structure for rendering with OrderCard
-function requestToOrder(request: Request): Order {
-  const pabrik: EntityReference =
-    typeof request.pabrik === "string"
-      ? { id: "", name: request.pabrik }
-      : (request.pabrik as EntityReference) || { id: "", name: "Unknown" };
-
-  return {
-    id: request.id,
-    PONumber: "",
-    requestNo: request.requestNo,
-    requestId: request.id,
-    sales: request.createdBy,
-    atasNama:
-      typeof request.namaPelanggan === "string"
-        ? request.namaPelanggan
-        : (request.namaPelanggan as EntityReference)?.name || "",
-    assignedSalesUsername: request.assignedSalesUsername,
-    notes: request.notes,
-    createdDate: request.timestamp,
-    createdBy: request.createdBy || "",
-    updatedDate: request.updatedDate,
-    jbId: "",
-    branchCode: request.branchCode,
-    pabrik,
-    kategoriBarang: request.kategoriBarang,
-    jenisProduk: request.jenisProduk,
-    namaProduk: request.namaProduk || "",
-    namaBasic: request.namaBasic || "",
-    waktuKirim: request.waktuKirim || "",
-    customerExpectation: request.customerExpectation || "",
-    detailItems: request.detailItems || [],
-    status: request.status as any,
-    photoId: request.photoId,
-    viewedBy: request.viewedBy || [],
-    rejectionReason: request.rejectionReason,
-  };
-}
 
 interface MyOrdersProps {
   onEditOrder?: (order: Request) => void;
@@ -89,7 +50,7 @@ export function MyOrders({
   justCreatedRequest,
   onClearJustCreated,
 }: MyOrdersProps) {
-  const [orders, setOrders] = useState<Request[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     console.log("🟢 MyOrders useState initialization");
@@ -294,9 +255,14 @@ export function MyOrders({
   }, [activeTab]);
 
   const loadOrders = () => {
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
+      // Show only request-phase orders (not yet written by JB)
+      const all: Order[] = JSON.parse(savedOrders);
+      const requestPhase = all.filter((o) =>
+        ["Open", "JB Verifying", "Requested to JB", "Request Expired", "Cancelled"].includes(o.status)
+      );
+      setOrders(requestPhase);
     }
   };
 
@@ -310,10 +276,10 @@ export function MyOrders({
   };
 
   const markRequestAsViewed = (requestId: string) => {
-    const savedRequests = localStorage.getItem("requests");
+    const savedRequests = localStorage.getItem("orders");
     if (!savedRequests) return;
 
-    const allRequests: Request[] = JSON.parse(savedRequests);
+    const allRequests: Order[] = JSON.parse(savedRequests);
     const updatedRequests = allRequests.map((req) => {
       if (req.id === requestId) {
         const viewedBy = req.viewedBy || [];
@@ -324,20 +290,29 @@ export function MyOrders({
       return req;
     });
 
-    localStorage.setItem("requests", JSON.stringify(updatedRequests));
-    setOrders(updatedRequests);
+    localStorage.setItem("orders", JSON.stringify(updatedRequests));
+    // Update local state with request-phase subset
+    const requestPhase = updatedRequests.filter((o) =>
+      ["Open", "JB Verifying", "Requested to JB", "Request Expired", "Cancelled"].includes(o.status)
+    );
+    setOrders(requestPhase);
   };
 
   const cancelOrder = (orderId: string) => {
-    const updatedOrders = orders.map((order: Request) =>
-      order.id === orderId ? { ...order, status: "Cancelled" } : order,
+    const updatedOrders = orders.map((order: Order) =>
+      order.id === orderId ? { ...order, status: "Cancelled" as const } : order,
     );
     setOrders(updatedOrders);
-    localStorage.setItem("requests", JSON.stringify(updatedOrders));
+    // Update in the full orders store
+    const all: Order[] = JSON.parse(localStorage.getItem("orders") ?? "[]");
+    const allUpdated = all.map((o) =>
+      o.id === orderId ? { ...o, status: "Cancelled" as const } : o,
+    );
+    localStorage.setItem("orders", JSON.stringify(allUpdated));
 
     // Create notification about the cancellation
     const cancelledRequest = updatedOrders.find(
-      (order: Request) => order.id === orderId,
+      (order: Order) => order.id === orderId,
     );
     if (cancelledRequest) {
       const currentUser =
@@ -426,7 +401,7 @@ export function MyOrders({
     return order.status === "Requested to JB";
   }).length;
   const orderedCount = requestNoFiltered.filter((order: Request) => {
-    return order.status === "Ordered";
+    return order.status === "New Order";
   }).length;
 
   // Calculate unseen counts (requests not viewed by current user)
@@ -461,7 +436,7 @@ export function MyOrders({
   ).length;
   const unseenOrderedCount = requestNoFiltered.filter(
     (order: Request) =>
-      order.status === "Ordered" && !order.viewedBy?.includes(currentUser),
+      order.status === "New Order" && !order.viewedBy?.includes(currentUser),
   ).length;
 
   // Total requests visible to current user
@@ -616,12 +591,12 @@ export function MyOrders({
     return `${dateStr} ${timeStr}`;
   };
 
-  const renderOrderCard = (order: Request) => {
+  const renderOrderCard = (order: Order) => {
     const isExpanded = expandedOrderId === order.id;
     const showSalesName = !!(
       order.createdBy && order.createdBy !== currentUser
     );
-    const orderData = requestToOrder(order);
+    const orderData = order as Order;
 
     // Atas nama sales (assignedSalesUsername) can view but not edit/cancel/duplicate
     const isAtasNama =

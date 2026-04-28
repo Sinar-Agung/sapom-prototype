@@ -66,7 +66,7 @@ export function SalesHome({
 
   const loadData = () => {
     const ordersJson = localStorage.getItem("orders");
-    const requestsJson = localStorage.getItem("requests");
+    const requestsJson = localStorage.getItem("orders");
     const arrivalsJson = localStorage.getItem("orderArrivals");
 
     const allOrders: Order[] = ordersJson ? JSON.parse(ordersJson) : [];

@@ -277,7 +277,7 @@ export function OrderArrivalComponent({
 
             <div>
               <span className="text-sm text-gray-600">Supplier</span>
-              <p className="font-medium">{order.pabrik.name}</p>
+              <p className="font-medium">{typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name}</p>
             </div>
 
             <div>

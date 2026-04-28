@@ -125,7 +125,7 @@ export function RequestDetails({
     );
 
     if (hasChanges) {
-      const savedOrders = localStorage.getItem("requests");
+      const savedOrders = localStorage.getItem("orders");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
         const orderIndex = orders.findIndex(
@@ -139,7 +139,7 @@ export function RequestDetails({
             "";
           orders[orderIndex].updatedDate = Date.now();
           orders[orderIndex].updatedBy = currentUser;
-          localStorage.setItem("requests", JSON.stringify(orders));
+          localStorage.setItem("orders", JSON.stringify(orders));
           setWasUpdated(true);
           setHasUnsavedChanges(false);
           return true;
@@ -286,7 +286,7 @@ export function RequestDetails({
       localStorage.getItem("username") ||
       "";
 
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
@@ -308,7 +308,7 @@ export function RequestDetails({
         orders[orderIndex].detailItems = updatedDetailItems;
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
-        localStorage.setItem("requests", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
 
         // Remove ETA reminder for this request and stockist
         removeETAReminderForStockist(request.id, currentUser);
@@ -349,7 +349,7 @@ export function RequestDetails({
     setDetailItems(updatedItems);
 
     // Save to local storage and update status
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
@@ -359,7 +359,7 @@ export function RequestDetails({
         orders[orderIndex].status = "Ready Stock Marketing";
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
-        localStorage.setItem("requests", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
 
         // Create notification for status change
         notifyRequestStatusChanged(

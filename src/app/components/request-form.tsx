@@ -310,8 +310,8 @@ export function RequestForm(props: RequestFormProps) {
       photoId = await storeImageDeduped(initialData.fotoBarangBase64);
     }
 
-    // Get existing orders from local storage
-    const existingOrders = localStorage.getItem("requests");
+    // Get existing orders from local storage (single "orders" store)
+    const existingOrders = localStorage.getItem("orders");
     const orders = existingOrders ? JSON.parse(existingOrders) : [];
 
     if (mode === "edit" && initialData?.id) {
@@ -417,12 +417,19 @@ export function RequestForm(props: RequestFormProps) {
 
       const baseOrderFields = {
         timestamp: Date.now(),
+        createdDate: Date.now(),
         createdBy: currentUser,
+        jbId: "",
+        sales: currentUser,
         branchCode: currentUserDetails?.branchCode || undefined,
         ...(isSalesInternal && atasNamaUsername
           ? { assignedSalesUsername: atasNamaUsername }
           : {}),
         pabrik: formData.pabrik,
+        atasNama:
+          typeof formData.namaPelanggan === "string"
+            ? formData.namaPelanggan
+            : (formData.namaPelanggan as { name: string })?.name ?? "",
         kategoriBarang: formData.kategoriBarang,
         jenisProduk: formData.jenisProduk,
         namaProduk: formData.namaProduk,
@@ -445,13 +452,16 @@ export function RequestForm(props: RequestFormProps) {
           ...baseOrderFields,
           id: mudaId,
           requestNo: generateRequestNo(branchCode),
+          PONumber: generateRequestNo(branchCode),
           detailItems: mudaItems.map((item) => ({ ...item, orderPcs: "0" })),
         };
         const tuaOrder = {
           ...baseOrderFields,
           id: tuaId,
           timestamp: Date.now() + 1,
+          createdDate: Date.now() + 1,
           requestNo: generateRequestNo(branchCode),
+          PONumber: generateRequestNo(branchCode),
           detailItems: tuaItems.map((item) => ({ ...item, orderPcs: "0" })),
         };
 
@@ -463,7 +473,7 @@ export function RequestForm(props: RequestFormProps) {
         notifyRequestCreated(tuaOrder, currentUser);
 
         // Save and show toast before navigating
-        localStorage.setItem("requests", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
         toast.success("Request split into 2: Kadar Muda & Kadar Tua");
 
         if (action === "save") {
@@ -478,12 +488,14 @@ export function RequestForm(props: RequestFormProps) {
 
       // Single request (no mixed kadar)
       const orderId = `order-${Date.now()}`;
+      const requestNo = generateRequestNo(
+        currentUserDetails?.branchCode ?? undefined,
+      );
       const order = {
         ...baseOrderFields,
         id: orderId,
-        requestNo: generateRequestNo(
-          currentUserDetails?.branchCode ?? undefined,
-        ),
+        requestNo,
+        PONumber: requestNo,
         detailItems: detailItems.map((item) => ({ ...item, orderPcs: "0" })),
       };
 
@@ -492,7 +504,7 @@ export function RequestForm(props: RequestFormProps) {
     }
 
     // Save back to local storage
-    localStorage.setItem("requests", JSON.stringify(orders));
+    localStorage.setItem("orders", JSON.stringify(orders));
 
     // Create notification for new request (only for new and duplicate modes)
     if (mode !== "edit") {

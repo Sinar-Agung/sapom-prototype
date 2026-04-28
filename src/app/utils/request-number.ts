@@ -12,7 +12,7 @@
  * Example: SAA261T00 = Jakarta, 2026, January, 29th, 1st number
  */
 
-import { Request } from "../types/request";
+import type { Order } from "../types/order";
 import type { BranchCode } from "./user-data";
 
 /**
@@ -37,17 +37,13 @@ function getBranchLetter(branchCode?: BranchCode): string {
  * Looks at both existing requests and existing orders to find the next sequence.
  */
 export function generateRequestNo(branchCode?: BranchCode): string {
-  const requests: Request[] = JSON.parse(
-    localStorage.getItem("requests") ?? "[]",
-  );
-  const orders: { PONumber: string }[] = JSON.parse(
+  const orders: Order[] = JSON.parse(
     localStorage.getItem("orders") ?? "[]",
   );
 
-  const existingNumbers = [
-    ...requests.map((r) => r.requestNo ?? ""),
-    ...orders.map((o) => o.PONumber ?? ""),
-  ].filter(Boolean);
+  const existingNumbers = orders
+    .flatMap((o) => [o.PONumber ?? "", o.requestNo ?? ""])
+    .filter(Boolean);
 
   return generatePONumber(branchCode, new Date(), existingNumbers);
 }

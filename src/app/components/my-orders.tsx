@@ -286,7 +286,7 @@ export function MyOrders({
   }, [initialTab, justCreatedRequest]);
 
   const loadOrders = () => {
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       setOrders(JSON.parse(savedOrders));
     }
@@ -301,7 +301,7 @@ export function MyOrders({
       order.id === orderId ? { ...order, status: "Cancelled" } : order,
     );
     setOrders(updatedOrders);
-    localStorage.setItem("requests", JSON.stringify(updatedOrders));
+    localStorage.setItem("orders", JSON.stringify(updatedOrders));
 
     // Create notification about the cancellation
     const cancelledRequest = updatedOrders.find(

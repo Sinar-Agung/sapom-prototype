@@ -139,7 +139,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
 
       // Save immediately if there are unsaved changes
       if (hasUnsavedChanges) {
-        const savedOrders = localStorage.getItem("requests");
+        const savedOrders = localStorage.getItem("orders");
         if (savedOrders) {
           const orders = JSON.parse(savedOrders);
           const orderIndex = orders.findIndex(
@@ -148,7 +148,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
           if (orderIndex !== -1) {
             orders[orderIndex].detailItems = orderItemsRef.current;
             orders[orderIndex].waktuKirim = eta;
-            localStorage.setItem("requests", JSON.stringify(orders));
+            localStorage.setItem("orders", JSON.stringify(orders));
           }
         }
       }
@@ -157,7 +157,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
 
   const saveChanges = () => {
     try {
-      const savedOrders = localStorage.getItem("requests");
+      const savedOrders = localStorage.getItem("orders");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
         const orderIndex = orders.findIndex(
@@ -167,7 +167,7 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
           // Read from ref to get the latest orderItems
           orders[orderIndex].detailItems = orderItemsRef.current;
           orders[orderIndex].waktuKirim = eta;
-          localStorage.setItem("requests", JSON.stringify(orders));
+          localStorage.setItem("orders", JSON.stringify(orders));
           setHasUnsavedChanges(false);
           return true;
         }
@@ -531,106 +531,48 @@ export function WriteOrder({ request, onBack }: WriteOrderProps) {
       localStorage.getItem("username") ||
       "User";
 
-    const savedRequests = localStorage.getItem("requests");
-    if (savedRequests) {
-      const requests = JSON.parse(savedRequests);
-      const requestIndex = requests.findIndex(
-        (o: Request) => o.id === request.id,
-      );
-      if (requestIndex !== -1) {
-        // Update the request status to "Ordered"
-        requests[requestIndex].status = "Ordered";
-        requests[requestIndex].updatedDate = Date.now();
-        requests[requestIndex].updatedBy = currentUser;
-        requests[requestIndex].waktuKirim = eta;
-        requests[requestIndex].detailItems = orderItems;
-        localStorage.setItem("requests", JSON.stringify(requests));
+    // Update the existing Order in-place (no separate entity creation)
+    const savedOrders = localStorage.getItem("orders");
+    if (savedOrders) {
+      const orders: Order[] = JSON.parse(savedOrders);
+      const orderIndex = orders.findIndex((o) => o.id === request.id);
+      if (orderIndex !== -1) {
+        const oldStatus = orders[orderIndex].status;
 
-        // Create a new Order object with orderPcs as pcs
+        // Update orderPcs-as-pcs for supplier view
         const orderDetailItems = orderItems.map((item) => ({
           ...item,
-          pcs: item.orderPcs || item.pcs, // Use orderPcs as the pcs value
+          pcs: item.orderPcs || item.pcs,
         }));
 
-        // PO Number is the same as the Request No — they share one number
-        const PONumber = request.requestNo ?? `SA-${Date.now()}`;
-
-        // Compute product display name
-        const productDisplayName =
-          request.kategoriBarang === "basic"
-            ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
-            : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
-
-        // Get sales and atas nama from the order (which is a request)
-        const salesUsername = request.createdBy || "";
         const atasNamaValue =
-          typeof request.namaPelanggan === "string"
+          orders[orderIndex].atasNama ||
+          (typeof request.namaPelanggan === "string"
             ? request.namaPelanggan
-            : request.namaPelanggan?.name || "";
+            : request.namaPelanggan?.name || "");
 
-        // Convert pabrik to EntityReference if it's a string
-        const pabrikRef: typeof request.pabrik =
-          typeof request.pabrik === "string"
-            ? { id: request.pabrik, name: request.pabrik }
-            : request.pabrik;
-
-        const orderTimestamp = Date.now();
-        const newOrder: Order = {
-          id: `order-${orderTimestamp}`,
-          PONumber,
-          requestNo: request.requestNo,
-          requestId: request.id,
-          createdDate: orderTimestamp,
-          updatedDate: orderTimestamp, // Set initial updatedDate same as createdDate
-          createdBy: currentUser,
+        orders[orderIndex] = {
+          ...orders[orderIndex],
           jbId: currentUser,
-          sales: salesUsername,
-          atasNama: atasNamaValue,
-          branchCode: request.branchCode,
-          assignedSalesUsername: request.assignedSalesUsername,
-          pabrik: pabrikRef as any,
-          kategoriBarang: request.kategoriBarang,
-          jenisProduk: request.jenisProduk,
-          namaProduk: request.namaProduk,
-          namaBasic: request.namaBasic,
-          namaBarang: productDisplayName,
-          waktuKirim: eta,
-          customerExpectation: request.customerExpectation,
-          detailItems: orderDetailItems,
-          photoId: request.photoId,
-          fotoBarangBase64: request.fotoBarangBase64,
           status: "New Order",
+          waktuKirim: eta,
+          detailItems: orderDetailItems,
+          atasNama: atasNamaValue,
+          updatedDate: Date.now(),
+          updatedBy: currentUser,
         };
 
-        // Save the new order to localStorage
-        const savedOrders = localStorage.getItem("orders");
-        const orders: Order[] = savedOrders ? JSON.parse(savedOrders) : [];
-        orders.push(newOrder);
         localStorage.setItem("orders", JSON.stringify(orders));
 
-        // Update request status to "Ordered"
-        const savedRequests = localStorage.getItem("requests");
-        if (savedRequests) {
-          const requests: Request[] = JSON.parse(savedRequests);
-          const requestIndex = requests.findIndex((r) => r.id === request.id);
-          if (requestIndex !== -1) {
-            const oldStatus = requests[requestIndex].status;
-            requests[requestIndex].status = "Ordered";
-            requests[requestIndex].updatedDate = Date.now();
-            requests[requestIndex].updatedBy = currentUser;
-            localStorage.setItem("requests", JSON.stringify(requests));
-
-            // Create notification for request status change to Ordered
-            notifyRequestStatusChanged(
-              requests[requestIndex],
-              oldStatus,
-              "Ordered",
-              currentUser,
-              "jb",
-              newOrder,
-            );
-          }
-        }
+        // Notify for the status change
+        notifyRequestStatusChanged(
+          orders[orderIndex],
+          oldStatus,
+          "New Order",
+          currentUser,
+          "jb",
+          orders[orderIndex],
+        );
 
         toast.success("Order created successfully!");
         setTimeout(() => {

@@ -115,7 +115,7 @@ export function VerifyStock({
     );
 
     if (hasChanges) {
-      const savedOrders = localStorage.getItem("requests");
+      const savedOrders = localStorage.getItem("orders");
       if (savedOrders) {
         const orders = JSON.parse(savedOrders);
         const orderIndex = orders.findIndex(
@@ -129,7 +129,7 @@ export function VerifyStock({
             "";
           orders[orderIndex].updatedDate = Date.now();
           orders[orderIndex].updatedBy = currentUser;
-          localStorage.setItem("requests", JSON.stringify(orders));
+          localStorage.setItem("orders", JSON.stringify(orders));
           setWasUpdated(true);
           setHasUnsavedChanges(false);
           return true;
@@ -234,7 +234,7 @@ export function VerifyStock({
 
   useEffect(() => {
     // Load the latest data from localStorage to get saved availablePcs values
-    const savedRequests = localStorage.getItem("requests");
+    const savedRequests = localStorage.getItem("orders");
     let itemsToUse = request.detailItems;
 
     if (savedRequests) {
@@ -326,7 +326,7 @@ export function VerifyStock({
       localStorage.getItem("username") ||
       "";
 
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
@@ -348,7 +348,7 @@ export function VerifyStock({
         orders[orderIndex].detailItems = updatedDetailItems;
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
-        localStorage.setItem("requests", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
 
         // Remove ETA reminder for this request and stockist
         removeETAReminderForStockist(request.id, currentUser);
@@ -389,7 +389,7 @@ export function VerifyStock({
     setDetailItems(updatedItems);
 
     // Save to local storage and update status
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const orders = JSON.parse(savedOrders);
       const orderIndex = orders.findIndex((o: Request) => o.id === request.id);
@@ -399,7 +399,7 @@ export function VerifyStock({
         orders[orderIndex].status = "Ready Stock Marketing";
         orders[orderIndex].updatedDate = Date.now();
         orders[orderIndex].updatedBy = currentUser;
-        localStorage.setItem("requests", JSON.stringify(orders));
+        localStorage.setItem("orders", JSON.stringify(orders));
 
         // Create notification for status change
         notifyRequestStatusChanged(

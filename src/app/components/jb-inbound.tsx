@@ -1,4 +1,4 @@
-import { Order, OrderArrival } from "@/app/types/order";
+import { Order, OrderArrival, OrderStatus } from "@/app/types/order";
 import {
   notifyOrderArrival,
   notifyOrderClosed,

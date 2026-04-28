@@ -55,8 +55,8 @@ export const upsertRequestExpiringNotification = (
     if (!targetAudience.includes("jb")) targetAudience.push("jb");
   }
 
-  // Sales: see all expiring requests that are not Ordered yet
-  if (request.status !== "Ordered" && userRole === "sales") {
+  // Sales: see all expiring requests that JB hasn't written yet
+  if (request.status !== "New Order" && userRole === "sales") {
     shouldNotify = true;
     if (!targetAudience.includes("sales")) targetAudience.push("sales");
   }
@@ -119,7 +119,7 @@ export const checkAndNotifyExpiringRequests = (
   userRole: "sales" | "stockist" | "jb" | "supplier",
 ) => {
   console.log(`Checking expiring requests for ${username} (${userRole})`);
-  const requestsJson = localStorage.getItem("requests");
+  const requestsJson = localStorage.getItem("orders");
   if (!requestsJson) return;
 
   const requests = JSON.parse(requestsJson);
@@ -131,19 +131,18 @@ export const checkAndNotifyExpiringRequests = (
 // Check all requests and expire those that have passed their ETA
 export const checkAndExpireRequests = () => {
   console.log("Checking for expired requests");
-  const requestsJson = localStorage.getItem("requests");
+  const requestsJson = localStorage.getItem("orders");
   if (!requestsJson) return;
 
   const requests: Request[] = JSON.parse(requestsJson);
 
-  // Load orders to check whether a request has been written into one
-  const ordersJson = localStorage.getItem("orders");
-  const orders: { requestId?: string }[] = ordersJson
-    ? JSON.parse(ordersJson)
-    : [];
-  const orderedRequestIds = new Set(
-    orders.map((o) => o.requestId).filter(Boolean),
-  );
+  // No need to load a separate "orders" store — everything is unified.
+  // Orders that have been written by JB will have status beyond the request-phase.
+  const REQUEST_PHASE_STATUSES = new Set([
+    "Open",
+    "JB Verifying",
+    "Requested to JB",
+  ]);
 
   const now = new Date();
   let hasChanges = false;
@@ -153,14 +152,9 @@ export const checkAndExpireRequests = () => {
     if (
       !req.waktuKirim ||
       req.status === "Request Expired" ||
-      req.status === "Ordered" ||
-      req.status === "Cancelled"
+      req.status === "Cancelled" ||
+      !REQUEST_PHASE_STATUSES.has(req.status)
     ) {
-      return;
-    }
-
-    // Skip if this request has been written into an order by JB
-    if (orderedRequestIds.has(req.id)) {
       return;
     }
 
@@ -248,7 +242,7 @@ export const checkAndExpireRequests = () => {
 
   // Save updated requests if any changes
   if (hasChanges) {
-    localStorage.setItem("requests", JSON.stringify(requests));
+    localStorage.setItem("orders", JSON.stringify(requests));
     console.log("Expired requests updated");
   }
 };
@@ -378,7 +372,7 @@ export const getNotificationsForUser = (
   console.log(`User ${username} branch: ${userBranchCode}`);
 
   // Get all requests to check their status
-  const requestsJson = localStorage.getItem("requests");
+  const requestsJson = localStorage.getItem("orders");
   const requests = requestsJson ? JSON.parse(requestsJson) : [];
   console.log("All requests:", requests.length);
 
@@ -1590,7 +1584,7 @@ export const notifyOrderStatusChanged = (
   const resolvedOrderForMessage: typeof order =
     !order.assignedSalesUsername && order.requestId
       ? (() => {
-          const savedRequests = localStorage.getItem("requests");
+          const savedRequests = localStorage.getItem("orders");
           if (savedRequests) {
             const allRequests = JSON.parse(savedRequests);
             const linked = allRequests.find(
@@ -1634,7 +1628,7 @@ export const notifyOrderStatusChanged = (
     // Resolve assignedSalesUsername from order or fallback to original request in localStorage
     let resolvedAssignedSales = order.assignedSalesUsername;
     if (!resolvedAssignedSales && order.requestId) {
-      const savedRequests = localStorage.getItem("requests");
+      const savedRequests = localStorage.getItem("orders");
       if (savedRequests) {
         const allRequests = JSON.parse(savedRequests);
         const linkedRequest = allRequests.find(

@@ -6,7 +6,7 @@
  */
 
 import type { Order, OrderRevision } from "../types/order";
-import type { DetailBarangItem, Request } from "../types/request";
+import type { DetailBarangItem } from "../types/request";
 import { storeImageDeduped } from "./image-storage";
 import {
   getAllNotifications,
@@ -267,7 +267,7 @@ export const populateMockData = async (): Promise<{
   // Snapshot notification count before we start
   const notifsBefore = getAllNotifications().length;
 
-  const newRequests: Request[] = [];
+  const newRequests: Order[] = [];
   const newOrders: Order[] = [];
 
   // Pre-generate an image ID for each scenario (all async, run in parallel)
@@ -286,17 +286,22 @@ export const populateMockData = async (): Promise<{
     // Stagger timestamps so they look realistic
     const createdAt = now - scenario.daysAgo * DAY - i * 37 * MIN; // slight jitter
 
-    // ── Build request ──
+    // ── Build Order (unified entity, starts as Open) ──
     const reqId = uid("req", tag, i);
     const requestNo = generatePONumber(branch, new Date(createdAt), []);
 
-    const request: Request = {
+    const request: Order = {
       id: reqId,
-      timestamp: createdAt,
+      PONumber: requestNo,
       requestNo,
+      timestamp: createdAt,
+      createdDate: createdAt,
       createdBy: sales.username,
       updatedDate: createdAt,
       updatedBy: sales.username,
+      jbId: "",
+      sales: sales.username,
+      atasNama: cust.name,
       branchCode: branch,
       pabrik: { id: sup.id, name: sup.name },
       namaPelanggan: { id: cust.id, name: cust.name },
@@ -390,54 +395,28 @@ export const populateMockData = async (): Promise<{
       return;
     }
 
-    // ── JB writes an order ──
+    // ── JB writes an order (updates the existing entity in-place) ──
     if (scenario.requestEnd === "ordered" && scenario.orderEnd) {
       const orderCreatedAt = createdAt + 8 * HR;
-      const orderId = uid("order", tag, i);
-      const PONumber =
-        request.requestNo ??
-        generatePONumber(branch, new Date(orderCreatedAt), []);
 
-      const order: Order = {
-        id: orderId,
-        PONumber,
-        requestNo: request.requestNo,
-        requestId: request.id,
-        sales: sales.username,
-        atasNama: cust.name,
-        createdDate: orderCreatedAt,
-        createdBy: jb,
-        updatedDate: orderCreatedAt,
-        updatedBy: jb,
-        jbId: jb,
-        branchCode: branch,
-        pabrik: { id: sup.id, name: sup.name },
-        kategoriBarang: prod.kategoriBarang,
-        jenisProduk: prod.jenisProduk,
-        namaProduk: prod.namaProduk,
-        namaBasic: prod.namaBasic,
-        waktuKirim: request.waktuKirim,
-        customerExpectation: request.customerExpectation,
-        detailItems: [...request.detailItems],
-        photoId,
-        status: "New Order",
-      };
-
-      // Mark request as Ordered
-      request.status = "Ordered";
+      // Update the request entity in-place to become an Order
+      request.jbId = jb;
+      request.createdDate = request.createdDate ?? createdAt;
       request.updatedDate = orderCreatedAt;
       request.updatedBy = jb;
+      request.status = "New Order";
+
       notifyRequestStatusChanged(
         request,
         "Requested to JB",
-        "Ordered",
+        "New Order",
         jb,
         "jb",
-        order,
+        request,
       );
 
       // Order created notification
-      notifyOrderCreated(order, jb);
+      notifyOrderCreated(request, jb);
 
       // ── Progress order through its lifecycle ──
       const supplierUser = sup.username;
@@ -454,12 +433,12 @@ export const populateMockData = async (): Promise<{
         scenario.orderEnd === "stock-ready"
       ) {
         // Supplier views the order
-        order.status = "Supplier Viewed";
-        order.viewedBy = [supplierUser];
-        order.updatedDate = orderCreatedAt + 4 * HR;
-        order.updatedBy = supplierUser;
+        request.status = "Supplier Viewed";
+        request.viewedBy = [supplierUser];
+        request.updatedDate = orderCreatedAt + 4 * HR;
+        request.updatedBy = supplierUser;
         notifyOrderStatusChanged(
-          order,
+          request,
           "New Order",
           "Supplier Viewed",
           supplierUser,
@@ -475,7 +454,7 @@ export const populateMockData = async (): Promise<{
       ) {
         // Supplier proposes changes → Pending Sales Review
         const revisedItems = [
-          ...order.detailItems,
+          ...request.detailItems,
           makeItem(tag, i * 3 + 10, String(3 + (i % 5))),
         ];
 
@@ -486,31 +465,31 @@ export const populateMockData = async (): Promise<{
           revisionNotes:
             "Adjusted weight and added extra item per supplier capacity",
           changes: {
-            kategoriBarang: order.kategoriBarang,
-            jenisProduk: order.jenisProduk,
-            namaProduk: order.namaProduk,
-            namaBasic: order.namaBasic,
+            kategoriBarang: request.kategoriBarang,
+            jenisProduk: request.jenisProduk,
+            namaProduk: request.namaProduk,
+            namaBasic: request.namaBasic,
             detailItems: revisedItems,
-            photoId: order.photoId,
+            photoId: request.photoId,
           },
           previousValues: {
-            kategoriBarang: order.kategoriBarang,
-            jenisProduk: order.jenisProduk,
-            namaProduk: order.namaProduk,
-            namaBasic: order.namaBasic,
-            detailItems: [...order.detailItems],
-            photoId: order.photoId,
+            kategoriBarang: request.kategoriBarang,
+            jenisProduk: request.jenisProduk,
+            namaProduk: request.namaProduk,
+            namaBasic: request.namaBasic,
+            detailItems: [...request.detailItems],
+            photoId: request.photoId,
           },
         };
 
-        order.status = "Pending Sales Review";
-        order.revisionHistory = [revision];
-        order.revisionNotes = revision.revisionNotes;
-        order.detailItems = revisedItems;
-        order.updatedDate = orderCreatedAt + 8 * HR;
-        order.updatedBy = supplierUser;
+        request.status = "Pending Sales Review";
+        request.revisionHistory = [revision];
+        request.revisionNotes = revision.revisionNotes;
+        request.detailItems = revisedItems;
+        request.updatedDate = orderCreatedAt + 8 * HR;
+        request.updatedBy = supplierUser;
         notifyOrderStatusChanged(
-          order,
+          request,
           "Supplier Viewed",
           "Pending Sales Review",
           supplierUser,
@@ -524,14 +503,14 @@ export const populateMockData = async (): Promise<{
         scenario.orderEnd === "stock-ready"
       ) {
         // JB approves the revision → Order Revised
-        order.status = "Order Revised";
-        order.jbApproved = true;
-        order.salesApproved = true;
-        order.updatedDate = orderCreatedAt + 12 * HR;
-        order.updatedBy = jb;
-        notifyOrderRevised(order, jb);
+        request.status = "Order Revised";
+        request.jbApproved = true;
+        request.salesApproved = true;
+        request.updatedDate = orderCreatedAt + 12 * HR;
+        request.updatedBy = jb;
+        notifyOrderRevised(request, jb);
         notifyOrderStatusChanged(
-          order,
+          request,
           "Pending Sales Review",
           "Order Revised",
           jb,
@@ -544,11 +523,11 @@ export const populateMockData = async (): Promise<{
         scenario.orderEnd === "stock-ready"
       ) {
         // Supplier starts production
-        order.status = "In Production";
-        order.updatedDate = orderCreatedAt + DAY;
-        order.updatedBy = supplierUser;
+        request.status = "In Production";
+        request.updatedDate = orderCreatedAt + DAY;
+        request.updatedBy = supplierUser;
         notifyOrderStatusChanged(
-          order,
+          request,
           "Order Revised",
           "In Production",
           supplierUser,
@@ -558,11 +537,11 @@ export const populateMockData = async (): Promise<{
 
       if (scenario.orderEnd === "stock-ready") {
         // Supplier marks stock ready
-        order.status = "Stock Ready";
-        order.updatedDate = orderCreatedAt + 3 * DAY;
-        order.updatedBy = supplierUser;
+        request.status = "Stock Ready";
+        request.updatedDate = orderCreatedAt + 3 * DAY;
+        request.updatedBy = supplierUser;
         notifyOrderStatusChanged(
-          order,
+          request,
           "In Production",
           "Stock Ready",
           supplierUser,
@@ -570,29 +549,23 @@ export const populateMockData = async (): Promise<{
         );
       }
 
-      newOrders.push(order);
-      newRequests.push(request);
+      // Push to orders (unified store — the request IS the order)
+      newOrders.push(request);
       return;
     }
 
     newRequests.push(request);
   });
 
-  // ── Merge into localStorage ─────────────────────────────────────────────
-  const existingRequests: unknown[] = JSON.parse(
-    localStorage.getItem("requests") || "[]",
-  );
-  localStorage.setItem(
-    "requests",
-    JSON.stringify([...existingRequests, ...newRequests]),
-  );
-
+  // ── Merge into localStorage (single "orders" store) ─────────────────────
   const existingOrders: unknown[] = JSON.parse(
     localStorage.getItem("orders") || "[]",
   );
+  // Combine request-phase and order-phase entities — all stored in "orders"
+  const allNew = [...newRequests, ...newOrders];
   localStorage.setItem(
     "orders",
-    JSON.stringify([...existingOrders, ...newOrders]),
+    JSON.stringify([...existingOrders, ...allNew]),
   );
 
   const notifsAfter = getAllNotifications().length;

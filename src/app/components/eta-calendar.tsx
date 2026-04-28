@@ -71,7 +71,7 @@ export function ETACalendar({
   // Load requests and orders from localStorage
   const { etaMap, items } = useMemo(() => {
     const requests: Request[] = JSON.parse(
-      localStorage.getItem("requests") ?? "[]",
+      localStorage.getItem("orders") ?? "[]",
     );
     const orders: Order[] = JSON.parse(localStorage.getItem("orders") ?? "[]");
     const user =
@@ -86,7 +86,7 @@ export function ETACalendar({
       if (
         r.status === "Cancelled" ||
         r.status === "Request Expired" ||
-        r.status === "Ordered"
+        r.status === "New Order"
       )
         return false;
       if (userRole === "sales" && r.createdBy !== user) return false;
@@ -104,7 +104,7 @@ export function ETACalendar({
       )
         return false;
       if (userRole === "sales" && o.sales !== user) return false;
-      if (userRole === "supplier" && supplierId && o.pabrik?.id !== supplierId)
+      if (userRole === "supplier" && supplierId && (typeof o.pabrik === "string" ? o.pabrik !== supplierId : o.pabrik?.id !== supplierId))
         return false;
       return true;
     });

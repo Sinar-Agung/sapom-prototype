@@ -236,7 +236,7 @@ export function Notifications({
       }
     } catch (_) {}
     try {
-      const rawRequests = localStorage.getItem("requests");
+      const rawRequests = localStorage.getItem("orders");
       if (rawRequests) {
         (JSON.parse(rawRequests) as Request[]).forEach((r) => {
           const kadarList = ((r as any).detailItems || [])
@@ -972,14 +972,14 @@ export function Notifications({
     const requestNotes = (() => {
       try {
         if (notification.entityType === "request") {
-          const reqs = JSON.parse(localStorage.getItem("requests") || "[]");
+          const reqs = JSON.parse(localStorage.getItem("orders") || "[]");
           const req = reqs.find((r: any) => r.id === notification.entityId);
           return req?.notes || "";
         } else if (notification.entityType === "order") {
           const orders = JSON.parse(localStorage.getItem("orders") || "[]");
           const ord = orders.find((o: any) => o.id === notification.entityId);
           if (ord?.requestId) {
-            const reqs = JSON.parse(localStorage.getItem("requests") || "[]");
+            const reqs = JSON.parse(localStorage.getItem("orders") || "[]");
             const req = reqs.find((r: any) => r.id === ord.requestId);
             return req?.notes || ord?.notes || "";
           }

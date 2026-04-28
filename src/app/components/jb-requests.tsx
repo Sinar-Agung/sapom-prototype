@@ -132,9 +132,14 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   }, [activeTab]);
 
   const loadOrders = () => {
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
+      // Only show request-phase entries in this view
+      const all: Request[] = JSON.parse(savedOrders);
+      const requestPhase = all.filter((o) =>
+        ["Requested to JB", "Request Expired", "New Order"].includes(o.status),
+      );
+      setOrders(requestPhase);
     }
   };
 
@@ -148,7 +153,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   };
 
   const markRequestAsViewed = (requestId: string) => {
-    const savedRequests = localStorage.getItem("requests");
+    const savedRequests = localStorage.getItem("orders");
     if (!savedRequests) return;
 
     const allRequests: Request[] = JSON.parse(savedRequests);
@@ -162,7 +167,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
       return req;
     });
 
-    localStorage.setItem("requests", JSON.stringify(updatedRequests));
+    localStorage.setItem("orders", JSON.stringify(updatedRequests));
     setOrders(updatedRequests);
   };
 
@@ -191,7 +196,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
     (order: Request) => order.status === "Requested to JB",
   ).length;
   const filteredWaitingCount = requestNoFiltered.filter(
-    (order: Request) => order.status === "Ordered",
+    (order: Request) => order.status === "New Order",
   ).length;
   const filteredExpiredCount = requestNoFiltered.filter(
     (order: Request) => order.status === "Request Expired",
@@ -210,7 +215,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
   ).length;
   const unseenWaitingCount = requestNoFiltered.filter(
     (order: Request) =>
-      order.status === "Ordered" && !order.viewedBy?.includes(currentUser),
+      order.status === "New Order" && !order.viewedBy?.includes(currentUser),
   ).length;
   const unseenExpiredCount = requestNoFiltered.filter(
     (order: Request) =>
@@ -223,7 +228,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
     if (activeTab === "assigned") {
       return order.status === "Requested to JB";
     } else if (activeTab === "waiting") {
-      return order.status === "Ordered";
+      return order.status === "New Order";
     } else if (activeTab === "expired") {
       return order.status === "Request Expired";
     }
@@ -272,7 +277,7 @@ export function JBRequests({ onSeeDetail, initialTab }: JBRequestsProps) {
     (order: Request) => order.status === "Requested to JB",
   ).length;
   const waitingCount = orders.filter(
-    (order: Request) => order.status === "Ordered",
+    (order: Request) => order.status === "New Order",
   ).length;
   const expiredCount = orders.filter(
     (order: Request) => order.status === "Request Expired",

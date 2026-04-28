@@ -263,7 +263,7 @@ export default function App() {
     // When JB opens an Open request, update status to JB Verifying
     let updatedOrder = order;
     if (userRole === "jb" && order.status === "Open") {
-      const savedRequests = localStorage.getItem("requests");
+      const savedRequests = localStorage.getItem("orders");
       if (savedRequests) {
         const allRequests = JSON.parse(savedRequests);
         const idx = allRequests.findIndex((r: any) => r.id === order.id);
@@ -277,7 +277,7 @@ export default function App() {
             updatedDate: Date.now(),
             updatedBy: currentUser,
           };
-          localStorage.setItem("requests", JSON.stringify(allRequests));
+          localStorage.setItem("orders", JSON.stringify(allRequests));
           updatedOrder = { ...order, status: "JB Verifying" };
         }
       }
@@ -389,7 +389,7 @@ export default function App() {
     setCameFromNotifications(true);
 
     // Load the request from localStorage
-    const requestsJson = localStorage.getItem("requests");
+    const requestsJson = localStorage.getItem("orders");
     if (!requestsJson) {
       console.error("No requests found in localStorage");
       return;
@@ -447,7 +447,7 @@ export default function App() {
     // If status is Open or JB Verifying, show the original request detail page
     if (order.status === "Open" || order.status === "JB Verifying") {
       const requestId = order.requestId || order.id;
-      const savedRequests = localStorage.getItem("requests");
+      const savedRequests = localStorage.getItem("orders");
       if (savedRequests) {
         const allRequests = JSON.parse(savedRequests);
         const request = allRequests.find((r: any) => r.id === requestId);
@@ -696,7 +696,7 @@ export default function App() {
 
   const handleJBRejectRequest = (reason: string) => {
     if (!verifyingOrder) return;
-    const savedRequests = localStorage.getItem("requests");
+    const savedRequests = localStorage.getItem("orders");
     if (savedRequests) {
       const allRequests = JSON.parse(savedRequests);
       const idx = allRequests.findIndex((r: any) => r.id === verifyingOrder.id);
@@ -705,7 +705,7 @@ export default function App() {
         allRequests[idx].rejectionReason = reason;
         allRequests[idx].updatedDate = Date.now();
         allRequests[idx].updatedBy = currentUser;
-        localStorage.setItem("requests", JSON.stringify(allRequests));
+        localStorage.setItem("orders", JSON.stringify(allRequests));
         notifyRequestRejectedByJB(allRequests[idx], currentUser, reason);
         toast.success("Request rejected");
         handleBackFromVerify();

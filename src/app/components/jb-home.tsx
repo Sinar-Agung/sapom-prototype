@@ -7,6 +7,7 @@ import {
   PABRIK_OPTIONS,
 } from "@/app/data/order-data";
 import { Request } from "@/app/types/request";
+import { Order } from "@/app/types/order";
 import { getStatusLabel } from "@/app/utils/status-colors";
 import {
   getBranchName,
@@ -63,7 +64,7 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
   }, []);
 
   const loadData = () => {
-    const savedOrders = localStorage.getItem("requests");
+    const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
       const allOrders: Request[] = JSON.parse(savedOrders);
       const currentUserDetails = getCurrentUserDetails();
@@ -97,9 +98,9 @@ export function JBHome({ onNavigateToTab, onSeeDetail }: JBHomeProps) {
       setCompletedCount(
         orders.filter(
           (o) =>
-            o.status === "Done" ||
-            o.status === "Ready Stock Marketing" ||
-            o.status === "Stock Unavailable",
+            o.status === "Completed" ||
+            o.status === "Closed" ||
+            o.status === "Confirmed by JB",
         ).length,
       );
     }

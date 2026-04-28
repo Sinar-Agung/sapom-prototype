@@ -472,7 +472,7 @@ export function UnifiedOrders({
   const loadData = () => {
     // Load requests (for personal, sales, jb roles)
     if (userRole === "personal" || userRole === "sales" || userRole === "jb") {
-      const savedRequests = localStorage.getItem("requests");
+      const savedRequests = localStorage.getItem("orders");
       if (savedRequests) {
         const allRequests: Request[] = JSON.parse(savedRequests);
 
@@ -519,7 +519,7 @@ export function UnifiedOrders({
         if (userRole === "supplier" && supplierId) {
           // Filter by supplier ID only; kadar/branch filtering is done via UI filters
           const myOrders = allOrders.filter(
-            (order) => order.pabrik?.id === supplierId,
+            (order) => (typeof order.pabrik === 'string' ? order.pabrik === supplierId : order.pabrik?.id === supplierId),
           );
           setOrders(myOrders);
         } else if (userRole === "sales") {
@@ -575,14 +575,14 @@ export function UnifiedOrders({
     setRequests(updatedRequests);
 
     const allRequests: Request[] = JSON.parse(
-      localStorage.getItem("requests") || "[]",
+      localStorage.getItem("orders") || "[]",
     );
     const updatedAllRequests = allRequests.map((request: Request) =>
       request.id === requestToCancel
         ? { ...request, status: "Cancelled" }
         : request,
     );
-    localStorage.setItem("requests", JSON.stringify(updatedAllRequests));
+    localStorage.setItem("orders", JSON.stringify(updatedAllRequests));
 
     const cancelledRequest = updatedAllRequests.find(
       (request) => request.id === requestToCancel,
@@ -615,7 +615,7 @@ export function UnifiedOrders({
         return r;
       });
 
-      localStorage.setItem("requests", JSON.stringify(updatedRequests));
+      localStorage.setItem("orders", JSON.stringify(updatedRequests));
 
       request = {
         ...request,
@@ -708,7 +708,7 @@ export function UnifiedOrders({
         ).toLowerCase();
         const jbId = order.jbId?.toLowerCase() || "";
         const jbFull = getFullNameFromUsername(order.jbId || "").toLowerCase();
-        const supplierName = order.pabrik?.name?.toLowerCase() || "";
+        const supplierName = (typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name || '').toLowerCase();
         const customerName = order.atasNama?.toLowerCase() || "";
         const namaProduk = order.namaProduk?.toLowerCase() || "";
         const jenisProduk = order.jenisProduk?.toLowerCase() || "";
@@ -1071,14 +1071,14 @@ export function UnifiedOrders({
         setRequests(updatedRequests);
 
         const allRequests: Request[] = JSON.parse(
-          localStorage.getItem("requests") || "[]",
+          localStorage.getItem("orders") || "[]",
         );
         const updatedAllRequests = allRequests.map((r: Request) =>
           r.id === id
             ? { ...r, viewedBy: [...(r.viewedBy || []), currentUser] }
             : r,
         );
-        localStorage.setItem("requests", JSON.stringify(updatedAllRequests));
+        localStorage.setItem("orders", JSON.stringify(updatedAllRequests));
       }
     } else {
       const order = orders.find((o: Order) => o.id === id);

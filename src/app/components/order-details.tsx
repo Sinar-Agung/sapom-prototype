@@ -761,16 +761,11 @@ export function OrderDetails({
   };
 
   useEffect(() => {
-    // Load the related request from localStorage
-    if (order?.requestId) {
-      const savedRequests = localStorage.getItem("requests");
-      if (savedRequests) {
-        const requests: Request[] = JSON.parse(savedRequests);
-        const request = requests.find((r) => r.id === order.requestId);
-        if (request) {
-          setRelatedRequest(request);
-        }
-      }
+    // After the request-order merge, the order IS the original request.
+    // Set relatedRequest to the order itself so the "original request" panel
+    // can display namaPelanggan, createdBy, revisionHistory, etc.
+    if (order) {
+      setRelatedRequest(order as unknown as Request);
     }
   }, [order]);
 
@@ -917,7 +912,7 @@ export function OrderDetails({
       ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
       : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
 
-  const pabrikLabel = order.pabrik?.name || "Unknown Supplier";
+  const pabrikLabel = typeof order.pabrik === 'string' ? order.pabrik : order.pabrik?.name || 'Unknown Supplier';
 
   const getKadarColor = (_kadar: string) => "";
 

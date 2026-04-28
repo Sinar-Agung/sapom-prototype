@@ -9,6 +9,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## \[feat/request-order-merge\] — 2026-04-28
+
+### Changed
+
+**Unified Request + Order Entity Model**
+
+Requests and Orders are now a single entity throughout the entire lifecycle. When Sales (or Sales Internal) creates a "request", it is immediately stored as an `Order` with status `"Open"` — there is no longer a separate `Request` entity or a `"requests"` localStorage key.
+
+**Type System**
+
+- `Order` in `types/order.ts` is the canonical entity class for all lifecycle stages
+- `OrderStatus` extended with request-phase values: `"Open"`, `"JB Verifying"`, `"Requested to JB"`, `"Request Expired"`
+- `Order` interface extended with request-phase fields: `namaPelanggan?: EntityReference | string`, `timestamp?: number`, `stockistId?: string`; `pabrik` widened to `EntityReference | string`
+- `DetailBarangItem` and `EntityReference` moved from `request.ts` into `order.ts` (fixes circular import)
+- `types/request.ts` replaced with thin re-export file: `Request = Order`, `RequestRevision = OrderRevision` — all existing code importing `Request` continues to compile without changes
+- `types/index.ts` exports updated to reflect the new structure
+- Updated: `src/app/types/order.ts`, `src/app/types/request.ts`, `src/app/types/index.ts`
+
+**Storage — Single `"orders"` Key**
+
+- All components and utilities previously reading/writing `localStorage["requests"]` now use `localStorage["orders"]`
+- `request-number.ts` generates both `requestNo` and `PONumber` from the unified `"orders"` array
+- `mock-data.ts` populates a single `"orders"` store; request-phase and order-phase scenarios are merged into one array (`[...newRequests, ...newOrders]`)
+- Updated: `src/app/utils/request-number.ts`, `src/app/utils/mock-data.ts`
+
+**`request-form.tsx` — Creates Orders Directly**
+
+- On submit, builds a full `Order` object (status `"Open"`) with all required fields: `PONumber`, `jbId: ""`, `sales`, `atasNama`, `timestamp`, `createdDate`
+- Saves to `localStorage["orders"]`
+
+**`write-order.tsx` — In-Place Update**
+
+- `handleCreateOrderStatus()` no longer creates a new Order entity
+- Finds the existing Order by `request.id` in `"orders"`, updates it in-place: sets `jbId = currentUser`, `status = "New Order"`, `waktuKirim`, `detailItems` with order pcs, `atasNama`
+- Eliminates entity duplication and the previously dangling `"Ordered"` status on the request
+
+**`order-details.tsx` — `relatedRequest` Simplified**
+
+- `relatedRequest` state is now set directly to the current order (since the order IS the original request)
+- Removed the previous `useEffect` that searched `localStorage["requests"]` by `order.requestId`
+
+**`jb-requests.tsx` — Load Filter**
+
+- `loadOrders()` now filters to request-phase statuses only (`["Requested to JB", "Request Expired", "New Order"]`) from the unified `"orders"` store
+- `"Ordered"` tab filter updated to `"New Order"` (the status used after JB writes)
+
+**`notification-helper.ts` — `checkAndExpireRequests`**
+
+- Reads exclusively from `"orders"`
+- Skips expiry for entries not in request-phase: checks `REQUEST_PHASE_STATUSES` set (`"Open"`, `"JB Verifying"`, `"Requested to JB"`) instead of previously comparing against a separate ordered-ids set from `"orders"`
+
+**`jb-home.tsx` — Status Fixes**
+
+- Completed count filter updated from non-existent `"Done"` / `"Ready Stock Marketing"` / `"Stock Unavailable"` to `"Completed"` / `"Closed"` / `"Confirmed by JB"`
+- Added missing `Order` type import
+
+**`eta-calendar.tsx` — Status + Type Fixes**
+
+- `"Ordered"` filter replaced with `"New Order"`
+- `pabrik` access updated to handle `string | EntityReference` union safely
+
+**`pabrik` Union Type — Multi-File Fix**
+
+- `order-arrival.tsx`, `order-card.tsx`, `order-details.tsx`, `order-edit-form.tsx`, `unified-orders.tsx`, `supplier-home.tsx`: all `pabrik.name` / `pabrik.id` accesses guarded with `typeof pabrik === 'string'` checks
+
+**`jb-inbound.tsx`**
+
+- Added missing `OrderStatus` import
+
+**Bulk Storage Key Updates (sed)**
+
+- 16 files had `localStorage.getItem("requests")` / `localStorage.setItem("requests", …)` replaced with `"orders"`:
+  `App.tsx`, `eta-calendar.tsx`, `jb-requests.tsx`, `my-orders.tsx`, `my-requests.tsx`, `notifications.tsx`, `order-details.tsx`, `order-edit-form.tsx`, `order-form.tsx`, `request-details.tsx`, `sales-home.tsx`, `stockist-home.tsx`, `unified-orders.tsx`, `verify-stock.tsx`
+
+---
+
 ### Changed
 
 **`user-data.ts` — Credential Comment Reformatted**
