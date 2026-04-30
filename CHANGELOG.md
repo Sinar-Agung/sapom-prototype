@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## \[Unreleased\]
 
+### Changed
+
+**Order Creation Terminology Updates**
+
+- Updated `order-form.tsx` UI labels and messages from "request" to "order": save button text, confirmation dialogs, toast messages, and comments
+- Updated `App.tsx` form titles: "Create Request" → "Create Order", "Edit Request" → "Edit Order", "Create New Request" → "Create New Order"
+- Updated `request-form-header.tsx` notes placeholder text to reference "order" instead of "request"
+- Renamed notification helper functions for clarity: `notifyRequestCreated` → `notifyOrderCreated`, `notifyRequestUpdated` → `notifyOrderUpdated`
+- Updated all function calls and imports across `order-form.tsx`, `request-form.tsx`, and `mock-data.ts` to use the new function names
+
 ---
 
 ## \[feat/request-order-merge\] — 2026-04-28 (patch)

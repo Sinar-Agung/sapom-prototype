@@ -14,7 +14,7 @@ import {
   notifyOrderRevised,
   notifyOrderStatusChanged,
   notifyRequestCancelled,
-  notifyRequestCreated,
+  notifyOrderCreated,
   notifyRequestReviewed,
   notifyRequestStatusChanged,
   notifyRequestViewedByStockist,
@@ -325,7 +325,7 @@ export const populateMockData = async (): Promise<{
     };
 
     // Step 1: Request created notification
-    notifyRequestCreated(request, sales.username);
+    notifyOrderCreated(request, sales.username);
 
     // ── Progress the request through its lifecycle ──
 

@@ -12,8 +12,8 @@ import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { storeImageDeduped } from "@/app/utils/image-storage";
 import {
-  notifyRequestCreated,
-  notifyRequestUpdated,
+  notifyOrderCreated,
+  notifyOrderUpdated,
 } from "@/app/utils/notification-helper";
 import { generateRequestNo } from "@/app/utils/request-number";
 import { getCurrentUserDetails, SALES_USERS } from "@/app/utils/user-data";
@@ -386,7 +386,7 @@ export function RequestForm(props: RequestFormProps) {
         // Create notification about the update
         const newRequest = orders[orderIndex];
         if (newRequest.status === "Open") {
-          notifyRequestUpdated(oldRequest, newRequest, currentUser);
+          notifyOrderUpdated(oldRequest, newRequest, currentUser);
         }
       }
     } else {
@@ -469,8 +469,8 @@ export function RequestForm(props: RequestFormProps) {
         setLastSavedOrderId(mudaId);
 
         // Notify for both
-        notifyRequestCreated(mudaOrder, currentUser);
-        notifyRequestCreated(tuaOrder, currentUser);
+        notifyOrderCreated(mudaOrder, currentUser);
+        notifyOrderCreated(tuaOrder, currentUser);
 
         // Save and show toast before navigating
         localStorage.setItem("orders", JSON.stringify(orders));
@@ -513,7 +513,7 @@ export function RequestForm(props: RequestFormProps) {
         localStorage.getItem("username") ||
         "";
       const savedOrder = orders[orders.length - 1]; // Get the newly added order
-      notifyRequestCreated(savedOrder, currentUser);
+      notifyOrderCreated(savedOrder, currentUser);
     }
 
     // Show success toast
@@ -673,7 +673,7 @@ export function RequestForm(props: RequestFormProps) {
   return (
     <div className="space-y-4 p-2 sm:p-0">
       <Card className="p-3 sm:p-4">
-        {/* Header with Title and Action Buttons */}
+        {/* Header with Title and Action Buttons */}fefefe
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <div className="flex items-center gap-3">
             {onCancel && (
@@ -701,7 +701,6 @@ export function RequestForm(props: RequestFormProps) {
             </Button>
           </div>
         </div>
-
         {/* Header Section */}
         <RequestFormHeader
           formData={formData}
@@ -723,7 +722,6 @@ export function RequestForm(props: RequestFormProps) {
           atasNamaValue={atasNamaUsername}
           onAtasNamaChange={isSalesInternal ? setAtasNamaUsername : undefined}
         />
-
         {/* Input Detail Barang Section */}
         <div className="border-t pt-4 mb-4">
           <DetailItemsSection
@@ -739,7 +737,6 @@ export function RequestForm(props: RequestFormProps) {
             }
           />
         </div>
-
         {/* Submit Buttons */}
         <div className="mt-6 flex gap-1.5 sm:gap-2">
           <Button

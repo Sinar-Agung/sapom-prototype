@@ -21,10 +21,10 @@ import { Navigation } from "./components/navigation";
 import { Notifications } from "./components/notifications";
 import { OrderDetails } from "./components/order-details";
 import { OrderEditForm } from "./components/order-edit-form";
+import { OrderForm } from "./components/order-form";
 import { QuestionForm } from "./components/question-form";
 import { Register } from "./components/register";
 import { RequestDetails } from "./components/request-details";
-import { RequestForm } from "./components/request-form";
 import { SalesHome } from "./components/sales-home";
 import { SalesQuestions } from "./components/sales-questions";
 import { Settings } from "./components/settings";
@@ -759,9 +759,9 @@ export default function App() {
   };
 
   const getFormTitle = () => {
-    if (formMode === "edit") return "Edit Request";
-    if (formMode === "duplicate") return "Create New Request";
-    return "Create Request";
+    if (formMode === "edit") return "Edit Order";
+    if (formMode === "duplicate") return "Create New Order";
+    return "Create Order";
   };
 
   const handleCancelEdit = () => {
@@ -948,7 +948,7 @@ export default function App() {
         );
       case "tambah-pesanan":
         return (
-          <RequestForm
+          <OrderForm
             onFormChange={setHasFormChanges}
             initialData={editingOrder}
             mode={formMode}
@@ -1210,7 +1210,7 @@ export default function App() {
         );
       default:
         return (
-          <RequestForm
+          <OrderForm
             onFormChange={setHasFormChanges}
             initialData={editingOrder}
             mode={formMode}

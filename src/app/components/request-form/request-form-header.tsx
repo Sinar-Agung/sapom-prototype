@@ -84,6 +84,8 @@ interface RequestFormHeaderProps {
   atasNamaValue?: string;
   /** Called when the Atas Nama dropdown value changes */
   onAtasNamaChange?: (value: string) => void;
+  /** When true, the Atas Nama dropdown is shown but disabled (e.g. in edit mode) */
+  atasNamaDisabled?: boolean;
 }
 
 export function RequestFormHeader({
@@ -99,6 +101,7 @@ export function RequestFormHeader({
   atasNamaOptions,
   atasNamaValue,
   onAtasNamaChange,
+  atasNamaDisabled = false,
 }: RequestFormHeaderProps) {
   const existingPhotoData = useImage(existingPhotoId);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -215,16 +218,17 @@ export function RequestFormHeader({
           {/* Atas Nama — only shown for Sales Internal */}
           {atasNamaOptions &&
             atasNamaOptions.length > 0 &&
-            onAtasNamaChange && (
+            (onAtasNamaChange || atasNamaDisabled) && (
               <>
                 <Label htmlFor="atasNama" className="text-xs md:pt-2">
                   Atas Nama
                 </Label>
                 <select
                   id="atasNama"
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
                   value={atasNamaValue ?? ""}
-                  onChange={(e) => onAtasNamaChange(e.target.value)}
+                  onChange={(e) => onAtasNamaChange?.(e.target.value)}
+                  disabled={atasNamaDisabled}
                 >
                   <option value="">— Tidak ada / None —</option>
                   {atasNamaOptions.map((s) => (
@@ -348,16 +352,16 @@ export function RequestFormHeader({
           />
 
           {/* Product Notes */}
-          <Label htmlFor="requestNotes" className="text-xs md:pt-2">
+          <Label htmlFor="orderNotes" className="text-xs md:pt-2">
             Product Notes
           </Label>
           <textarea
-            id="requestNotes"
+            id="orderNotes"
             value={formData.notes || ""}
             onChange={(e) =>
               onFormDataChange({ ...formData, notes: e.target.value })
             }
-            placeholder="Optional notes about this request..."
+            placeholder="Optional notes about this order..."
             rows={2}
             className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           />

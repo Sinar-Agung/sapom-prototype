@@ -731,38 +731,38 @@ export const createNotification = (
   return notification;
 };
 
-// Helper: Create notification for request creation
-export const notifyRequestCreated = (request: Request, createdBy: string) => {
+// Helper: Create notification for order creation
+export const notifyOrderCreated = (order: Order, createdBy: string) => {
   const creatorName = getFullNameFromUsername(createdBy);
 
   // Get product name (Jenis Produk + Nama Basic/Nama Model)
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
-    request.jenisProduk,
+    order.jenisProduk,
   );
   const productNameLabel =
-    request.kategoriBarang === "basic"
-      ? getLabelFromValue(NAMA_BASIC_OPTIONS, request.namaBasic)
-      : getLabelFromValue(NAMA_PRODUK_OPTIONS, request.namaProduk);
+    order.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, order.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, order.namaProduk);
   const productName = `${jenisProdukLabel} ${productNameLabel}`;
 
   // Get Atas Nama
   const atasNamaLabel =
-    typeof request.namaPelanggan === "string"
-      ? getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan)
-      : request.namaPelanggan?.name ||
-        getLabelFromValue(ATAS_NAMA_OPTIONS, request.namaPelanggan?.id || "");
+    typeof order.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, order.namaPelanggan)
+      : order.namaPelanggan?.name ||
+        getLabelFromValue(ATAS_NAMA_OPTIONS, order.namaPelanggan?.id || "");
 
   // Get Supplier/Pabrik name
   const pabrikLabel =
-    typeof request.pabrik === "string"
-      ? getLabelFromValue(PABRIK_OPTIONS, request.pabrik)
-      : request.pabrik?.name ||
-        getLabelFromValue(PABRIK_OPTIONS, request.pabrik?.id || "");
+    typeof order.pabrik === "string"
+      ? getLabelFromValue(PABRIK_OPTIONS, order.pabrik)
+      : order.pabrik?.name ||
+        getLabelFromValue(PABRIK_OPTIONS, order.pabrik?.id || "");
 
   console.log(
-    "Creating notification for request:",
-    request.requestNo || request.id,
+    "Creating notification for order:",
+    order.requestNo || order.id,
     "by",
     creatorName,
   );
@@ -781,14 +781,14 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
   const title = `<strong class="text-green-600">${productName}</strong>${atasNamaLabel ? ` for ${atasNamaLabel}` : ""}`;
 
   // Message: Supplier, ETA, Sales, and item count
-  const etaDate = formatDate(request.waktuKirim);
-  const itemCount = request.detailItems?.length || 0;
+  const etaDate = formatDate(order.waktuKirim);
+  const itemCount = order.detailItems?.length || 0;
   const creatorUser = findUserByUsername(createdBy);
   const isSalesInternalCreator = creatorUser?.accountType === "salesInternal";
   const salesLabel = isSalesInternalCreator ? "Sales Int." : "Sales";
   const atasNamaSalesLine =
-    isSalesInternalCreator && request.assignedSalesUsername
-      ? `\nA/N Sales: ${getFullNameFromUsername(request.assignedSalesUsername)}`
+    isSalesInternalCreator && order.assignedSalesUsername
+      ? `\nA/N Sales: ${getFullNameFromUsername(order.assignedSalesUsername)}`
       : "";
   const message = `Supplier: ${pabrikLabel}\nETA: ${etaDate}\n${salesLabel}: ${creatorName}${atasNamaSalesLine}\nItem count: ${itemCount}`;
 
@@ -797,33 +797,33 @@ export const notifyRequestCreated = (request: Request, createdBy: string) => {
     createdBy,
     "sales",
     "request",
-    request.id,
-    request.requestNo || request.id,
+    order.id,
+    order.requestNo || order.id,
     title,
     message,
     ["sales", "stockist", "jb"], // Include sales so they can see their own request creation
     (() => {
       const specific: string[] = [createdBy]; // notify the author themselves
       if (
-        request.assignedSalesUsername &&
-        !specific.includes(request.assignedSalesUsername)
+        order.assignedSalesUsername &&
+        !specific.includes(order.assignedSalesUsername)
       )
-        specific.push(request.assignedSalesUsername);
+        specific.push(order.assignedSalesUsername);
       return specific;
     })(),
     undefined,
     undefined,
     undefined,
     createdBy, // originator
-    request.branchCode, // branchCode
+    order.branchCode, // branchCode
   );
 
   console.log("Notification created:", notification.id);
 
-  // Check if this request is expiring and create expiring notification
-  upsertRequestExpiringNotification(request, "sales");
-  upsertRequestExpiringNotification(request, "stockist");
-  upsertRequestExpiringNotification(request, "jb");
+  // Check if this order is expiring and create expiring notification
+  upsertRequestExpiringNotification(order, "sales");
+  upsertRequestExpiringNotification(order, "stockist");
+  upsertRequestExpiringNotification(order, "jb");
 
   return notification;
 };
@@ -1340,8 +1340,8 @@ const buildOrderSalesLines = (order: Order): string => {
   return `Sales: ${salesName}`;
 };
 
-// Helper: Create notification for order creation
-export const notifyOrderCreated = (order: Order, createdBy: string) => {
+// Helper: Create notification for an order-written event (JB writes an actual order)
+export const notifyOrderWritten = (order: Order, createdBy: string) => {
   const supplierName =
     typeof order.pabrik === "string"
       ? order.pabrik
@@ -2110,9 +2110,9 @@ export const notifyOrderClosed = (order: Order, closedBy: string) => {
 };
 
 // Helper: Create notification for request update
-export const notifyRequestUpdated = (
-  oldRequest: Request,
-  newRequest: Request,
+export const notifyOrderUpdated = (
+  oldOrder: Order,
+  newOrder: Order,
   updatedBy: string,
 ) => {
   const changes: NotificationChange[] = [];
@@ -2120,28 +2120,28 @@ export const notifyRequestUpdated = (
   // Get product name (Jenis Produk + Nama Basic/Nama Model)
   const jenisProdukLabel = getLabelFromValue(
     JENIS_PRODUK_OPTIONS,
-    newRequest.jenisProduk,
+    newOrder.jenisProduk,
   );
   const productNameLabel =
-    newRequest.kategoriBarang === "basic"
-      ? getLabelFromValue(NAMA_BASIC_OPTIONS, newRequest.namaBasic)
-      : getLabelFromValue(NAMA_PRODUK_OPTIONS, newRequest.namaProduk);
+    newOrder.kategoriBarang === "basic"
+      ? getLabelFromValue(NAMA_BASIC_OPTIONS, newOrder.namaBasic)
+      : getLabelFromValue(NAMA_PRODUK_OPTIONS, newOrder.namaProduk);
   const productName = `${jenisProdukLabel} ${productNameLabel}`;
 
   // Get Atas Nama
   const atasNamaLabel =
-    typeof newRequest.namaPelanggan === "string"
-      ? getLabelFromValue(ATAS_NAMA_OPTIONS, newRequest.namaPelanggan)
-      : newRequest.namaPelanggan?.name ||
+    typeof newOrder.namaPelanggan === "string"
+      ? getLabelFromValue(ATAS_NAMA_OPTIONS, newOrder.namaPelanggan)
+      : newOrder.namaPelanggan?.name ||
         getLabelFromValue(
           ATAS_NAMA_OPTIONS,
-          newRequest.namaPelanggan?.id || "",
+          newOrder.namaPelanggan?.id || "",
         );
 
-  // Check if this request is expiring and create/update expiring notification
-  upsertRequestExpiringNotification(newRequest, "sales");
-  upsertRequestExpiringNotification(newRequest, "stockist");
-  upsertRequestExpiringNotification(newRequest, "jb");
+  // Check if this order is expiring and create/update expiring notification
+  upsertRequestExpiringNotification(newOrder, "sales");
+  upsertRequestExpiringNotification(newOrder, "stockist");
+  upsertRequestExpiringNotification(newOrder, "jb");
 
   // Helper to get display value for entity references
   const getDisplayValue = (value: any): string => {
@@ -2153,101 +2153,101 @@ export const notifyRequestUpdated = (
 
   // Check factory/supplier change
   if (
-    getDisplayValue(oldRequest.pabrik) !== getDisplayValue(newRequest.pabrik)
+    getDisplayValue(oldOrder.pabrik) !== getDisplayValue(newOrder.pabrik)
   ) {
     changes.push({
       field: "Factory",
-      oldValue: getDisplayValue(oldRequest.pabrik),
-      newValue: getDisplayValue(newRequest.pabrik),
+      oldValue: getDisplayValue(oldOrder.pabrik),
+      newValue: getDisplayValue(newOrder.pabrik),
     });
   }
 
   // Check customer change
   if (
-    getDisplayValue(oldRequest.namaPelanggan) !==
-    getDisplayValue(newRequest.namaPelanggan)
+    getDisplayValue(oldOrder.namaPelanggan) !==
+    getDisplayValue(newOrder.namaPelanggan)
   ) {
     changes.push({
       field: "Customer",
-      oldValue: getDisplayValue(oldRequest.namaPelanggan),
-      newValue: getDisplayValue(newRequest.namaPelanggan),
+      oldValue: getDisplayValue(oldOrder.namaPelanggan),
+      newValue: getDisplayValue(newOrder.namaPelanggan),
     });
   }
 
   // Check category change
-  if (oldRequest.kategoriBarang !== newRequest.kategoriBarang) {
+  if (oldOrder.kategoriBarang !== newOrder.kategoriBarang) {
     changes.push({
       field: "Category",
-      oldValue: oldRequest.kategoriBarang,
-      newValue: newRequest.kategoriBarang,
+      oldValue: oldOrder.kategoriBarang,
+      newValue: newOrder.kategoriBarang,
     });
   }
 
   // Check product type change
-  if (oldRequest.jenisProduk !== newRequest.jenisProduk) {
+  if (oldOrder.jenisProduk !== newOrder.jenisProduk) {
     changes.push({
       field: "Product Type",
-      oldValue: oldRequest.jenisProduk,
-      newValue: newRequest.jenisProduk,
+      oldValue: oldOrder.jenisProduk,
+      newValue: newOrder.jenisProduk,
     });
   }
 
   // Check product name change
-  if (oldRequest.namaProduk !== newRequest.namaProduk) {
+  if (oldOrder.namaProduk !== newOrder.namaProduk) {
     changes.push({
       field: "Product Name",
-      oldValue: oldRequest.namaProduk,
-      newValue: newRequest.namaProduk,
+      oldValue: oldOrder.namaProduk,
+      newValue: newOrder.namaProduk,
     });
   }
 
   // Check basic name change
-  if (oldRequest.namaBasic !== newRequest.namaBasic) {
+  if (oldOrder.namaBasic !== newOrder.namaBasic) {
     changes.push({
       field: "Basic Name",
-      oldValue: oldRequest.namaBasic,
-      newValue: newRequest.namaBasic,
+      oldValue: oldOrder.namaBasic,
+      newValue: newOrder.namaBasic,
     });
   }
 
   // Check delivery time change
-  if (oldRequest.waktuKirim !== newRequest.waktuKirim) {
+  if (oldOrder.waktuKirim !== newOrder.waktuKirim) {
     changes.push({
       field: "Delivery Time",
-      oldValue: oldRequest.waktuKirim
-        ? new Date(oldRequest.waktuKirim).toLocaleDateString("id-ID")
+      oldValue: oldOrder.waktuKirim
+        ? new Date(oldOrder.waktuKirim).toLocaleDateString("id-ID")
         : "",
-      newValue: newRequest.waktuKirim
-        ? new Date(newRequest.waktuKirim).toLocaleDateString("id-ID")
+      newValue: newOrder.waktuKirim
+        ? new Date(newOrder.waktuKirim).toLocaleDateString("id-ID")
         : "",
     });
   }
 
   // Check customer expectation change
-  if (oldRequest.customerExpectation !== newRequest.customerExpectation) {
+  if (oldOrder.customerExpectation !== newOrder.customerExpectation) {
     changes.push({
       field: "Customer Expectation",
-      oldValue: oldRequest.customerExpectation,
-      newValue: newRequest.customerExpectation,
+      oldValue: oldOrder.customerExpectation,
+      newValue: newOrder.customerExpectation,
     });
   }
 
   // Check detail items changes
-  const oldItemsJson = JSON.stringify(oldRequest.detailItems || []);
-  const newItemsJson = JSON.stringify(newRequest.detailItems || []);
+  const oldItemsJson = JSON.stringify(oldOrder.detailItems || []);
+  const newItemsJson = JSON.stringify(newOrder.detailItems || []);
   if (oldItemsJson !== newItemsJson) {
     changes.push({
       field: "Detail Items",
-      oldValue: `${oldRequest.detailItems?.length || 0} item(s)`,
-      newValue: `${newRequest.detailItems?.length || 0} item(s)`,
+      oldValue: `${oldOrder.detailItems?.length || 0} item(s)`,
+      newValue: `${newOrder.detailItems?.length || 0} item(s)`,
     });
   }
 
   // Check photo change
-  if (oldRequest.fotoBarangBase64 !== newRequest.fotoBarangBase64) {
+  if (oldOrder.fotoBarangBase64 !== newOrder.fotoBarangBase64) {
     changes.push({
       field: "Product Photo",
-      oldValue: oldRequest.fotoBarangBase64 ? "Yes" : "No",
+      oldValue: oldOrder.fotoBarangBase64 ? "Yes" : "No",
       newValue: newRequest.fotoBarangBase64 ? "Yes" : "No",
     });
   }
@@ -2302,8 +2302,8 @@ export const notifyRequestUpdated = (
     changes,
     undefined,
     undefined,
-    newRequest.createdBy,
-    newRequest.branchCode,
+    newOrder.createdBy,
+    newOrder.branchCode,
   );
 };
 
